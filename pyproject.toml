@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools", "setuptools-rust"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "goupil"
+authors = [
+    {name = "Valentin Niess", email = "valentin.niess@gmail.com"}
+]
+description = "A backward accelerator for gamma rays transport."
+readme = "README.md"
+license = {text = "LGPLv3"}
+keywords = ["gamma rays", "Monte Carlo", "backward"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics"
+]
+version = "0.1.3"
+requires-python = ">=3.7.0"
+dependencies = [
+    "numpy >= 1.6.0",
+]
+
+[project.urls]
+source = "https://github.com/niess/goupil"
+
+[tool.setuptools.packages.find]
+where = ["src/python"]
+
+[[tool.setuptools-rust.ext-modules]]
+target = "goupil.goupil"
+args = ["--features", "python"]
+
+# Build options for Python wheels.
+[tool.cibuildwheel.linux]
+before-all = "curl -sSf https://sh.rustup.rs -o rustup.sh ; sh rustup.sh -y"
+build = "cp37-manylinux_x86_64"
+environment = "PATH=$HOME/.cargo/bin:$PATH"
+manylinux-x86_64-image = "manylinux2014"
+
+[tool.cibuildwheel.macos]
+build = "cp37-macosx_x86_64"

@@ -1,0 +1,125 @@
+use anyhow::{Context, Result};
+use crate::numerics::{float::Float, rand::FloatRng};
+use getrandom::getrandom;
+use pyo3::prelude::*;
+use rand::SeedableRng;
+use serde_derive::{Deserialize, Serialize};
+use super::numpy::{PyArray, PyScalar};
+
+#[cfg(not(feature = "f32"))]
+use rand_pcg::Pcg64Mcg as Generator;
+#[cfg(feature = "f32")]
+use rand_pcg::Pcg32 as Generator;
+
+#[cfg(not(feature = "f32"))]
+type Index = u128;
+#[cfg(feature = "f32")]
+type Index = u64;
+
+
+#[derive(Deserialize, Serialize)]
+#[pyclass(name = "RandomStream", module = "goupil")]
+pub struct PyRandomStream {
+    pub(crate) generator: Generator,
+
+    /// Random stream current index.
+    #[pyo3(get)]
+    index: Index,
+
+    /// Random stream seed.
+    #[pyo3(get)]
+    seed: u128,
+}
+
+#[pymethods]
+impl PyRandomStream {
+    #[new]
+    pub fn new(seed: Option<u128>) -> Result<Self> {
+        #[cfg(not(feature = "f32"))]
+        let generator = Generator::new(0xCAFEF00DD15EA5E5);
+        #[cfg(feature = "f32")]
+        let generator = Generator::new(0xCAFEF00DD15EA5E5, 0xA02BDBF7BB3C0A7);
+        let mut obj = Self { generator, seed: 0, index: 0 };
+        obj.initialise(seed)?;
+        Ok(obj)
+    }
+
+    #[setter]
+    fn set_index(&mut self, index: Option<Index>) -> Result<()> {
+        match index {
+            None => self.initialise(Some(self.seed))?,
+            Some(index) => {
+                let delta: Index = index - self.index;
+                self.generator.advance(delta);
+                self.index = index;
+            },
+        }
+        Ok(())
+    }
+
+    #[setter]
+    fn set_seed(&mut self, seed: Option<u128>) -> Result<()> {
+        self.initialise(seed)
+    }
+
+    /// Generates pseudo random number(s) following the Normal law.
+    #[pyo3(name = "normal")]
+    fn py_normal(&mut self, py: Python, n: Option<usize>) -> Result<PyObject> {
+        self.generate(py, n, Self::normal)
+    }
+
+    /// Generates pseudo random number(s) uniformly distributed over (0,1).
+    #[pyo3(name = "uniform01")]
+    fn py_uniform01(&mut self, py: Python, n: Option<usize>) -> Result<PyObject> {
+        self.generate(py, n, Self::uniform01)
+    }
+}
+
+impl FloatRng for PyRandomStream {
+    fn uniform01(&mut self) -> Float {
+        self.index += 1;
+        self.generator.uniform01()
+    }
+}
+
+// Private interface.
+impl PyRandomStream {
+    fn initialise(&mut self, seed: Option<u128>) -> Result<()> {
+        match seed {
+            None => {
+                let mut seed = [0_u8; 16];
+                getrandom(&mut seed)
+                    .with_context(|| "could not seed RandomEngine")?;
+                self.generator = Generator::from_seed(seed);
+                self.seed = u128::from_ne_bytes(seed);
+            },
+            Some(seed) => {
+                self.seed = seed;
+                let seed = u128::to_ne_bytes(seed);
+                self.generator = Generator::from_seed(seed);
+            },
+        }
+        self.index = 0;
+        Ok(())
+    }
+
+    fn generate(
+        &mut self,
+        py: Python,
+        n: Option<usize>,
+        func: fn(&mut Self) -> Float
+    ) -> Result<PyObject> {
+        match n {
+            None => {
+                let value = func(self);
+                let scalar = PyScalar::new(py, value)?;
+                Ok(scalar.into())
+            },
+            Some(n) => {
+                let iter = (0..n).map(|_| func(self));
+                let array: &PyAny = PyArray::<Float>::from_iter(py, &[n], iter)?;
+                Ok(array.into())
+            },
+        }
+    }
+}

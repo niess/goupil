@@ -1,0 +1,9 @@
+/build
+/Cargo.lock
+/dist
+/src/python/goupil/data
+/target
+/wheelhouse
+*.egg-info
+*.pyc
+*.so
