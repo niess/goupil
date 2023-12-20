@@ -71,8 +71,7 @@ impl AtomicElement {
     }
 
     pub fn from_Z(Z: i32) -> Result<&'static Self> {
-        let index = usize::try_from(Z - 1)?;
-        match ELEMENTS.get(index) {
+        match ELEMENTS.get((Z - 1) as usize) {
             None => bail!(
                 "bad atomic number (expected a value in [1, {}], found {})",
                 ELEMENTS.len(),

@@ -7,7 +7,6 @@ use pyo3::exceptions::PyNotImplementedError;
 use pyo3::types::{PyBytes, PyTuple};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use super::macros::value_error;
 
 
 // ===============================================================================================
@@ -21,25 +20,12 @@ pub struct PyAtomicElement (pub(crate) &'static AtomicElement);
 impl PyAtomicElement {
     #[allow(non_snake_case)]
     #[new]
-    fn new(symbol: Option<&str>, Z: Option<i32>) -> Result<Self> {
-        let element = match symbol {
-            None => match Z {
-                None => AtomicElement::none(),
-                Some(Z) => AtomicElement::from_Z(Z)?,
-            },
-            Some(symbol) => {
-                let element = AtomicElement::from_symbol(symbol)?;
-                if let Some(Z) = Z {
-                    if element.Z != Z {
-                        value_error!(
-                            "bad atomic number for {} (expected {}, found {})",
-                            element.symbol,
-                            element.Z,
-                            Z
-                        )
-                    }
-                }
-                element
+    fn new(arg: Option<AtomArg>) -> Result<Self> {
+        let element = match arg.as_ref() {
+            None => AtomicElement::none(),
+            Some(arg) => match arg {
+                AtomArg::Z(Z) => AtomicElement::from_Z(*Z)?,
+                AtomArg::Symbol(symbol) => AtomicElement::from_symbol(symbol)?,
             },
         };
         Ok(Self(element))
