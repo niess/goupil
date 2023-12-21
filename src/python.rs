@@ -73,6 +73,13 @@ mod macros {
     }
     pub(crate) use key_error;
 
+    macro_rules! not_implemented_error {
+        ($($tts:tt)*) => {
+            return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!($($tts)*)).into())
+        }
+    }
+    pub(crate) use not_implemented_error;
+
     macro_rules! type_error {
         ($($tts:tt)*) => {
             return Err(pyo3::exceptions::PyTypeError::new_err(format!($($tts)*)).into())

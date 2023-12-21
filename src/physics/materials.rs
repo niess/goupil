@@ -7,7 +7,7 @@ use crate::physics::process::compton::{
     self,
     ComptonModel::{self, KleinNishina, Penelope, ScatteringFunction},
     compute::ComptonComputer,
-    ComptonMethod::{InverseCDF, RejectionSampling},
+    ComptonMethod::{InverseTransform, RejectionSampling},
     ComptonMode::{self, Adjoint, Direct, Inverse},
     table::{ComptonCrossSection, ComptonCDF, ComptonInverseCDF},
 };
@@ -275,7 +275,7 @@ impl MaterialRegistry {
         let mut items = Vec::<Item>::default();
 
         match method {
-            InverseCDF => match mode {
+            InverseTransform => match mode {
                 Adjoint | Direct => match constraint {
                     None => {
                         items.push(Item {

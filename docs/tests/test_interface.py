@@ -44,3 +44,37 @@ def test_AtomicElement():
 
 def test_ComptonProcess():
     """Test usage of a ComptonProcess."""
+
+    # Check constructor.
+    process = goupil.ComptonProcess()
+    assert process.method == "Rejection Sampling"
+    assert process.mode == "Direct"
+    assert process.model == "Scattering Function"
+    assert process.precision == 1.0
+
+    for method in ("Inverse Transform", "Rejection Sampling"):
+        for mode in ("Adjoint", "Direct", "Inverse"):
+            for model in ("Klein-Nishina", "Penelope", "Scattering Function"):
+                try:
+                    process = goupil.ComptonProcess(
+                        method=method,
+                        mode=mode,
+                        model=model
+                    )
+                except NotImplementedError as e:
+                    if str(e).startswith("bad sampling"):
+                        continue
+                else:
+                    assert process.method == method
+                    assert process.mode == mode
+                    assert process.model == model
+                    assert process.precision == 1.0
+
+    process = goupil.ComptonProcess(precision=10.0)
+    assert process.precision == 10.0
+
+    with pytest.raises(ValueError):
+        goupil.ComptonProcess(precision=0)
+
+    with pytest.raises(KeyError):
+        goupil.ComptonProcess(toto=0)

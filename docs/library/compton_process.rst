@@ -19,6 +19,11 @@ Constructor
    >>> goupil.ComptonProcess(model="Penelope", precision=10.0)
    ComptonProcess(model="Penelope", precision=10)
 
+   .. note::
+
+      If the requested parameters combination is not available, a
+      :python:`NotImplementedError` is thrown.
+
 
 Attributes
 ----------
@@ -31,10 +36,10 @@ Attributes
 
    .. list-table::
 
-      * - :python:`"Inverse"`
+      * - :python:`"Inverse Transform"`
         - Inverse transform sampling.
 
-      * - :python:`"Rejection"`
+      * - :python:`"Rejection Sampling"`
         - Sampling by means of a rejection procedure.
 
    The inverse transform technique, the fastest, involves pre-computation and
@@ -68,8 +73,8 @@ Attributes
 .. py:attribute:: ComptonProcess.model
    :type: str
 
-   Specifies the physical model describing Compton scattering. The possible
-   values are
+   This attribute specifies the physical model describing Compton scattering.
+   The possible values are
 
    .. list-table::
       :widths: 26 59
@@ -97,5 +102,5 @@ Attributes
 
    .. note::
 
-      When using the Klein-Nishina model, since the total cross-section can be
+      When using the Klein-Nishina model, since the total cross-section is
       solved analytically, this parameter has no effect.

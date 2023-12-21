@@ -178,13 +178,13 @@ impl From<ComptonMode> for &str {
 
 #[derive(Default, Clone, Copy, Deserialize, PartialEq, Sequence, Serialize)]
 pub enum ComptonMethod {
-    InverseCDF,
+    InverseTransform,
     #[default]
     RejectionSampling,
 }
 
 impl ComptonMethod {
-    const INVERSE_CDF: &str = "Inverse CDF";
+    const INVERSE_TRANSFORM: &str = "Inverse Transform";
     const REJECTION_SAMPLING: &str = "Rejection Sampling";
 
     fn pretty_variants() -> String {
@@ -207,7 +207,7 @@ impl TryFrom<&str> for ComptonMethod {
 
     fn try_from(value: &str) -> Result<Self> {
         match value {
-            Self::INVERSE_CDF => Ok(Self::InverseCDF),
+            Self::INVERSE_TRANSFORM => Ok(Self::InverseTransform),
             Self::REJECTION_SAMPLING => Ok(Self::RejectionSampling),
             _ => Err(anyhow!(
                 "bad sampling method (expected {}, found '{}')",
@@ -221,7 +221,7 @@ impl TryFrom<&str> for ComptonMethod {
 impl From<ComptonMethod> for &str {
     fn from(value: ComptonMethod) -> Self {
         match value {
-            ComptonMethod::InverseCDF => ComptonMethod::INVERSE_CDF,
+            ComptonMethod::InverseTransform => ComptonMethod::INVERSE_TRANSFORM,
             ComptonMethod::RejectionSampling => ComptonMethod::REJECTION_SAMPLING,
         }
     }
@@ -252,7 +252,7 @@ pub(crate) fn validate(
                 )
             };
             match method {
-                ComptonMethod::InverseCDF => bail!(
+                ComptonMethod::InverseTransform => bail!(
                     "bad sampling method for '{}' Compton model (expected '{}', found '{}')",
                     model,
                     ComptonMethod::RejectionSampling,
@@ -263,7 +263,7 @@ pub(crate) fn validate(
         },
         ComptonModel::ScatteringFunction | ComptonModel::KleinNishina => {
             match method {
-                ComptonMethod::InverseCDF => (),
+                ComptonMethod::InverseTransform => (),
                 ComptonMethod::RejectionSampling => match mode {
                     ComptonMode::Inverse => bail!(
                         "bad sampling mode for '{}:{}' Compton process \

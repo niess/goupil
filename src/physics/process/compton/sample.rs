@@ -12,7 +12,7 @@ use super::{
     ComptonModel::{self, KleinNishina, Penelope, ScatteringFunction},
     compute::ComptonComputer,
     ComptonMode::{self, Adjoint, Direct, Inverse},
-    ComptonMethod::{self, InverseCDF, RejectionSampling}
+    ComptonMethod::{self, InverseTransform, RejectionSampling}
 };
 
 
@@ -75,7 +75,7 @@ impl ComptonSampler {
         }
 
         match self.method {
-            InverseCDF => match self.model {
+            InverseTransform => match self.model {
                 Penelope =>
                     Err(self.bad_sampling_method(ComptonMethod::RejectionSampling)),
                 ScatteringFunction | KleinNishina =>

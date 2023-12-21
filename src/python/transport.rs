@@ -145,7 +145,7 @@ impl PyTransportSettings {
             },
             Inverse => {
                 self.0.mode = Backward;
-                self.0.compton_method = ComptonMethod::InverseCDF;
+                self.0.compton_method = ComptonMethod::InverseTransform;
             },
             ComptonMode::None => (),
         }
@@ -419,7 +419,7 @@ impl PyTransportEngine {
                     _ =>(),
                 }
                 if let Inverse = settings.compton_mode {
-                    settings.compton_method = ComptonMethod::InverseCDF;
+                    settings.compton_method = ComptonMethod::InverseTransform;
                 }
                 let args = (PyTransportSettings(settings),);
                 self.registry.call_method(py, "compute", args, kwargs)?;
@@ -431,7 +431,7 @@ impl PyTransportEngine {
                 let mut settings = self.settings.borrow(py).0.clone();
                 settings.mode = Backward;
                 settings.compton_mode = Inverse;
-                settings.compton_method = ComptonMethod::InverseCDF;
+                settings.compton_method = ComptonMethod::InverseTransform;
                 let args = (PyTransportSettings(settings),);
                 self.registry.call_method(py, "compute", args, kwargs)?;
             },

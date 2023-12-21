@@ -2,6 +2,7 @@ use anyhow::Result;
 use crate::numerics::float::{Float, Float3};
 use crate::physics::materials::electronic::ElectronicStructure;
 use crate::physics::process::compton::{
+    self,
     ComptonModel,
     compute::ComptonComputer,
     sample::ComptonSampler,
@@ -12,7 +13,7 @@ use crate::physics::process::rayleigh::{RayleighMode, sample::RayleighSampler};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 use pyo3::types::PyDict;
-use super::macros::{key_error, value_error};
+use super::macros::{key_error, not_implemented_error, value_error};
 use super::materials::PyMaterialRecord;
 
 
@@ -127,6 +128,9 @@ impl PyComptonProcess {
                     ),
                 }
             }
+        }
+        if let Err(err) = compton::validate(model, mode, method) {
+            not_implemented_error!("{}", err)
         }
         let computer = ComptonComputer::new(model, mode);
         let sampler = ComptonSampler::new(model, mode, method);
