@@ -69,7 +69,7 @@ pub enum ComptonModel {
 }
 
 impl ComptonModel {
-    const IMPULSE_APPROXIMATION: &str = "Impulse Approximation";
+    const IMPULSE_APPROXIMATION: &str = "Impulse Approximation"; // XXX Remove this.
     const KLEIN_NISHINA: &str = "Klein-Nishina";
     const PENELOPE: &str = "Penelope";
     const SCATTERING_FUNCTION: &str = "Scattering Function";

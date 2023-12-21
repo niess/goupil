@@ -11,6 +11,8 @@ use crate::physics::process::compton::{
 use crate::physics::process::rayleigh::{RayleighMode, sample::RayleighSampler};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
+use pyo3::types::PyDict;
+use super::macros::{key_error, value_error};
 use super::materials::PyMaterialRecord;
 
 
@@ -80,31 +82,104 @@ impl PyComptonProcess {
     }
 
     #[setter]
-    fn set_precision(&mut self, value: Float) {
+    fn set_precision(&mut self, value: Float) -> Result<()> {
+        if value <= 0.0 {
+            value_error!(
+                "bad precision (expected a positive value, found {})",
+                value
+            )
+        }
         self.computer.precision = value;
+        Ok(())
     }
 
     #[new]
-    fn new(model: Option<&str>, mode: Option<&str>, method: Option<&str>) -> Result<Self> {
-        let model: ComptonModel = match model {
-            None => ComptonModel::default(),
-            Some(s) => ComptonModel::try_from(s)?,
-        };
-
-        let mode: ComptonMode = match mode {
-            None => ComptonMode::default(),
-            Some(s) => ComptonMode::try_from(s)?,
-        };
-
-        let method: ComptonMethod = match method {
-            None => ComptonMethod::default(),
-            Some(s) => ComptonMethod::try_from(s)?,
-        };
-
+    #[pyo3(signature = (**kwargs))]
+    fn new(kwargs: Option<&PyDict>) -> Result<Self> {
+        let mut method = ComptonMethod::default();
+        let mut mode = ComptonMode::default();
+        let mut model = ComptonModel::default();
+        let mut precision: Option<Float> = None;
+        if let Some(kwargs) = kwargs {
+            for (key, value) in kwargs.iter() {
+                let key: &str = key.extract()?;
+                match key {
+                    "method" => {
+                        let value: &str = value.extract()?;
+                        method = ComptonMethod::try_from(value)?;
+                    },
+                    "mode" => {
+                        let value: &str = value.extract()?;
+                        mode = ComptonMode::try_from(value)?;
+                    },
+                    "model" => {
+                        let value: &str = value.extract()?;
+                        model = ComptonModel::try_from(value)?;
+                    },
+                    "precision" => {
+                        let value: Float = value.extract()?;
+                        precision = Some(value);
+                    },
+                    _ => key_error!(
+                        "bad attribute (expected one of 'method', 'mode', 'model', 'precision', 
+                            found '{}'",
+                        key
+                    ),
+                }
+            }
+        }
         let computer = ComptonComputer::new(model, mode);
         let sampler = ComptonSampler::new(model, mode, method);
+        let mut object = Self { computer, sampler };
+        if let Some(precision) = precision {
+            object.set_precision(precision)?;
+        }
+        Ok(object)
+    }
 
-        Ok(Self { computer, sampler })
+    fn __repr__(&self) -> String {
+        let mut s = String::from("ComptonProcess(");
+        let prefixes = vec!["", ", "];
+        let mut prefix_index = 0;
+        if self.sampler.method != ComptonMethod::default() {
+            let value: &str = self.sampler.method.into();
+            s.push_str(&format!(
+                "method=\"{}\"",
+                value
+            ));
+            prefix_index += 1;
+        }
+        if self.sampler.mode != ComptonMode::default() {
+            let value: &str = self.sampler.mode.into();
+            s.push_str(&format!(
+                "{}mode=\"{}\"",
+                prefixes[prefix_index],
+                value
+            ));
+            if prefix_index == 0 {
+                prefix_index = 1;
+            }
+        }
+        if self.sampler.model != ComptonModel::default() {
+            let value: &str = self.sampler.model.into();
+            s.push_str(&format!(
+                "{}model=\"{}\"",
+                prefixes[prefix_index],
+                value
+            ));
+            if prefix_index == 0 {
+                prefix_index = 1;
+            }
+        }
+        if self.computer.precision != 1.0 {
+            s.push_str(&format!(
+                "{}precision={}",
+                prefixes[prefix_index],
+                self.computer.precision
+            ));
+        }
+        s.push_str(")");
+        s
     }
 
     fn cross_section(

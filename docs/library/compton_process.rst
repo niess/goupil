@@ -11,9 +11,13 @@ scattering process.
 Constructor
 -----------
 
-.. py:class:: ComptonProcess(model: str=None, mode: str=None, method: str=None)
+.. py:class:: ComptonProcess(**kwargs)
 
-   The constructor arguments should match one of the attributes described below.
+   The constructor argument(s) should match one of the attributes described
+   below. For instance
+
+   >>> goupil.ComptonProcess(model="Penelope", precision=10.0)
+   ComptonProcess(model="Penelope", precision=10)
 
 
 Attributes
@@ -45,16 +49,16 @@ Attributes
 
    .. list-table::
 
-      * - ``"Adjoint"``
+      * - :python:`"Adjoint"`
         - Adjoint collision process.
 
-      * - ``"Directe"``
+      * - :python:`"Directe"`
         - Standard collision process.
 
-      * - ``"Inverse"``
+      * - :python:`"Inverse"`
         - Reverse of the standard process.
 
-      * - ``None``
+      * - :python:`None`
         - Compton process is disabled.
 
    The default setting for reverse simulation is Adjoint, as it allows the use
@@ -68,21 +72,30 @@ Attributes
    values are
 
    .. list-table::
+      :widths: 26 59
 
-      * - ``"ImpulseApproximation"``
-        - The Impulse Approximation (IA) is used to account for the momentum
-          distribution of the bound electrons, without any additional
-          approximations.
-
-      * - ``"KleinNishina"``
+      * - :python:`"Klein-Nishina"`
         - The electrons of the target atoms are assumed to be both free and at
           rest.
 
-      * - ``"Penelope"``
-        - The Penelope model [Baro95]_ is used.
+      * - :python:`"Penelope"`
+        - The Penelope model [Baro95]_ is used, where the Impulse Approximation
+          (IA) accounts for the momentum distribution of the bound electrons.
 
-      * - ``"ScatteringFunction"``
+      * - :python:`"Scattering Function"`
         - Effective model based on the Penelope scattering function [Baro95]_.
 
    The effective model, based on Penelope's Compton scattering function
    [Baro95]_, is used by default.
+
+
+.. py:attribute:: ComptonProcess.precision
+   :type: float
+
+   The numeric precision for cross-section computations relative to 1, which is
+   the default value.
+
+   .. note::
+
+      When using the Klein-Nishina model, since the total cross-section can be
+      solved analytically, this parameter has no effect.

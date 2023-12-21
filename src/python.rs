@@ -66,6 +66,13 @@ fn prefix<'py>(py: Python<'py>) -> Result<&'py PathBuf> {
 //================================================================================================
 
 mod macros {
+    macro_rules! key_error {
+        ($($tts:tt)*) => {
+            return Err(pyo3::exceptions::PyKeyError::new_err(format!($($tts)*)).into())
+        }
+    }
+    pub(crate) use key_error;
+
     macro_rules! type_error {
         ($($tts:tt)*) => {
             return Err(pyo3::exceptions::PyTypeError::new_err(format!($($tts)*)).into())
