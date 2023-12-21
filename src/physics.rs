@@ -1,5 +1,4 @@
 pub(crate) mod elements;
-pub(crate) mod lorentz;
 pub(crate) mod materials;
 pub(crate) mod process;
 

@@ -1,18 +1,16 @@
 use anyhow::Result;
 use crate::numerics::{
     consts::PI,
-    float::{Float, Float3},
+    float::Float,
     integrate::{GQIntegrator, LogSubstitution}
 };
 use crate::physics::{
     consts::{ELECTRON_MASS, ELECTRON_RADIUS},
     materials::electronic::ElectronicStructure
 };
-use rand::thread_rng;
 use serde_derive::{Deserialize, Serialize};
 use super::{
-    ComptonModel::{self, ImpulseApproximation, KleinNishina, Penelope, ScatteringFunction},
-    sample::ComptonSampler,
+    ComptonModel::{self, KleinNishina, Penelope, ScatteringFunction},
     ComptonMode::{self, Adjoint, Direct, Inverse}
 };
 
@@ -52,8 +50,6 @@ impl ComptonComputer {
         crate::python::ctrlc_catched()?;
 
         let result = match self.model {
-            ImpulseApproximation =>
-                self.detailed_cross_section(energy, energy_min, energy_max, electrons)?.0,
             ScatteringFunction | Penelope => {
                 let n = (1000.0 / self.precision) as usize;
                 self.effective_cross_section(energy, energy_min, energy_max, electrons, n)
@@ -73,7 +69,7 @@ impl ComptonComputer {
         }
 
         match self.model {
-            ImpulseApproximation | Penelope => 0.0,
+            Penelope => 0.0,
             ScatteringFunction => self.effective_dcs(energy_in, energy_out, electrons),
             KleinNishina => electrons.charge() * self.free_dcs(energy_in, energy_out),
         }
@@ -259,47 +255,5 @@ impl ComptonComputer {
 
         self.free_dcs(energy_in, energy_out) *
             self.effective_charge(energy_in, energy_out, electrons)
-    }
-
-    fn detailed_cross_section(&self, energy: Float, energy_min: Option<Float>,
-        energy_max: Option<Float>, electrons: &ElectronicStructure) -> Result<(Float, Float)> {
-
-        let momentum = Float3::new(0.0, 0.0, energy);
-        let mut s1 = 0.0;
-        let mut s2 = 0.0;
-        let sampler = ComptonSampler::default();
-        let mut rng = thread_rng();
-        let n = (100000.0 / (self.precision * self.precision)) as usize;
-        for _i in 0..n {
-            #[cfg(feature = "python")]
-            if _i % 100 == 0 { // Check for a Ctrl+C interrupt, catched by Python.
-                crate::python::ctrlc_catched()?;
-            }
-
-            match sampler.detailed_try(&mut rng, momentum, electrons) {
-                Some(v) => {
-                    let energy_out = v.0.norm();
-                    let mut inside = true;
-                    if let Some(v) = energy_min {
-                        if energy_out < v { inside = false }
-                    }
-                    if let Some(v) = energy_max {
-                        if energy_out > v { inside = false }
-                    }
-                    if inside {
-                        let flux_factor = v.1 / energy;
-                        let cs = self.free_cross_section(self.mode, v.1, None, None) *
-                            electrons.charge() * flux_factor;
-                        s1 += cs;
-                        s2 += cs * cs;
-                    }
-                },
-                _ => (),
-            }
-        }
-        let norm = 1.0 / n as Float;
-        let mu = s1 * norm;
-        let sigma = ((s2 * norm - mu * mu) * norm).sqrt();
-        Ok((mu, sigma))
     }
 }

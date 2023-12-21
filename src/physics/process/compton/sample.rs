@@ -6,11 +6,10 @@ use crate::numerics::{
 };
 use crate::physics::{
     consts::ELECTRON_MASS,
-    lorentz::{FourMomentum, LorentzTransformation},
     materials::{electronic::ElectronicStructure, MaterialRecord}
 };
 use super::{
-    ComptonModel::{self, ImpulseApproximation, KleinNishina, Penelope, ScatteringFunction},
+    ComptonModel::{self, KleinNishina, Penelope, ScatteringFunction},
     compute::ComptonComputer,
     ComptonMode::{self, Adjoint, Direct, Inverse},
     ComptonMethod::{self, InverseCDF, RejectionSampling}
@@ -43,7 +42,7 @@ impl ComptonSample {
 
 impl Default for ComptonSampler {
     fn default() -> Self {
-        Self { model: ImpulseApproximation, mode: Direct, method: RejectionSampling }
+        Self { model: ScatteringFunction, mode: Direct, method: RejectionSampling }
     }
 }
 
@@ -65,7 +64,7 @@ impl ComptonSampler {
 
         if !energy_constrain.is_none() {
             match self.model {
-                ImpulseApproximation | Penelope => bail!(
+                Penelope => bail!(
                     "bad Compton model for energy constraint (expected '{}' or '{}', found '{}')",
                     ScatteringFunction,
                     KleinNishina,
@@ -77,13 +76,12 @@ impl ComptonSampler {
 
         match self.method {
             InverseCDF => match self.model {
-                ImpulseApproximation | Penelope =>
+                Penelope =>
                     Err(self.bad_sampling_method(ComptonMethod::RejectionSampling)),
                 ScatteringFunction | KleinNishina =>
                     self.inverse1(rng, momentum_in, target, energy_constrain),
             },
             RejectionSampling => match self.model {
-                ImpulseApproximation => self.detailed_sample(rng, momentum_in, target),
                 ScatteringFunction =>
                     self.effective_rejection(rng, momentum_in, target, energy_constrain),
                 KleinNishina => self.free_rejection(rng, momentum_in, target, energy_constrain),
@@ -295,106 +293,6 @@ impl ComptonSampler {
                 momentum_out.rotate(cos_theta, phi);
                 return momentum_out;
             }
-        }
-    }
-
-    fn detailed_sample<R: FloatRng>(
-        &self,
-        rng: &mut R,
-        momentum_in: Float3,
-        target: &MaterialRecord
-    ) -> Result<ComptonSample> {
-
-        if self.mode == Inverse {
-            return Err(self.bad_sampling_mode(
-                ComptonMode::Adjoint,
-                Some(ComptonMode::Direct)
-            ))
-        }
-        if self.method != RejectionSampling {
-            return Err(self.bad_sampling_method(ComptonMethod::RejectionSampling))
-        }
-
-        let electrons = self.get_electrons(target)?;
-        let momentum_out = loop {
-            match self.detailed_try(rng, momentum_in, electrons) {
-                Some((momentum_out, _)) => break momentum_out,
-                None => continue,
-            }
-        };
-
-        let weight = match self.mode {
-            Adjoint => target.table.compton.detailed.adjoint_weight(
-                ImpulseApproximation,
-                momentum_in.norm(),
-                momentum_out.norm()
-            )?,
-            Direct => 1.0,
-            _ => unreachable!(),
-        };
-
-        Ok(ComptonSample::new(momentum_out, weight))
-    }
-
-    // Try sampling an event using detailed model (and rejection sampling).
-    pub(super) fn detailed_try<R: FloatRng>(&self, rng: &mut R, momentum_in: Float3,
-        electrons: &ElectronicStructure) -> Option<(Float3, Float)> {
-
-        // Sample the targeted electronic shell.
-        let shell = match electrons.sample(rng) {
-            Some(value) => value,
-            None => { return None }
-        };
-
-        // Unpack initial / final data.
-        let (mut initial_energy, mut final_energy) = match self.mode {
-            Adjoint => {
-                (0.0, momentum_in.norm())
-            },
-            Inverse => return None,
-            Direct => {
-                let tmp = momentum_in.norm();
-                if tmp < shell.energy {
-                    // The initial energy is lower than the shell binding energy. Thus, there is no
-                    // need to simulate the collision.
-                    return None;
-                }
-                (tmp, 0.0)
-            },
-            ComptonMode::None => unreachable!(),
-        };
-
-        // Sample the targeted electron 4-momentum.
-        let pe = FourMomentum::new(ELECTRON_MASS, shell.sample(rng));
-
-        // Transform to the rest frame of the targeted electron.
-        let mut transformation = LorentzTransformation::new(pe);
-        let p_in = FourMomentum::new(0.0, momentum_in);
-        let mut p_star = transformation.transform(p_in);
-
-        // Collide in the rest frame.
-        let e_star_in = p_star.energy();
-        p_star.momentum = match self.mode {
-            Adjoint => self.free_rejection_adjoint_raw(rng, p_star.momentum),
-            Direct => self.free_rejection_forward_raw(rng, p_star.momentum),
-            _ => unreachable!(),
-        };
-
-        // Transform back to the Laboratory frame.
-        transformation.reverse();
-        let p_out = transformation.transform(p_star);
-
-        // Check the shell binding energy, and return accordingly.
-        match self.mode {
-            Adjoint => initial_energy = p_out.momentum.norm(),
-            Inverse => unreachable!(),
-            Direct => final_energy = p_out.momentum.norm(),
-            ComptonMode::None => unreachable!(),
-        }
-        if initial_energy - final_energy <= shell.energy {
-            return None;
-        } else {
-            return Some((p_out.momentum, e_star_in));
         }
     }
 

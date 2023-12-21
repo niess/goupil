@@ -6,7 +6,7 @@ use crate::numerics::{
 };
 use crate::physics::materials::electronic::ElectronicStructure;
 use crate::physics::process::compton::{
-    ComptonModel::{self, ImpulseApproximation, KleinNishina, Penelope, ScatteringFunction},
+    ComptonModel::{self, KleinNishina, Penelope, ScatteringFunction},
     ComptonMode::{self, Adjoint, Direct, Inverse},
 };
 use serde_derive::{Deserialize, Serialize};
@@ -19,7 +19,6 @@ use super::compute::ComptonComputer;
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct ComptonTable {
-    pub(crate) detailed: ComptonSubTable,
     pub(crate) effective: ComptonSubTable,
     pub(crate) free: ComptonSubTable,
 }
@@ -43,7 +42,6 @@ impl ComptonTable {
 
     pub(crate) fn get(&self, model: ComptonModel) -> &ComptonSubTable {
         match model {
-            ImpulseApproximation => &self.detailed,
             ScatteringFunction | Penelope => &self.effective,
             KleinNishina => &self.free,
         }
@@ -51,7 +49,6 @@ impl ComptonTable {
 
     pub(crate) fn get_mut(&mut self, model: ComptonModel) -> &mut ComptonSubTable {
         match model {
-            ImpulseApproximation => &mut self.detailed,
             ScatteringFunction | Penelope => &mut self.effective,
             KleinNishina => &mut self.free,
         }
@@ -59,11 +56,6 @@ impl ComptonTable {
 
     #[allow(dead_code)] // XXX remove if not used.
     pub fn weighted_sum(tables: &[(Float, &Self)]) -> Self {
-
-        let detailed: Vec<_> = tables
-            .iter()
-            .map(|(fraction, table)| (*fraction, &table.detailed))
-            .collect();
 
         let effective: Vec<_> = tables
             .iter()
@@ -76,7 +68,6 @@ impl ComptonTable {
             .collect();
 
         Self {
-            detailed: ComptonSubTable::weighted_sum(&detailed),
             effective: ComptonSubTable::weighted_sum(&effective),
             free: ComptonSubTable::weighted_sum(&free),
         }
