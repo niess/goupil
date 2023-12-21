@@ -152,6 +152,25 @@ impl MaterialDefinition {
     }
 }
 
+// Private interface.
+impl MaterialDefinition {
+    pub(crate) fn compute_electrons(&self) -> Result<ElectronicStructure> {
+        let composition = {
+            let mut composition = Vec::<(Float, &ElectronicStructure)>::default();
+            for (weight, element) in self
+                .mole_composition
+                .iter() {
+
+                let electrons = element.electrons()?;
+                composition.push((*weight, electrons))
+            }
+            composition
+        };
+        let electrons = ElectronicStructure::from_others(&composition);
+        Ok(electrons)
+    }
+}
+
 impl Display for MaterialDefinition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let composition: Vec<_> = self.mole_composition
@@ -397,21 +416,7 @@ impl MaterialRegistry {
                 };
             }
 
-            let electrons = {
-                let composition = {
-                    let mut composition = Vec::<(Float, &ElectronicStructure)>::default();
-                    for (weight, element) in material_record
-                        .definition
-                        .mole_composition
-                        .iter() {
-
-                        let electrons = element.electrons()?;
-                        composition.push((*weight, electrons))
-                    }
-                    composition
-                };
-                ElectronicStructure::from_others(&composition)
-            };
+            let electrons = material_record.definition.compute_electrons()?;
 
             for item in items.iter() {
                 computer.model = item.model;

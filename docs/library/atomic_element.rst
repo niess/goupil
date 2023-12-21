@@ -29,8 +29,6 @@ Constructor
 Attributes
 ----------
 
-.. _attributs:
-
 .. py:attribute:: AtomicElement.A
    :type: float
 

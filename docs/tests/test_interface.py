@@ -1,4 +1,5 @@
 import goupil
+import numpy
 import pytest
 
 
@@ -78,3 +79,18 @@ def test_ComptonProcess():
 
     with pytest.raises(KeyError):
         goupil.ComptonProcess(toto=0)
+
+    # Check cross-section method.
+    process = goupil.ComptonProcess()
+    H = goupil.elements("H")
+    material = goupil.MaterialDefinition(
+        name = "Material",
+        mole_composition = ((1, H),)
+    )
+    assert process.cross_section(1.0, material) > 0.0
+
+    process = goupil.ComptonProcess(model="Klein-Nishina")
+    energies = numpy.logspace(-2, 1, 31)
+    values = process.cross_section(energies, material)
+    assert values.shape == energies.shape
+    assert (numpy.diff(values) < 0.0).all()

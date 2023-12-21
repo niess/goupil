@@ -60,7 +60,7 @@ type PyMoleComposition<'py> = Vec<(Float, PyRef<'py, PyAtomicElement>)>;
 #[pymethods]
 impl PyMaterialDefinition {
     #[new]
-    fn new(
+    fn new( // XXX implement constructor from atomic elements (*args).
         name: Option<&str>,
         mass_composition: Option<PyMassComposition>,
         mole_composition: Option<PyMoleComposition>,

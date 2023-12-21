@@ -14,6 +14,9 @@ Classes
 
    atomic_element
    compton_process
+   material_definition
+   material_record
+   random_stream
 
 
 Functions

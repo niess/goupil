@@ -13,8 +13,11 @@ use crate::physics::process::rayleigh::{RayleighMode, sample::RayleighSampler};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 use pyo3::types::PyDict;
+use std::borrow::Cow;
 use super::macros::{key_error, not_implemented_error, value_error};
-use super::materials::PyMaterialRecord;
+use super::materials::{PyMaterialDefinition, PyMaterialRecord};
+use super::numpy::PyArray;
+use super::rand::PyRandomStream;
 
 
 // ===============================================================================================
@@ -188,80 +191,196 @@ impl PyComptonProcess {
 
     fn cross_section(
         &self,
-        energy: Float,
-        material: PyRef<PyMaterialRecord>,
+        energy: ArrayOrFloat,
+        material: Material,
         energy_min: Option<Float>,
         energy_max: Option<Float>
-    ) -> Result<Float> {
-        let electrons = Self::get_electrons(material.py(), &material)?;
-        self.computer.cross_section(
-            energy,
-            energy_min,
-            energy_max,
-            electrons,
-        )
+    ) -> Result<PyObject> {
+        let py = material.py();
+        let electrons = material.get_electrons()?;
+        let result: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let result = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let v = self.computer.cross_section(
+                        energy.get(i)?,
+                        energy_min,
+                        energy_max,
+                        &electrons,
+                    )?;
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => {
+                let result = self.computer.cross_section(
+                    energy,
+                    energy_min,
+                    energy_max,
+                    &electrons,
+                )?;
+                result.into_py(py)
+            }
+        };
+        Ok(result)
     }
 
     fn dcs(
         &self,
         energy_in: Float,
-        energy_out: Float,
-        material: PyRef<PyMaterialRecord>
-    ) -> Result<Float> {
-        let electrons = Self::get_electrons(material.py(), &material)?;
-        Ok(self.computer.dcs(
-            energy_in,
-            energy_out,
-            electrons,
-        ))
+        energy_out: ArrayOrFloat,
+        material: Material
+    ) -> Result<PyObject> {
+        let py = material.py();
+        let electrons = material.get_electrons()?;
+        let result: PyObject = match energy_out {
+            ArrayOrFloat::Array(energy_out) => {
+                let result = PyArray::<Float>::empty(py, &energy_out.shape())?;
+                let n = energy_out.size();
+                for i in 0..n {
+                    let v = self.computer.dcs(
+                        energy_in,
+                        energy_out.get(i)?,
+                        &electrons,
+                    );
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(energy_out) => {
+                let result = self.computer.dcs(
+                    energy_in,
+                    energy_out,
+                    &electrons,
+                );
+                result.into_py(py)
+            }
+        };
+        Ok(result)
     }
 
-    fn dcs_support(&self, energy_in: Float) -> (Float, Float) {
-        self.computer.dcs_support(energy_in)
+    fn dcs_support(&self, py: Python, energy: ArrayOrFloat) -> Result<PyObject> {
+        let result: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let energy_min = PyArray::<Float>::empty(py, &energy.shape())?;
+                let energy_max = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let (min, max) = self.computer.dcs_support(energy.get(i)?);
+                    energy_min.set(i, min)?;
+                    energy_max.set(i, max)?;
+                }
+                let energy_min: PyObject = energy_min.into_py(py);
+                let energy_max: PyObject = energy_max.into_py(py);
+                (energy_min, energy_max).into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => {
+                let result = self.computer.dcs_support(energy);
+                result.into_py(py)
+            }
+        };
+        Ok(result)
     }
 
     fn sample(
         &self,
-        energy_in: Float,
-        material: PyRef<PyMaterialRecord>
+        energy: ArrayOrFloat,
+        material: PyRef<PyMaterialRecord>,
+        rng: Option<&PyCell<PyRandomStream>>,
     )
-    -> Result<(Float, Float, Float)> {
-        // XXX Use PyRandomStream?
-        // XXX Vectorize this method?
-
-        // Get / format inputs.
-        let mut rng = rand::thread_rng();
-        let momentum_in = Float3::new(0.0, 0.0, energy_in);
-
-        // Generate a sample.
+    -> Result<PyObject> {
+        // Prepare material and generator.
         let py = material.py();
-        let sample = self.sampler.sample(
-            &mut rng,
-            momentum_in,
-            material.get(py)?,
-            None,
-        )?;
+        let material = material.get(py)?;
 
-        // Format outputs.
-        let energy_out = sample.momentum_out.norm();
-        let cos_theta = sample.momentum_out.2 / energy_out;
-        Ok((energy_out, cos_theta, sample.weight))
+        let rng: &PyCell<PyRandomStream> = match rng {
+            None => PyCell::new(py, PyRandomStream::new(None)?)?,
+            Some(rng) => rng,
+        };
+        let mut rng = rng.borrow_mut();
+
+        // Generate samples.
+        let result: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let energy_out = PyArray::<Float>::empty(py, &energy.shape())?;
+                let cos_theta = PyArray::<Float>::empty(py, &energy.shape())?;
+                let weight = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let momentum_in = Float3::new(0.0, 0.0, energy.get(i)?);
+                    let sample = self.sampler.sample(
+                        &mut rng.generator,
+                        momentum_in,
+                        material,
+                        None,
+                    )?;
+                    let e = sample.momentum_out.norm();
+                    energy_out.set(i, e)?;
+                    cos_theta.set(i, sample.momentum_out.2 / e)?;
+                    weight.set(i, sample.weight)?;
+                }
+                let energy_out: PyObject = energy_out.into_py(py);
+                let cos_theta: PyObject = cos_theta.into_py(py);
+                let weight: PyObject = weight.into_py(py);
+                (energy_out, cos_theta, weight).into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => {
+                let momentum_in = Float3::new(0.0, 0.0, energy);
+                let sample = self.sampler.sample(
+                    &mut rng.generator,
+                    momentum_in,
+                    material,
+                    None,
+                )?;
+                let energy_out = sample.momentum_out.norm();
+                let cos_theta = sample.momentum_out.2 / energy_out;
+                (energy_out, cos_theta, sample.weight).into_py(py)
+            }
+        };
+        Ok(result)
     }
 }
 
-// Private interface.
-impl PyComptonProcess {
-    fn get_electrons<'py>(
-        py: Python<'py>,
-        material: &'py PyMaterialRecord
-    ) -> Result<&'py ElectronicStructure> {
-        Ok(material
-            .get(py)?
-            .electrons()
-            .ok_or_else(|| PyTypeError::new_err(
-                "missing electronic structure (expected Some(ElectronicStructure), found None)"
-            ))?
-        )
+// Arguments conversions.
+#[derive(FromPyObject)]
+enum ArrayOrFloat<'a> {
+    Array(&'a PyArray<Float>),
+    Float(Float),
+}
+
+#[derive(FromPyObject)]
+enum Material<'py> {
+    Definition(PyRef<'py, PyMaterialDefinition>),
+    Record(PyRef<'py, PyMaterialRecord>),
+}
+
+impl<'py> Material<'py> {
+    fn get_electrons(&self) -> Result<Cow<'py, ElectronicStructure>> {
+        let electrons = match self {
+            Material::Definition(material) => {
+                let electrons = material.0.compute_electrons()?;
+                Cow::Owned(electrons)
+            },
+            Material::Record(material) => {
+                let py = material.py();
+                let electrons = material.get(py)?
+                    .electrons()
+                    .ok_or_else(|| PyTypeError::new_err(
+                        "missing electronic structure (expected Some(ElectronicStructure), 
+                            found None)"
+                    ))?;
+                Cow::Borrowed(electrons)
+            },
+        };
+        Ok(electrons)
+    }
+
+    fn py(&self) -> Python<'py> {
+        match self {
+            Material::Definition(material) => material.py(),
+            Material::Record(material) => material.py(),
+        }
     }
 }
 
