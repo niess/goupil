@@ -94,3 +94,48 @@ def test_ComptonProcess():
     values = process.cross_section(energies, material)
     assert values.shape == energies.shape
     assert (numpy.diff(values) < 0.0).all()
+
+
+def test_MaterialDefinition():
+    """Test usage of a MaterialDefinition."""
+
+    # Check constructor.
+    H2O = goupil.MaterialDefinition("H2O")
+    composition = H2O.mole_composition
+    assert len(composition) == 2
+    assert composition[0][0] == 2
+    assert str(composition[0][1]) == "H"
+    assert composition[1][0] == 1
+    assert str(composition[1][1]) == "O"
+    assert H2O.name == "H2O"
+
+    H, O = goupil.elements("H, O")
+    assert H2O.mass == 2 * H.A + O.A
+
+    nothing = goupil.MaterialDefinition()
+    assert nothing.mass == 0.0
+
+    water = goupil.MaterialDefinition(
+        name = "Water",
+        mole_composition = (
+            (2, "H"),
+            (1, O)
+        )
+    )
+    assert water.name == "Water"
+    assert water.mass == H2O.mass
+    assert water.mole_composition == H2O.mole_composition
+
+    mixture = goupil.MaterialDefinition(
+        name = "Mixture",
+        mass_composition = (
+            (0.5, H2O),
+            (0.5, water)
+        )
+    )
+    assert mixture.mass == water.mass
+    assert mixture.mole_composition == water.mole_composition
+
+    with pytest.raises(RuntimeError) as e:
+        goupil.MaterialDefinition("Xu")
+    assert str(e.value) == "no such atomic element 'Xu'"

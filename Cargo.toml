@@ -18,10 +18,11 @@ serde_derive = "1"
 getrandom = { version = "0.2", optional = true }
 pyo3 = { version = "0.20", features = ["abi3", "anyhow", "extension-module"], optional = true }
 rand_pcg = { version = "0.3", features = ["serde1"], optional = true }
+regex = { version = "1.10", optional = true }
 
 [features]
 f32 = []
-python = ["dep:getrandom", "dep:pyo3", "dep:rand_pcg"]
+python = ["dep:getrandom", "dep:pyo3", "dep:rand_pcg", "dep:regex"]
 
 [lib]
 name = "goupil"

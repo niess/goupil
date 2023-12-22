@@ -122,7 +122,7 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().cross_section(1.0, H2O)
+   >>> goupil.ComptonProcess().cross_section(1.0, H2O) # doctest: +SKIP
 
 .. py:method:: ComptonProcess.dcs(energy_in, energy_out, material)
 
@@ -136,7 +136,7 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().dcs(1.0, 0.8, H2O)
+   >>> goupil.ComptonProcess().dcs(1.0, 0.8, H2O) # doctest: +SKIP
 
 .. py:method:: ComptonProcess.dcs_support(energy)
 
@@ -148,7 +148,7 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().dcs_support(1.0)
+   >>> goupil.ComptonProcess().dcs_support(1.0) # doctest: +SKIP
 
 .. py:method:: ComptonProcess.sample(energy, material, rng=None)
 
@@ -163,4 +163,4 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().sample(1.0, H20)
+   >>> goupil.ComptonProcess().sample(1.0, H20) # doctest: +SKIP

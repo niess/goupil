@@ -3,6 +3,7 @@ use crate::numerics::{
     float::Float,
     grids::Grid,
 };
+use crate::physics::elements::AtomicElement;
 use crate::physics::materials::{
     electronic::ElectronicStructure,
     MaterialDefinition,
@@ -30,6 +31,7 @@ use pyo3::{
     sync::GILOnceCell,
     types::{PyBytes, PyTuple},
 };
+use regex::Regex;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use super::{
@@ -50,17 +52,38 @@ use std::collections::HashMap;
 pub struct PyMaterialDefinition (pub MaterialDefinition);
 
 #[derive(FromPyObject)]
+enum Element<'py> {
+    Object(PyRef<'py, PyAtomicElement>),
+    Symbol(&'py str),
+}
+
+impl<'py> Element<'py> {
+    fn get(&self) -> Result<&'static AtomicElement> {
+        let element = match self {
+            Element::Object(element) => element.0,
+            Element::Symbol(symbol) => AtomicElement::from_symbol(symbol)?,
+        };
+        Ok(element)
+    }
+
+    fn weight(&self, value: Float) -> Result<(Float, &'static AtomicElement)> {
+        let element = self.get()?;
+        Ok((value, element))
+    }
+}
+
+#[derive(FromPyObject)]
 enum PyMassComposition<'py> {
-    Atomic(Vec<(Float, PyRef<'py, PyAtomicElement>)>),
+    Atomic(Vec<(Float, Element<'py>)>),
     Material(Vec<(Float, PyRef<'py, PyMaterialDefinition>)>),
 }
 
-type PyMoleComposition<'py> = Vec<(Float, PyRef<'py, PyAtomicElement>)>;
+type PyMoleComposition<'py> = Vec<(Float, Element<'py>)>;
 
 #[pymethods]
 impl PyMaterialDefinition {
     #[new]
-    fn new( // XXX implement constructor from atomic elements (*args).
+    fn new(
         name: Option<&str>,
         mass_composition: Option<PyMassComposition>,
         mole_composition: Option<PyMoleComposition>,
@@ -68,22 +91,35 @@ impl PyMaterialDefinition {
         let definition = match name {
             None => {
                 if !mass_composition.is_none() || !mole_composition.is_none() {
-                    value_error!("bad material name (expected a string value found None)")
+                    value_error!("bad material name (expected a string value, found None)")
                 }
                 MaterialDefinition::default()
             },
             Some(name) => match mass_composition {
                 None => match mole_composition {
-                    None => value_error!(
-                        "bad composition for '{}' (expected 'mass_composition' or \
-                            'mole_composition', found 'None')",
-                        name,
-                    ),
+                    None => {
+                        // Try to interpret name as a chemical formula.
+                        let re = Regex::new(r"([A-Z][a-z]?)([0-9]*)")?;
+                        let mut composition = Vec::<(Float, &AtomicElement)>::default();
+                        for captures in re.captures_iter(name) {
+                            let symbol = captures.get(1).unwrap().as_str();
+                            let element = AtomicElement::from_symbol(symbol)?;
+                            let weight = captures.get(2).unwrap().as_str();
+                            let weight: Float = if weight.len() == 0 {
+                                1.0
+                            } else {
+                                weight.parse::<Float>()?
+                            };
+                            composition.push((weight, element));
+                        }
+                        MaterialDefinition::from_mole(name, &composition)
+                    },
                     Some(composition) => {
-                        let composition: Vec<_> = composition
+                        let composition: Result<Vec<_>> = composition
                             .iter()
-                            .map(|(weight, element)| (*weight, element.0))
+                            .map(|(weight, element)| element.weight(*weight))
                             .collect();
+                        let composition = composition?;
                         MaterialDefinition::from_mole(name, &composition)
                     },
                 },
@@ -97,10 +133,11 @@ impl PyMaterialDefinition {
                     }
                     match composition {
                         PyMassComposition::Atomic(composition) => {
-                            let composition: Vec<_> = composition
+                            let composition: Result<Vec<_>> = composition
                                 .iter()
-                                .map(|(weight, element)| (*weight, element.0))
+                                .map(|(weight, element)| element.weight(*weight))
                                 .collect();
+                            let composition = composition?;
                             MaterialDefinition::from_mass(name, &composition)
                         },
                         PyMassComposition::Material(composition) => {
@@ -127,6 +164,10 @@ impl PyMaterialDefinition {
         let mut buffer = Vec::new();
         self.0.serialize(&mut Serializer::new(&mut buffer))?;
         Ok(PyBytes::new(py, &buffer))
+    }
+
+    fn __repr__(&self) -> &str {
+        self.0.name()
     }
 
     // Public interface, as getters.
