@@ -8,8 +8,8 @@ highlight_language = 'python3'
 
 # General settings.
 extensions = [
-#    'sphinx_rtd_theme'
-    "sphinx.ext.doctest"
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx"
 ]
 
 templates_path = ['_templates']
@@ -20,6 +20,12 @@ rst_prolog = """
     :language: python
     :class: highlight
 """
+
+# Mappings for links to externals documentations.
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None)
+}
 
 # Toctrees options.
 toc_object_entries = True

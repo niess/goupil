@@ -113,7 +113,8 @@ Methods
 
    Computes the total cross-section for Compton scattering of a photon with a
    specified initial `energy` (in MeV) on an atom of a given `material`. The
-   energy can be a float or a numpy array of floats. The material must be an
+   energy can be a :external:py:class:`float` or a
+   :external:py:class:`numpy.ndarray` of floats. The material must be an
    instance of :doc:`material_definition` or :doc:`material_record`. Optional
    bounds can be set on the energy of the outgoing photon using the `energy_min`
    and `energy_max` arguments (in MeV).
@@ -127,9 +128,10 @@ Methods
 
    Computes the differential cross-section (DCS) for Compton scattering of a
    photon on an atom of a given `material`. The input parameters are the ingoing
-   energy (in MeV) and the outgoing energy (in MeV), which can be a single float
-   or a numpy array of floats. The material must be provided as either a
-   :doc:`material_definition` or :doc:`material_record` object.
+   energy (in MeV) and the outgoing energy (in MeV), which can be a single
+   :external:py:class:`float` or a :external:py:class:`numpy.ndarray` of floats.
+   The material must be provided as either a :doc:`material_definition` or
+   :doc:`material_record` object.
 
    Examples
    ^^^^^^^^
@@ -139,9 +141,9 @@ Methods
 .. py:method:: ComptonProcess.dcs_support(energy)
 
    Returns the support of the differential cross section (DCS) for a given
-   photon `energy` in MeV. The energy can be specified as a float or as a numpy
-   ndarray. The output is a tuple containing the minimum and maximum bounds of
-   the support.
+   photon `energy` in MeV. The energy can be specified as a
+   :external:py:class:`float` or as a :external:py:class:`numpy.ndarray`. The
+   output is a tuple containing the minimum and maximum bounds of the support.
 
    Examples
    ^^^^^^^^
@@ -151,11 +153,12 @@ Methods
 .. py:method:: ComptonProcess.sample(energy, material, rng=None)
 
    This function generates random Compton collisions. The input photon `energy`,
-   in MeV, can be a float or a numpy ndarray. The target `material` must be an
-   instance of :doc:`material_record`. The output is a tuple that contains the
-   outgoing energy in MeV, the cosine of the scattering angle and the generation
-   weight. It is also possible to provide a specific :doc:`random_stream`
-   (`rng`) as an option.
+   in MeV, can be a :external:py:class:`float` or a
+   :external:py:class:`numpy.ndarray`. The target `material` must be an instance
+   of :doc:`material_record`. The output is a tuple that contains the outgoing
+   energy in MeV, the cosine of the scattering angle and the generation weight.
+   It is also possible to provide a specific :doc:`random_stream` (`rng`) as an
+   option.
 
    Examples
    ^^^^^^^^

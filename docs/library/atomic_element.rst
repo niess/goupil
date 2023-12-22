@@ -16,7 +16,8 @@ Constructor
 .. py:class:: AtomicElement(arg: int | str)
 
    To create an instance of the desired element, use either its atomic number
-   (as an :python:`int`) or its symbol (as a :python:`str`). For instance,
+   (as an :external:py:class:`int`) or its symbol (as a
+   :external:py:class:`str`). For instance,
 
    >>> goupil.AtomicElement("H")
    H

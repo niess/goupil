@@ -14,9 +14,10 @@ Syntax
 .. py:function:: elements(*args: int | str)
 
    The input for this function consists of either the atomic numbers
-   (:python:`int`) or symbols (:python:`str`) of the desired elements. It is
-   also possible to specify a sequence of symbols directly as a single character
-   string. Please refer to the `examples`_ below for further clarification.
+   (:external:py:class:`int`) or symbols (:external:py:class:`str`) of the
+   desired elements. It is also possible to specify a sequence of symbols
+   directly as a single character string. Please refer to the `examples`_ below
+   for further clarification.
 
 
 Examples
