@@ -216,13 +216,12 @@ pub struct PyMaterialRegistry {
 #[pymethods]
 impl PyMaterialRegistry {
     #[new]
-    pub fn new(definitions: Option<Vec<PyRef<PyMaterialDefinition>>>) -> Result<Self> {
+    #[pyo3(signature = (*args))]
+    pub fn new(args: Vec<PyRef<PyMaterialDefinition>>) -> Result<Self> {
         let mut registry = MaterialRegistry::default();
-        if let Some(definitions) = definitions {
-            for definition in definitions.iter() {
-                registry.add(&definition.0)?;
-            }
-        };
+        for definition in args.iter() {
+            registry.add(&definition.0)?;
+        }
         Ok(Self{
             inner: registry,
             proxies: HashMap::<String, Py<PyMaterialRecord>>::default(),

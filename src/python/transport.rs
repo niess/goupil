@@ -271,7 +271,7 @@ impl PyTransportEngine {
             Some(random) => random.into(),
         };
         let registry: Py<PyMaterialRegistry> = match registry {
-            None => Py::new(py, PyMaterialRegistry::new(None)?)?,
+            None => Py::new(py, PyMaterialRegistry::new(vec![])?)?,
             Some(registry) => registry.into(),
         };
         let settings: Py<PyTransportSettings> = match settings {
