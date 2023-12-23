@@ -1,5 +1,5 @@
-:mod:`goupil` --- Python interface
-==================================
+Python interface
+================
 
 .. py:module:: goupil
    :synopsis: Python interface

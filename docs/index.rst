@@ -1,11 +1,13 @@
-Goupil 0.1.3 documentation
-==========================
+Goupil 0.1.3
+============
 
 .. toctree::
    :maxdepth: 1
 
-   library/index.rst
-   references.rst
+   description
+   library/index
+   interface/index
+   references
 
 
 Indices and tables
