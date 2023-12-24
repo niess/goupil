@@ -19,8 +19,8 @@ Constructor
 
 .. py:class:: MaterialRegistry(*args: MaterialDefinition)
 
-   To initialise a new registry, specify the definitions of the materials as
-   positional arguments. For example
+   To initialise a new registry with some materials, specify their definitions
+   as positional arguments. For example
 
    >>> goupil.MaterialRegistry(H2O, SiO2)
    {H20, SiO2}
