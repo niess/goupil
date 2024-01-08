@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     elements::PyAtomicElement,
     macros::value_error,
-    numpy::{PyArray, PyArrayFlags},
+    numpy::{ArrayOrFloat, PyArray, PyArrayFlags},
     prefix,
     transport::PyTransportSettings,
 };
@@ -534,8 +534,8 @@ impl PyMaterialRecord {
         }
     }
 
-    fn absorption_cross_section(this: &PyCell<Self>, py: Python) -> Result<PyObject> {
-        PyAbsorptionCrossSection::new(py, this)
+    fn absorption_cross_section(this: &PyCell<Self>) -> Result<PyObject> {
+        PyCrossSection::new_absorption(this)
     }
 
     fn compton_cdf(
@@ -550,12 +550,11 @@ impl PyMaterialRecord {
         let mode = mode
             .map(|mode| ComptonMode::try_from(mode))
             .unwrap_or(Ok(Direct))?;
-        PyComptonCDF::new(py, this, model, mode)
+        PyCDF::new(py, this, model, mode)
     }
 
     fn compton_cross_section(
         this: &PyCell<Self>,
-        py: Python,
         model: Option<&str>,
         mode: Option<&str>,
     ) -> Result<PyObject> {
@@ -565,12 +564,11 @@ impl PyMaterialRecord {
         let mode = mode
             .map(|mode| ComptonMode::try_from(mode))
             .unwrap_or(Ok(Direct))?;
-        PyComptonCrossSection::new(py, this, model, mode)
+        PyCrossSection::new_compton(this, model, mode)
     }
 
     fn compton_inverse_cdf(
         this: &PyCell<Self>,
-        py: Python,
         model: Option<&str>,
         mode: Option<&str>,
     ) -> Result<PyObject> {
@@ -580,7 +578,7 @@ impl PyMaterialRecord {
         let mode = mode
             .map(|mode| ComptonMode::try_from(mode))
             .unwrap_or(Ok(Direct))?;
-        PyComptonInverseCDF::new(py, this, model, mode)
+        PyInverseCDF::new(this, model, mode)
     }
 
     fn compton_weight(
@@ -600,18 +598,12 @@ impl PyMaterialRecord {
         self.get(py)?.compton_weight(model, mode, energy_in, energy_out)
     }
 
-    fn rayleigh_cross_section(
-        this: &PyCell<Self>,
-        py: Python,
-    ) -> Result<PyObject> {
-        PyRayleighCrossSection::new(py, this)
+    fn rayleigh_cross_section(this: &PyCell<Self>) -> Result<PyObject> {
+        PyCrossSection::new_rayleigh(this)
     }
 
-    fn rayleigh_form_factor(
-        this: &PyCell<Self>,
-        py: Python,
-    ) -> Result<PyObject> {
-        PyRayleighFormFactor::new(py, this)
+    fn rayleigh_form_factor(this: &PyCell<Self>) -> Result<PyObject> {
+        PyFormFactor::new(this)
     }
 }
 
@@ -678,26 +670,48 @@ impl PyElectronicStructure {
 
 
 // ===============================================================================================
-// Python wrapper for an AbsorptionCrossSection object.
+// Process wrapper.
 // ===============================================================================================
 
-#[pyclass(name = "AbsorptionCrossSection", module = "goupil")]
-pub struct PyAbsorptionCrossSection {
-    #[pyo3(get)]
-    record: PyObject,
+#[derive(Clone, Copy)]
+enum Process {
+    Absorption,
+    Compton(ComptonModel, ComptonMode),
+    Rayleigh,
+}
+
+impl Into<String> for Process {
+    fn into(self) -> String {
+        match self {
+            Self::Absorption => "Absorption".to_string(),
+            Self::Compton(model, mode) => format!("Compton::{}::{}", model, mode),
+            Self::Rayleigh => "Rayleigh".to_string(),
+        }
+    }
+}
+
+
+// ===============================================================================================
+// Python wrapper for a CrossSection object.
+// ===============================================================================================
+
+#[pyclass(name = "CrossSection", module="goupil")]
+pub struct PyCrossSection {
     #[pyo3(get)]
     energies: PyObject,
     #[pyo3(get)]
+    material: PyObject,
+    #[pyo3(get)]
     values: PyObject,
+
+    process: Process
 }
 
-impl PyAbsorptionCrossSection {
-    fn new(
-        py: Python,
-        record: &PyCell<PyMaterialRecord>,
-    ) -> Result<PyObject> {
+impl PyCrossSection {
+    fn new_absorption(record: &PyCell<PyMaterialRecord>) -> Result<PyObject> {
+        let py = record.py();
         let (energies, values) = {
-            match Self::table(py, &record.borrow())? {
+            match Self::table_absorption(py, &record.borrow())? {
                 None => return Ok(py.None()),
                 Some(table) => {
                     let energies = readonly1(table.energies.as_ref(), record)?;
@@ -706,73 +720,60 @@ impl PyAbsorptionCrossSection {
                 },
             }
         };
-        let record: PyObject = record.into_py(py);
-        let result = Self { record, energies, values };
+        let material: PyObject = record.into_py(py);
+        let process = Process::Absorption;
+        let result = Self { energies, material, values, process };
         Ok(result.into_py(py))
     }
 
-    fn table<'py>(
+    fn new_compton(
+        record: &PyCell<PyMaterialRecord>,
+        model: ComptonModel,
+        mode: ComptonMode,
+    ) -> Result<PyObject> {
+        let py = record.py();
+        let (energies, values) = {
+            match Self::table_compton(py, &record.borrow(), model, mode)? {
+                None => return Ok(py.None()),
+                Some(table) => {
+                    let energies = readonly1(table.energies.as_ref(), record)?;
+                    let values = readonly1(table.values.as_ref(), record)?;
+                    (energies, values)
+                },
+            }
+        };
+        let material: PyObject = record.into_py(py);
+        let process = Process::Compton(model, mode);
+        let result = Self { energies, material, values, process };
+        Ok(result.into_py(py))
+    }
+
+    fn new_rayleigh(record: &PyCell<PyMaterialRecord>) -> Result<PyObject> {
+        let py = record.py();
+        let (energies, values) = {
+            match Self::table_rayleigh(py, &record.borrow())? {
+                None => return Ok(py.None()),
+                Some(table) => {
+                    let energies = readonly1(table.energies.as_ref(), record)?;
+                    let values = readonly1(table.values.as_ref(), record)?;
+                    (energies, values)
+                },
+            }
+        };
+        let material: PyObject = record.into_py(py);
+        let process = Process::Rayleigh;
+        let result = Self { energies, material, values, process };
+        Ok(result.into_py(py))
+    }
+
+    fn table_absorption<'py>(
         py: Python<'py>,
         record: &PyMaterialRecord
     ) -> Result<Option<&'py AbsorptionCrossSection>> {
         Ok(record.get(py)?.table.absorption.as_ref())
     }
-}
 
-#[pymethods]
-impl PyAbsorptionCrossSection {
-    fn __call__(
-        &self,
-        py: Python,
-        energy: Float
-    ) -> Result<Float> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
-        let table = Self::table(py, &record)?.unwrap();
-        Ok(table.interpolate(energy))
-    }
-}
-
-
-// ===============================================================================================
-// Python wrapper for a ComptonCrossSection object.
-// ===============================================================================================
-
-#[pyclass(name = "ComptonCrossSection", module="goupil")]
-pub struct PyComptonCrossSection {
-    #[pyo3(get)]
-    record: PyObject,
-    #[pyo3(get)]
-    energies: PyObject,
-    #[pyo3(get)]
-    values: PyObject,
-
-    model: ComptonModel,
-    mode: ComptonMode,
-}
-
-impl PyComptonCrossSection {
-    fn new(
-        py: Python,
-        record: &PyCell<PyMaterialRecord>,
-        model: ComptonModel,
-        mode: ComptonMode,
-    ) -> Result<PyObject> {
-        let (energies, values) = {
-            match Self::table(py, &record.borrow(), model, mode)? {
-                None => return Ok(py.None()),
-                Some(table) => {
-                    let energies = readonly1(table.energies.as_ref(), record)?;
-                    let values = readonly1(table.values.as_ref(), record)?;
-                    (energies, values)
-                },
-            }
-        };
-        let record: PyObject = record.into_py(py);
-        let result = Self { record, energies, values, model, mode };
-        Ok(result.into_py(py))
-    }
-
-    fn table<'py>(
+    fn table_compton<'py>(
         py: Python<'py>,
         record: &PyMaterialRecord,
         model: ComptonModel,
@@ -780,28 +781,61 @@ impl PyComptonCrossSection {
     ) -> Result<Option<&'py ComptonCrossSection>> {
         Ok(record.get(py)?.table.compton.get(model).get(mode).cross_section.as_ref())
     }
+
+    fn table_rayleigh<'py>(
+        py: Python<'py>,
+        record: &PyMaterialRecord,
+    ) -> Result<Option<&'py RayleighCrossSection>> {
+        Ok(record.get(py)?.table.rayleigh.cross_section.as_ref())
+    }
 }
 
 #[pymethods]
-impl PyComptonCrossSection {
+impl PyCrossSection {
+    #[getter]
+    fn get_process(&self) -> String {
+        self.process.into()
+    }
+
     fn __call__(
         &self,
         py: Python,
-        energy: Float
-    ) -> Result<Float> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
-        let table = Self::table(py, &record, self.model, self.mode)?.unwrap();
-        Ok(table.interpolate(energy))
-    }
-
-    #[getter]
-    fn mode(&self) -> &str {
-        self.mode.into()
-    }
-
-    #[getter]
-    fn model(&self) -> &str {
-        self.model.into()
+        energy: ArrayOrFloat
+    ) -> Result<PyObject> {
+        let record: PyRef<PyMaterialRecord> = self.material.extract(py)?;
+        let compute_cross_section = |energy: Float| -> Result<Float> {
+            let value = match self.process {
+                Process::Absorption => {
+                    let table = Self::table_absorption(py, &record)?.unwrap();
+                    table.interpolate(energy)
+                },
+                Process::Compton(model, mode) => {
+                    let table = Self::table_compton(py, &record, model, mode)?.unwrap();
+                    table.interpolate(energy)
+                },
+                Process::Rayleigh => {
+                    let table = Self::table_rayleigh(py, &record)?.unwrap();
+                    table.interpolate(energy)
+                }
+            };
+            Ok(value)
+        };
+        let value: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let value = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let v = compute_cross_section(energy.get(i)?)?;
+                    value.set(i, v)?;
+                }
+                value.into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => {
+                let value = compute_cross_section(energy)?;
+                value.into_py(py)
+            },
+        };
+        Ok(value)
     }
 }
 
@@ -810,22 +844,22 @@ impl PyComptonCrossSection {
 // Python wrapper for a ComptonCDF object.
 // ===============================================================================================
 
-#[pyclass(name = "ComptonCDF", module="goupil")]
-pub struct PyComptonCDF {
-    #[pyo3(get)]
-    record: PyObject,
+#[pyclass(name = "CDF", module="goupil")]
+pub struct PyCDF {
     #[pyo3(get)]
     energies_in: PyObject,
     #[pyo3(get)]
-    x: PyObject,
+    material: PyObject,
     #[pyo3(get)]
     values: PyObject,
+    #[pyo3(get)]
+    x: PyObject,
 
     model: ComptonModel,
     mode: ComptonMode,
 }
 
-impl PyComptonCDF {
+impl PyCDF {
     fn new(
         py: Python,
         record: &PyCell<PyMaterialRecord>,
@@ -843,8 +877,8 @@ impl PyComptonCDF {
                 },
             }
         };
-        let record: PyObject = record.into_py(py);
-        let result = Self { record, energies_in, x, values, model, mode };
+        let material: PyObject = record.into_py(py);
+        let result = Self { energies_in, material, values, x, model, mode };
         Ok(result.into_py(py))
     }
 
@@ -859,16 +893,36 @@ impl PyComptonCDF {
 }
 
 #[pymethods]
-impl PyComptonCDF {
+impl PyCDF {
+    #[getter]
+    fn get_process(&self) -> String {
+        Process::Compton(self.model, self.mode).into()
+    }
+
     fn __call__(
         &self,
         py: Python,
         energy_in: Float,
-        energy_out: Float
-    ) -> Result<Float> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
+        energy_out: ArrayOrFloat
+    ) -> Result<PyObject> {
+        let record: PyRef<PyMaterialRecord> = self.material.extract(py)?;
         let table = Self::table(py, &record, self.model, self.mode)?.unwrap();
-        Ok(table.interpolate(energy_in, energy_out))
+        let result: PyObject = match energy_out {
+            ArrayOrFloat::Array(energy) => {
+                let result = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let v = table.interpolate(
+                        energy_in,
+                        energy.get(i)?,
+                    );
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => table.interpolate(energy_in, energy).into_py(py),
+        };
+        Ok(result)
     }
 
     fn energies_out(
@@ -876,38 +930,28 @@ impl PyComptonCDF {
         py: Python,
         i: usize,
     ) -> Result<PyObject> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
+        let record: PyRef<PyMaterialRecord> = self.material.extract(py)?;
         let table = Self::table(py, &record, self.model, self.mode)?.unwrap();
         let (_, m) = table.shape();
         let energies = (0..m).map(|j| table.energy_out(i, j));
         let array = copy1(py, m, energies)?;
         Ok(array)
     }
-
-    #[getter]
-    fn mode(&self) -> &str {
-        self.mode.into()
-    }
-
-    #[getter]
-    fn model(&self) -> &str {
-        self.model.into()
-    }
 }
 
 
 // ===============================================================================================
-// Python wrapper for a ComptonInverseCDF object.
+// Python wrapper for a Compton InverseCDF object.
 // ===============================================================================================
 
-#[pyclass(name = "ComptonInverseCDF", module="goupil")]
-pub struct PyComptonInverseCDF {
+#[pyclass(name = "InverseCDF", module="goupil")]
+pub struct PyInverseCDF {
     #[pyo3(get)]
-    record: PyObject,
+    cdf: PyObject,
     #[pyo3(get)]
     energies: PyObject,
     #[pyo3(get)]
-    cdf: PyObject,
+    material: PyObject,
     #[pyo3(get)]
     values: PyObject,
     #[pyo3(get)]
@@ -917,13 +961,13 @@ pub struct PyComptonInverseCDF {
     mode: ComptonMode,
 }
 
-impl PyComptonInverseCDF {
+impl PyInverseCDF {
     fn new(
-        py: Python,
         record: &PyCell<PyMaterialRecord>,
         model: ComptonModel,
         mode: ComptonMode,
     ) -> Result<PyObject> {
+        let py = record.py();
         let (energies, cdf, values, weights) = {
             match Self::table(py, &record.borrow(), model, mode)? {
                 None => return Ok(py.None()),
@@ -939,8 +983,8 @@ impl PyComptonInverseCDF {
                 },
             }
         };
-        let record: PyObject = record.into_py(py);
-        let result = Self { record, energies, cdf, values, weights, model, mode };
+        let material: PyObject = record.into_py(py);
+        let result = Self { cdf, energies, material, values, weights, model, mode };
         Ok(result.into_py(py))
     }
 
@@ -955,110 +999,75 @@ impl PyComptonInverseCDF {
 }
 
 #[pymethods]
-impl PyComptonInverseCDF {
+impl PyInverseCDF {
+    #[getter]
+    fn get_process(&self) -> String {
+        Process::Compton(self.model, self.mode).into()
+    }
+
     fn __call__(
         &self,
         py: Python,
         energy: Float,
-        cdf: Float
+        cdf: ArrayOrFloat
     ) -> Result<PyObject> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
+        let record: PyRef<PyMaterialRecord> = self.material.extract(py)?;
         let table = Self::table(py, &record, self.model, self.mode)?.unwrap();
-        let result = table.interpolate(energy, cdf);
-        let result = match &table.weights {
-            None => result.0.into_py(py),
-            Some(_) => result.into_py(py),
+        let result = match cdf {
+            ArrayOrFloat::Array(cdf) => match &table.weights {
+                None => {
+                    let values = PyArray::<Float>::empty(py, &cdf.shape())?;
+                    let n = cdf.size();
+                    for i in 0..n {
+                        let v = table.interpolate(energy, cdf.get(i)?);
+                        values.set(i, v.0)?;
+                    }
+                    values.into_py(py)
+                },
+                Some(_) => {
+                    let values = PyArray::<Float>::empty(py, &cdf.shape())?;
+                    let weights = PyArray::<Float>::empty(py, &cdf.shape())?;
+                    let n = cdf.size();
+                    for i in 0..n {
+                        let v = table.interpolate(energy, cdf.get(i)?);
+                        values.set(i, v.0)?;
+                        weights.set(i, v.1)?;
+                    }
+                    let values: PyObject = values.into_py(py);
+                    let weights: PyObject = weights.into_py(py);
+                    (values, weights).into_py(py)
+                },
+            },
+            ArrayOrFloat::Float(cdf) => {
+                let v = table.interpolate(energy, cdf);
+                match &table.weights {
+                    None => v.0.into_py(py),
+                    Some(_) => v.into_py(py),
+                }
+            },
         };
         Ok(result)
     }
-
-    #[getter]
-    fn mode(&self) -> &str {
-        self.mode.into()
-    }
-
-    #[getter]
-    fn model(&self) -> &str {
-        self.model.into()
-    }
 }
 
 
 // ===============================================================================================
-// Python wrapper for a RayleighCrossSection object.
+// Python wrapper for a Rayleigh FormFactor object.
 // ===============================================================================================
 
-#[pyclass(name = "RayleighCrossSection", module = "goupil")]
-pub struct PyRayleighCrossSection {
+#[pyclass(name = "FormFactor", module = "goupil")]
+pub struct PyFormFactor {
     #[pyo3(get)]
-    record: PyObject,
-    #[pyo3(get)]
-    energies: PyObject,
-    #[pyo3(get)]
-    values: PyObject,
-}
-
-impl PyRayleighCrossSection {
-    fn new(
-        py: Python,
-        record: &PyCell<PyMaterialRecord>,
-    ) -> Result<PyObject> {
-        let (energies, values) = {
-            match Self::table(py, &record.borrow())? {
-                None => return Ok(py.None()),
-                Some(table) => {
-                    let energies = readonly1(table.energies.as_ref(), record)?;
-                    let values = readonly1(table.values.as_ref(), record)?;
-                    (energies, values)
-                },
-            }
-        };
-        let record: PyObject = record.into_py(py);
-        let result = Self { record, energies, values };
-        Ok(result.into_py(py))
-    }
-
-    fn table<'py>(
-        py: Python<'py>,
-        record: &PyMaterialRecord,
-    ) -> Result<Option<&'py RayleighCrossSection>> {
-        Ok(record.get(py)?.table.rayleigh.cross_section.as_ref())
-    }
-}
-
-#[pymethods]
-impl PyRayleighCrossSection {
-    fn __call__(
-        &self,
-        py: Python,
-        energy: Float
-    ) -> Result<Float> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
-        let table = Self::table(py, &record)?.unwrap();
-        Ok(table.interpolate(energy))
-    }
-}
-
-
-// ===============================================================================================
-// Python wrapper for a RayleighFormFactor object.
-// ===============================================================================================
-
-#[pyclass(name = "RayleighFormFactor", module = "goupil")]
-pub struct PyRayleighFormFactor {
-    #[pyo3(get)]
-    record: PyObject,
+    material: PyObject,
     #[pyo3(get)]
     momenta: PyObject,
     #[pyo3(get)]
     values: PyObject,
 }
 
-impl PyRayleighFormFactor {
-    fn new(
-        py: Python,
-        record: &PyCell<PyMaterialRecord>,
-    ) -> Result<PyObject> {
+impl PyFormFactor {
+    fn new(record: &PyCell<PyMaterialRecord>) -> Result<PyObject> {
+        let py = record.py();
         let (momenta, values) = {
             match Self::table(py, &record.borrow())? {
                 None => return Ok(py.None()),
@@ -1069,8 +1078,8 @@ impl PyRayleighFormFactor {
                 },
             }
         };
-        let record: PyObject = record.into_py(py);
-        let result = Self { record, momenta, values };
+        let material: PyObject = record.into_py(py);
+        let result = Self { material, momenta, values };
         Ok(result.into_py(py))
     }
 
@@ -1083,15 +1092,32 @@ impl PyRayleighFormFactor {
 }
 
 #[pymethods]
-impl PyRayleighFormFactor {
+impl PyFormFactor {
+    #[getter]
+    fn get_process(&self) -> String {
+        "Rayleigh".to_string()
+    }
+
     fn __call__(
         &self,
         py: Python,
-        momentum: Float // XXX Vectorize these functions.
-    ) -> Result<Float> {
-        let record: PyRef<PyMaterialRecord> = self.record.extract(py)?;
+        momentum: ArrayOrFloat
+    ) -> Result<PyObject> {
+        let record: PyRef<PyMaterialRecord> = self.material.extract(py)?;
         let table = Self::table(py, &record)?.unwrap();
-        Ok(table.interpolate(momentum))
+        let result = match momentum {
+            ArrayOrFloat::Array(momentum) => {
+                let result = PyArray::<Float>::empty(py, &momentum.shape())?;
+                let n = momentum.size();
+                for i in 0..n {
+                    let v = table.interpolate(momentum.get(i)?);
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(momentum) => table.interpolate(momentum).into_py(py),
+        };
+        Ok(result)
     }
 }
 

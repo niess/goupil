@@ -769,3 +769,16 @@ impl<T> ToPyObject for PyScalar<T> {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
+
+
+// ===============================================================================================
+//
+// Argument conversion.
+//
+// ===============================================================================================
+
+#[derive(pyo3::FromPyObject)]
+pub enum ArrayOrFloat<'a> {
+    Array(&'a PyArray<Float>),
+    Float(Float),
+}

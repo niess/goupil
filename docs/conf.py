@@ -9,7 +9,8 @@ highlight_language = 'python3'
 # General settings.
 extensions = [
     "sphinx.ext.doctest",
-    "sphinx.ext.intersphinx"
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.mathjax",
 ]
 
 templates_path = ['_templates']

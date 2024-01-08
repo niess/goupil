@@ -16,7 +16,7 @@ use pyo3::types::PyDict;
 use std::borrow::Cow;
 use super::macros::{key_error, not_implemented_error, value_error};
 use super::materials::{PyMaterialDefinition, PyMaterialRecord};
-use super::numpy::PyArray;
+use super::numpy::{ArrayOrFloat, PyArray};
 use super::rand::PyRandomStream;
 
 
@@ -342,13 +342,7 @@ impl PyComptonProcess {
     }
 }
 
-// Arguments conversions.
-#[derive(FromPyObject)]
-enum ArrayOrFloat<'a> {
-    Array(&'a PyArray<Float>),
-    Float(Float),
-}
-
+// Generic material.
 #[derive(FromPyObject)]
 enum Material<'py> {
     Definition(PyRef<'py, PyMaterialDefinition>),
