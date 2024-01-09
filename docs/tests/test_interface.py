@@ -152,7 +152,12 @@ def test_MaterialRecord():
     # Check attributes.
     H2O = goupil.MaterialDefinition("H2O")
     registry = goupil.MaterialRegistry(H2O)
-    record = registry["H2O"]
+    registry.compute()
 
+    record = registry["H2O"]
     assert(record.definition == H2O)
     assert(record.electrons == H2O.electrons())
+
+    # Check table getters.
+    table = record.absorption_cross_section()
+    assert(isinstance(table, goupil.CrossSection))

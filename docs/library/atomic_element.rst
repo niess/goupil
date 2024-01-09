@@ -51,5 +51,5 @@ Attributes
 .. py:attribute:: AtomicElement.Z
    :type: int
 
-   The element's atomic number, represented by an python:`int`. For instance,
-   hydrogen has an atomic number of :python:`1`.
+   The element's atomic number, represented by an :external:py:class:`int`. For
+   instance, hydrogen has an atomic number of :python:`1`.

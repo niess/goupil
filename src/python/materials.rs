@@ -416,6 +416,14 @@ impl PyMaterialRegistry {
             },
         };
 
+
+        if !self.inner.atomic_data_loaded() {
+            // Load default atomic data.
+            let mut path = prefix(py)?.clone();
+            path.push(PyMaterialRegistry::ELEMENTS_DATA);
+            self.inner.load_elements(&path)?;
+        }
+
         self.inner.compute(
             &config,
             length,
@@ -560,7 +568,7 @@ impl PyMaterialRecord {
         let mode = mode
             .map(|mode| ComptonMode::try_from(mode))
             .unwrap_or(Ok(Direct))?;
-        PyCDF::new(py, this, model, mode)
+        PyDistributionFunction::new(py, this, model, mode)
     }
 
     fn compton_cross_section(
@@ -588,7 +596,7 @@ impl PyMaterialRecord {
         let mode = mode
             .map(|mode| ComptonMode::try_from(mode))
             .unwrap_or(Ok(Direct))?;
-        PyInverseCDF::new(this, model, mode)
+        PyInverseDistribution::new(this, model, mode)
     }
 
     fn compton_weight(
@@ -858,8 +866,8 @@ impl PyCrossSection {
 // Python wrapper for a ComptonCDF object.
 // ===============================================================================================
 
-#[pyclass(name = "CDF", module="goupil")]
-pub struct PyCDF {
+#[pyclass(name = "DistributionFunction", module="goupil")]
+pub struct PyDistributionFunction {
     #[pyo3(get)]
     energies_in: PyObject,
     #[pyo3(get)]
@@ -873,7 +881,7 @@ pub struct PyCDF {
     mode: ComptonMode,
 }
 
-impl PyCDF {
+impl PyDistributionFunction {
     fn new(
         py: Python,
         record: &PyCell<PyMaterialRecord>,
@@ -907,7 +915,7 @@ impl PyCDF {
 }
 
 #[pymethods]
-impl PyCDF {
+impl PyDistributionFunction {
     #[getter]
     fn get_process(&self) -> String {
         Process::Compton(self.model, self.mode).into()
@@ -958,8 +966,8 @@ impl PyCDF {
 // Python wrapper for a Compton InverseCDF object.
 // ===============================================================================================
 
-#[pyclass(name = "InverseCDF", module="goupil")]
-pub struct PyInverseCDF {
+#[pyclass(name = "InverseDistribution", module="goupil")]
+pub struct PyInverseDistribution {
     #[pyo3(get)]
     cdf: PyObject,
     #[pyo3(get)]
@@ -975,7 +983,7 @@ pub struct PyInverseCDF {
     mode: ComptonMode,
 }
 
-impl PyInverseCDF {
+impl PyInverseDistribution {
     fn new(
         record: &PyCell<PyMaterialRecord>,
         model: ComptonModel,
@@ -1013,7 +1021,7 @@ impl PyInverseCDF {
 }
 
 #[pymethods]
-impl PyInverseCDF {
+impl PyInverseDistribution {
     #[getter]
     fn get_process(&self) -> String {
         Process::Compton(self.model, self.mode).into()

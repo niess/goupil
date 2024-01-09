@@ -8,7 +8,11 @@ use self::density::PyDensityGradient;
 use self::elements::{elements as elements_fun, PyAtomicElement};
 use self::geometry::{PyExternalGeometry, PySimpleGeometry};
 use self::materials::{
+    PyCrossSection,
+    PyDistributionFunction,
     PyElectronicStructure,
+    PyFormFactor,
+    PyInverseDistribution,
     PyMaterialDefinition,
     PyMaterialRecord,
     PyMaterialRegistry
@@ -122,9 +126,13 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     // Register class object(s).
     module.add_class::<PyAtomicElement>()?;
     module.add_class::<PyComptonProcess>()?;
+    module.add_class::<PyCrossSection>()?;
     module.add_class::<PyDensityGradient>()?;
+    module.add_class::<PyDistributionFunction>()?;
     module.add_class::<PyElectronicStructure>()?;
     module.add_class::<PyExternalGeometry>()?;
+    module.add_class::<PyFormFactor>()?;
+    module.add_class::<PyInverseDistribution>()?;
     module.add_class::<PyMaterialDefinition>()?;
     module.add_class::<PyMaterialRecord>()?;
     module.add_class::<PyMaterialRegistry>()?;
