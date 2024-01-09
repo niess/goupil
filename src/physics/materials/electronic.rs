@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut, Mul};
 // ===============================================================================================
 
 #[cfg_attr(feature = "python", repr(C))]
-#[derive(Clone, Copy, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Default, Deserialize, PartialEq, Serialize)]
 pub struct ElectronicShell {
     /// Shell occupancy number (might be fractionnal for mixtures).
     pub occupancy: Float,
@@ -67,7 +67,7 @@ impl<'a, 'b> Mul<&'b ElectronicShell> for &'a Float {
 // Electronic structure of a material, wrapping a collection of shells.
 // ===============================================================================================
 
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, PartialEq, Serialize)]
 pub struct ElectronicStructure (pub(crate) Vec<ElectronicShell>);
 
 // Public API.

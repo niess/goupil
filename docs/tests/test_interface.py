@@ -139,3 +139,20 @@ def test_MaterialDefinition():
     with pytest.raises(RuntimeError) as e:
         goupil.MaterialDefinition("Xu")
     assert str(e.value) == "no such atomic element 'Xu'"
+
+
+def test_MaterialRecord():
+    """Test usage of a MaterialRecord."""
+
+    # Check direct instanciation.
+    with pytest.raises(TypeError) as e:
+        goupil.MaterialRecord()
+    assert str(e.value) == "No constructor defined"
+
+    # Check attributes.
+    H2O = goupil.MaterialDefinition("H2O")
+    registry = goupil.MaterialRegistry(H2O)
+    record = registry["H2O"]
+
+    assert(record.definition == H2O)
+    assert(record.electrons == H2O.electrons())

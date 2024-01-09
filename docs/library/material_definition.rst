@@ -81,3 +81,12 @@ Attributes
 
    A name that identifies the material and is used to index it in a
    :doc:`material_registry`.
+
+
+Methods
+-------
+
+.. py:method:: electrons() -> ElectronicStructure
+
+   Calculates the electronic structure based on the atomic composition of the
+   material.

@@ -154,6 +154,11 @@ impl PyMaterialDefinition {
         Ok(Self(definition))
     }
 
+    // Implementation of equality test.
+    fn __eq__(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
     // Implementation of pickling protocol.
     pub fn __setstate__(&mut self, state: &PyBytes) -> Result<()> {
         self.0 = Deserialize::deserialize(&mut Deserializer::new(state.as_bytes()))?;
@@ -199,6 +204,11 @@ impl PyMaterialDefinition {
     #[getter]
     fn get_name(&self) -> &str {
         self.0.name()
+    }
+
+    fn electrons(&self) -> Result<PyElectronicStructure> {
+        let electrons = self.0.compute_electrons()?;
+        PyElectronicStructure::new(electrons, false)
     }
 }
 
@@ -519,15 +529,15 @@ impl PyMaterialRecord {
     fn get_electrons(&mut self, py: Python) -> Result<PyObject> {
         match &self.electrons {
             None => {
-                let object: PyObject = match self.get(py)?.electrons() {
-                    None => py.None(),
-                    Some(electrons) => {
-                        let electrons = PyElectronicStructure::new(electrons.clone(), false)?;
-                        let electrons = Py::new(py, electrons)?;
-                        self.electrons = Some(electrons.clone());
-                        electrons.into_py(py)
-                    },
+                let record = self.get(py)?;
+                let electrons = match record.electrons() {
+                    None => record.definition().compute_electrons()?,
+                    Some(electrons) => electrons.clone(),
                 };
+                let electrons = PyElectronicStructure::new(electrons.clone(), false)?;
+                let electrons = Py::new(py, electrons)?;
+                self.electrons = Some(electrons.clone());
+                let object: PyObject = electrons.into_py(py);
                 Ok(object)
             },
             Some(electrons) => Ok(electrons.clone().into_py(py)),
@@ -655,6 +665,10 @@ impl PyElectronicStructure {
             Ok::<Py<PyAny>, Error>(shells.into())
         })?;
         Ok(shells.clone_ref(py))
+    }
+
+    fn __eq__(&self, other: &Self) -> bool {
+        self.electrons == other.electrons
     }
 
     #[staticmethod]
