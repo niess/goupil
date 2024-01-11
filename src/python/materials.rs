@@ -206,9 +206,10 @@ impl PyMaterialDefinition {
         self.0.name()
     }
 
-    fn electrons(&self) -> Result<PyElectronicStructure> {
+    fn electrons(&self, py: Python) -> Result<PyObject> {
         let electrons = self.0.compute_electrons()?;
-        PyElectronicStructure::new(electrons, false)
+        let electrons = PyElectronicStructure::new(electrons, false)?;
+        Ok(electrons.into_py(py))
     }
 }
 
@@ -638,7 +639,7 @@ pub struct PyElectronicStructure {
 }
 
 impl PyElectronicStructure {
-    fn new(electrons: ElectronicStructure, writable: bool) -> Result<Self> {
+    pub(crate) fn new(electrons: ElectronicStructure, writable: bool) -> Result<Self> {
         Ok(Self {
             electrons,
             writable,

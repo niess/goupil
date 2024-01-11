@@ -42,6 +42,17 @@ def test_AtomicElement():
             setattr(H0, attr, None)
         assert "not writable" in str(e.value)
 
+    # Check electrons.
+    e = H0.electrons()
+    assert(isinstance(e, goupil.ElectronicStructure))
+    assert(e.charge == 1.0)
+
+    s = e.shells
+    del e
+    assert(len(s) == 1)
+    assert(s[0]["occupancy"] == 1.0)
+    assert(abs(s[0]["energy"] - 13.6E-06) <= 1E-10)
+
 
 def test_ComptonProcess():
     """Test usage of a ComptonProcess."""
@@ -140,6 +151,17 @@ def test_MaterialDefinition():
         goupil.MaterialDefinition("Xu")
     assert str(e.value) == "no such atomic element 'Xu'"
 
+    # Check electrons.
+    e = H2O.electrons()
+    assert(isinstance(e, goupil.ElectronicStructure))
+    assert(e.charge == 10.0)
+
+    s = e.shells
+    del e
+    assert(len(s) == 5)
+    assert(s[0]["occupancy"] == 2.0)
+    assert(abs(s[0]["energy"] - 13.6E-06) <= 1E-10)
+
 
 def test_MaterialRecord():
     """Test usage of a MaterialRecord."""
@@ -161,3 +183,26 @@ def test_MaterialRecord():
     # Check table getters.
     table = record.absorption_cross_section()
     assert(isinstance(table, goupil.CrossSection))
+    assert(table.process == "Absorption")
+    assert(table.material is record)
+
+    table = record.compton_cross_section()
+    assert(isinstance(table, goupil.CrossSection))
+    assert(table.process.startswith("Compton::"))
+    assert(table.material is record)
+
+    table = record.rayleigh_cross_section()
+    assert(isinstance(table, goupil.CrossSection))
+    assert(table.process == "Rayleigh")
+    assert(table.material is record)
+
+    table = record.compton_cdf()
+    assert(table is None)
+
+    table = record.compton_inverse_cdf()
+    assert(table is None)
+
+    table = record.rayleigh_form_factor()
+    assert(isinstance(table, goupil.FormFactor))
+    assert(table.process == "Rayleigh")
+    assert(table.material is record)

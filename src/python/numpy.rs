@@ -444,7 +444,9 @@ where
             }
         }
         let set_base_object = unsafe { *api.set_base_object };
-        set_base_object(array, base.as_ptr());
+        let ptr = base.as_ptr();
+        set_base_object(array, ptr);
+        unsafe { pyo3::ffi::Py_INCREF(ptr); }
         let array = unsafe { &*(array as *const Self) };
         Ok(array)
     }

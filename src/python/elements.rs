@@ -7,6 +7,7 @@ use pyo3::exceptions::PyNotImplementedError;
 use pyo3::types::{PyBytes, PyTuple};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use super::materials::PyElectronicStructure;
 
 
 // ===============================================================================================
@@ -78,6 +79,12 @@ impl PyAtomicElement {
 
     fn __repr__(&self) -> &str {
         &self.0.symbol
+    }
+
+    fn electrons(&self, py: Python) -> Result<PyObject> {
+        let electrons = self.0.electrons()?;
+        let electrons = PyElectronicStructure::new(electrons.clone(), false)?;
+        Ok(electrons.into_py(py))
     }
 }
 
