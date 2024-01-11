@@ -86,7 +86,7 @@ Attributes
 Methods
 -------
 
-.. py:method:: electrons() -> ElectronicStructure
+.. py:method:: MaterialDefinition.electrons() -> ElectronicStructure
 
    Calculates the electronic structure based on the atomic composition of the
    material.

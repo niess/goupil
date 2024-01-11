@@ -53,3 +53,11 @@ Attributes
 
    The element's atomic number, represented by an :external:py:class:`int`. For
    instance, hydrogen has an atomic number of :python:`1`.
+
+
+Methods
+-------
+
+.. py:method:: AtomicElement.electrons() -> ElectronicStructure
+
+   Returns a representation of the element's electronic structure.

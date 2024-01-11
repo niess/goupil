@@ -5,13 +5,22 @@
 
 ----
 
-This class represents an electronic structure (XXX ellaborate)
+This class represents the electronic structure of an atomic element, compound,
+or mixture in terms of shells. It is a wrapper over a structured
+:external:py:class:`numpy.ndarray` that contains shell data (see the
+:py:attr:`shells <ElectronicStructure.shells>` method below).
 
 
 Constructor
 -----------
 
-.. py:class:: ElectronicStructure(seed=None)
+.. py:class:: ElectronicStructure(*args, **kwargs)
+
+.. warning::
+
+   Electronic structures cannot be instantiated directly, but only from an
+   :doc:`atomic_element`, :doc:`material_definition` or :doc:`material_record`.
+   Direct instantiation will result in a :external:py:class:`TypeError`.
 
 
 Attributes
@@ -30,8 +39,9 @@ Attributes
 .. py:attribute:: ElectronicStructure.shells
    :type: numpy.ndarray
 
-   A structured :external:py:class:`numpy.ndarray` providing the electronic
-   shells binding energies, average momenta and occupancy numbers.
+   A structured :external:py:class:`numpy.ndarray` storing the properties of
+   electronic shells, i.e. the shell binding *energy*, average *momentum* and
+   *occupancy*. For example
 
-   >>> H.electrons().shells
-   10.0
+   >>> H.electrons().shells["occupancy"]
+   array([1.]

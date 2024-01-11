@@ -679,16 +679,6 @@ impl PyElectronicStructure {
     fn __eq__(&self, other: &Self) -> bool {
         self.electrons == other.electrons
     }
-
-    #[staticmethod]
-    fn from_others(composition: Vec<(Float, PyRef<Self>)>) -> Result<Self> {
-        let composition: Vec<_> = composition
-            .iter()
-            .map(|(weight, electrons)| (*weight, &electrons.electrons))
-            .collect();
-        let electrons = ElectronicStructure::from_others(&composition);
-        Ok(Self::new(electrons, true)?)
-    }
 }
 
 
