@@ -1,7 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use crate::numerics::float::{Float, Float3};
 use crate::transport::density::DensityModel;
 use pyo3::prelude::*;
+use super::numpy::{ArrayOrFloat3, PyArray};
 
 
 // ===============================================================================================
@@ -40,8 +41,67 @@ impl PyDensityGradient {
                     format!("DensityGradient({}, {})", rho0, lambda)
                 }
             },
-            _ => unreachable!()
+            _ => unreachable!(),
         }
+    }
+
+    #[getter]
+    fn get_density(&self) -> Float {
+        match &self.0 {
+            DensityModel::Gradient { rho0, .. } => *rho0,
+            _ => unreachable!(),
+        }
+    }
+
+    #[getter]
+    fn get_direction(&self) -> Float3 {
+        match &self.0 {
+            DensityModel::Gradient { direction, .. } => *direction,
+            _ => unreachable!(),
+        }
+    }
+
+    #[getter]
+    fn get_origin(&self) -> Float3 {
+        match &self.0 {
+            DensityModel::Gradient { origin, .. } => *origin,
+            _ => unreachable!(),
+        }
+    }
+
+    #[getter]
+    fn get_scale(&self) -> Float {
+        match &self.0 {
+            DensityModel::Gradient { lambda, .. } => *lambda,
+            _ => unreachable!(),
+        }
+    }
+
+    fn __call__(&self, py: Python, position: ArrayOrFloat3) -> Result<PyObject> {
+        let result: PyObject = match position {
+            ArrayOrFloat3::Array(position) => {
+                let shape = position.shape();
+                let n = shape.len();
+                if (n < 1) || (shape[n - 1] != 3) {
+                    let shape: PyObject = shape.into_py(py);
+                    bail!("bad shape (expected [3] or [..., 3], found {})", shape);
+                }
+                let result = PyArray::<Float>::empty(py, &shape[0..(n-1)])?;
+                let m = result.size();
+                for i in 0..m {
+                    let r = Float3::new(
+                        position.get(3 * i)?,
+                        position.get(3 * i + 1)?,
+                        position.get(3 * i + 2)?,
+                    );
+                    let v = self.0.value(r);
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat3::Float3(position) => self.0.value(position).into_py(py),
+        };
+        Ok(result)
     }
 }
 

@@ -49,7 +49,7 @@ Constructor
    .. note::
 
       When explicitly defining the mass or mole composition of the material, it
-      is necessary to provide a name.
+      is also necessary to specify a name.
 
 Attributes
 ----------

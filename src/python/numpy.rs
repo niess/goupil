@@ -1,4 +1,4 @@
-use crate::numerics::float::Float;
+use crate::numerics::float::{Float, Float3};
 use crate::physics::materials::electronic::ElectronicShell;
 // PyO3 interface.
 use pyo3::conversion::{FromPyObject, IntoPy, ToPyObject};
@@ -783,4 +783,21 @@ impl<T> ToPyObject for PyScalar<T> {
 pub enum ArrayOrFloat<'a> {
     Array(&'a PyArray<Float>),
     Float(Float),
+}
+
+#[derive(pyo3::FromPyObject)]
+pub enum ArrayOrFloat3<'a> {
+    Array(&'a PyArray<Float>),
+    Float3(Float3),
+}
+
+impl IntoPy<PyObject> for Float3 {
+    fn into_py(self, py: Python) -> PyObject {
+        let result = PyArray::<Float>::empty(py, &[3]).unwrap();
+        result.set(0, self.0).unwrap();
+        result.set(1, self.1).unwrap();
+        result.set(2, self.2).unwrap();
+        result.readonly();
+        result.into_py(py)
+    }
 }
