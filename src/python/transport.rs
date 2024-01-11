@@ -24,7 +24,7 @@ use super::{
     geometry::{PyExternalGeometry, PyGeometryDefinition},
     macros::type_error,
     materials::PyMaterialRegistry,
-    numpy::{PyArray, PyScalar},
+    numpy::{PyArray, PyScalar, ShapeArg},
     rand::PyRandomStream,
     prefix,
 };
@@ -590,21 +590,6 @@ pub fn states(py: Python, shape: Option<ShapeArg>, kwargs: Option<&PyDict>) -> R
         array.set_item("weight", 1.0)?;
     }
     Ok(array.into())
-}
-
-#[derive(FromPyObject)]
-pub enum ShapeArg {
-    Scalar(usize),
-    Vector(Vec<usize>),
-}
-
-impl From<ShapeArg> for Vec<usize> {
-    fn from(value: ShapeArg) -> Self {
-        match value {
-            ShapeArg::Scalar(value) => vec![value],
-            ShapeArg::Vector(value) => value,
-        }
-    }
 }
 
 

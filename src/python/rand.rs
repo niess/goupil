@@ -4,7 +4,7 @@ use getrandom::getrandom;
 use pyo3::prelude::*;
 use rand::SeedableRng;
 use serde_derive::{Deserialize, Serialize};
-use super::numpy::{PyArray, PyScalar};
+use super::numpy::{PyArray, PyScalar, ShapeArg};
 
 #[cfg(not(feature = "f32"))]
 use rand_pcg::Pcg64Mcg as Generator;
@@ -64,14 +64,14 @@ impl PyRandomStream {
 
     /// Generates pseudo random number(s) following the Normal law.
     #[pyo3(name = "normal")]
-    fn py_normal(&mut self, py: Python, n: Option<usize>) -> Result<PyObject> {
-        self.generate(py, n, Self::normal)
+    fn py_normal(&mut self, py: Python, shape: Option<ShapeArg>) -> Result<PyObject> {
+        self.generate(py, shape, Self::normal)
     }
 
     /// Generates pseudo random number(s) uniformly distributed over (0,1).
     #[pyo3(name = "uniform01")]
-    fn py_uniform01(&mut self, py: Python, n: Option<usize>) -> Result<PyObject> {
-        self.generate(py, n, Self::uniform01)
+    fn py_uniform01(&mut self, py: Python, shape: Option<ShapeArg>) -> Result<PyObject> {
+        self.generate(py, shape, Self::uniform01)
     }
 }
 
@@ -106,18 +106,20 @@ impl PyRandomStream {
     fn generate(
         &mut self,
         py: Python,
-        n: Option<usize>,
+        shape: Option<ShapeArg>,
         func: fn(&mut Self) -> Float
     ) -> Result<PyObject> {
-        match n {
+        match shape {
             None => {
                 let value = func(self);
                 let scalar = PyScalar::new(py, value)?;
                 Ok(scalar.into())
             },
-            Some(n) => {
+            Some(shape) => {
+                let shape: Vec<usize> = shape.into();
+                let n = shape.iter().product();
                 let iter = (0..n).map(|_| func(self));
-                let array: &PyAny = PyArray::<Float>::from_iter(py, &[n], iter)?;
+                let array: &PyAny = PyArray::<Float>::from_iter(py, &shape, iter)?;
                 Ok(array.into())
             },
         }

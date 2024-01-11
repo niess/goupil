@@ -775,7 +775,7 @@ impl<T> ToPyObject for PyScalar<T> {
 
 // ===============================================================================================
 //
-// Argument conversion.
+// Arguments conversion.
 //
 // ===============================================================================================
 
@@ -799,5 +799,20 @@ impl IntoPy<PyObject> for Float3 {
         result.set(2, self.2).unwrap();
         result.readonly();
         result.into_py(py)
+    }
+}
+
+#[derive(pyo3::FromPyObject)]
+pub enum ShapeArg {
+    Scalar(usize),
+    Vector(Vec<usize>),
+}
+
+impl From<ShapeArg> for Vec<usize> {
+    fn from(value: ShapeArg) -> Self {
+        match value {
+            ShapeArg::Scalar(value) => vec![value],
+            ShapeArg::Vector(value) => value,
+        }
     }
 }
