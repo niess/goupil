@@ -20,7 +20,8 @@ use self::materials::{
 use self::rand::PyRandomStream;
 use process_path::get_dylib_path;
 use self::process::{PyComptonProcess, PyRayleighProcess};
-use self::transport::{PyPhotonState, PyTransportEngine, PyTransportSettings, PyTransportStatus};
+use self::transport::{PyTransportEngine, PyTransportSettings, PyTransportStatus};
+use self::transport::{states as states_fun};
 use std::path::PathBuf;
 
 mod density;
@@ -136,7 +137,6 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<PyMaterialDefinition>()?;
     module.add_class::<PyMaterialRecord>()?;
     module.add_class::<PyMaterialRegistry>()?;
-    module.add_class::<PyPhotonState>()?;
     module.add_class::<PySimpleGeometry>()?;
     module.add_class::<PyRandomStream>()?;
     module.add_class::<PyRayleighProcess>()?;
@@ -146,6 +146,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
 
     // Register function(s).
     module.add_function(wrap_pyfunction!(elements_fun, module)?)?;
+    module.add_function(wrap_pyfunction!(states_fun, module)?)?;
 
     Ok(())
 }

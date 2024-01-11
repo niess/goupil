@@ -24,7 +24,7 @@ use super::{
     geometry::{PyExternalGeometry, PyGeometryDefinition},
     macros::type_error,
     materials::PyMaterialRegistry,
-    numpy::{Dtype, PyArray, PyScalar},
+    numpy::{PyArray, PyScalar},
     rand::PyRandomStream,
     prefix,
 };
@@ -552,33 +552,44 @@ impl From<PhotonState> for CState {
 
 
 // ===============================================================================================
-// Utility class for creating a numpy array of photon states.
+// Utility function for creating a numpy array of photon states.
 // ===============================================================================================
 
-#[pyclass(name = "PhotonState", module="goupil")]
-pub struct PyPhotonState;
-
-#[pymethods]
-impl PyPhotonState {
-    #[classattr]
-    fn dtype(py: Python) -> Result<PyObject> {
-        let dtype = CState::dtype(py)?;
-        Ok(dtype)
+#[pyfunction]
+#[pyo3(signature=(shape=None, **kwargs))]
+pub fn states(py: Python, shape: Option<ShapeArg>, kwargs: Option<&PyDict>) -> Result<PyObject> {
+    let shape: Vec<usize> = match shape {
+        None => vec![0],
+        Some(shape) => shape.into(),
+    };
+    let array: &PyAny = PyArray::<CState>::zeros(py, &shape)?;
+    let mut has_direction = false;
+    let mut has_energy = false;
+    let mut has_weight = false;
+    if let Some(kwargs) = kwargs {
+        for (key, value) in kwargs.iter() {
+            {
+                let key: &str = key.extract()?;
+                match key {
+                    "direction" => { has_direction = true; },
+                    "energy" => { has_energy = true; },
+                    "weight" => { has_weight = true; },
+                    _ => {},
+                }
+            }
+            array.set_item(key, value)?;
+        }
     }
-
-    #[staticmethod]
-    fn empty(py: Python, shape: ShapeArg) -> Result<PyObject> {
-        let shape: Vec<usize> = shape.into();
-        let array: &PyAny = PyArray::<CState>::empty(py, &shape)?;
-        Ok(array.into())
+    if !has_direction {
+        array.set_item("direction", (0.0, 0.0, 1.0))?;
     }
-
-    #[staticmethod]
-    fn zeros(py: Python, shape: ShapeArg) -> Result<PyObject> {
-        let shape: Vec<usize> = shape.into();
-        let array: &PyAny = PyArray::<CState>::zeros(py, &shape)?;
-        Ok(array.into())
+    if !has_energy {
+        array.set_item("energy", 1.0)?;
     }
+    if !has_weight {
+        array.set_item("weight", 1.0)?;
+    }
+    Ok(array.into())
 }
 
 #[derive(FromPyObject)]

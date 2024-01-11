@@ -24,7 +24,6 @@ Classes
    material_definition
    material_record
    material_registry
-   photon_state
    random_stream
    rayleigh_process
    simple_geometry
@@ -40,3 +39,4 @@ Functions
    :maxdepth: 1
 
    elements
+   states
