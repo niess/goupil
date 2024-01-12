@@ -1,7 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use crate::numerics::float::{Float, Float3};
 use crate::transport::density::DensityModel;
 use pyo3::prelude::*;
+use super::macros::value_error;
 use super::numpy::{ArrayOrFloat3, PyArray};
 
 
@@ -84,7 +85,7 @@ impl PyDensityGradient {
                 let n = shape.len();
                 if (n < 1) || (shape[n - 1] != 3) {
                     let shape: PyObject = shape.into_py(py);
-                    bail!("bad shape (expected [3] or [..., 3], found {})", shape);
+                    value_error!("bad shape (expected [3] or [..., 3], found {})", shape);
                 }
                 let result = PyArray::<Float>::empty(py, &shape[0..(n-1)])?;
                 let m = result.size();

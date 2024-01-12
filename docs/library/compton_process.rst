@@ -73,8 +73,8 @@ Attributes
 .. py:attribute:: ComptonProcess.model
    :type: str
 
-   This attribute specifies the physical model describing Compton scattering.
-   The possible values are
+   This attribute specifies the physics model describing Compton scattering. The
+   possible values are
 
    .. list-table::
       :widths: 26 59

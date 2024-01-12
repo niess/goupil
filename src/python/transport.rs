@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use crate::numerics::float::Float;
 use crate::physics::materials::MaterialRegistry;
 use crate::physics::process::{
@@ -22,9 +22,9 @@ use serde::{Deserialize, Serialize};
 use super::{
     ctrlc_catched,
     geometry::{PyExternalGeometry, PyGeometryDefinition},
-    macros::type_error,
+    macros::{type_error, value_error},
     materials::PyMaterialRegistry,
-    numpy::{PyArray, PyScalar, ShapeArg},
+    numpy::{ArrayOrFloat, PyArray, PyScalar, ShapeArg},
     rand::PyRandomStream,
     prefix,
 };
@@ -35,7 +35,24 @@ use super::{
 // ===============================================================================================
 
 #[pyclass(name = "TransportSettings", module = "goupil")]
-pub(crate) struct PyTransportSettings (pub TransportSettings);
+pub(crate) struct PyTransportSettings {
+    pub inner: TransportSettings,
+    pub constrained: bool,
+}
+
+// Convert from raw type.
+impl Into<PyTransportSettings> for TransportSettings {
+    fn into(self) -> PyTransportSettings {
+        let constrained = match self.constraint {
+            None => false,
+            Some(_) => true,
+        };
+        PyTransportSettings {
+            inner: self,
+            constrained
+        }
+    }
+}
 
 // Convert from an optional string.
 macro_rules! from_optstr {
@@ -61,27 +78,30 @@ macro_rules! to_optstr {
 impl PyTransportSettings {
     #[new]
     fn new() -> Self {
-        Self(TransportSettings::default())
+        Self {
+            inner: TransportSettings::default(),
+            constrained: false,
+        }
     }
 
     #[getter]
     fn get_mode(&self) -> &str {
-        self.0.mode.into()
+        self.inner.mode.into()
     }
 
     #[setter]
     fn set_mode(&mut self, value: &str) -> Result<()> {
-        self.0.mode = TransportMode::try_from(value)?;
-        match self.0.mode {
-            Backward => match self.0.compton_mode {
+        self.inner.mode = TransportMode::try_from(value)?;
+        match self.inner.mode {
+            Backward => match self.inner.compton_mode {
                 Direct => {
-                    self.0.compton_mode = Adjoint;
+                    self.inner.compton_mode = Adjoint;
                 },
                 _ => (),
             },
-            Forward => match self.0.compton_mode {
+            Forward => match self.inner.compton_mode {
                 Adjoint | Inverse => {
-                    self.0.compton_mode = Direct;
+                    self.inner.compton_mode = Direct;
                 },
                 _ => (),
             },
@@ -91,18 +111,18 @@ impl PyTransportSettings {
 
     #[getter]
     fn get_absorption(&self) -> Option<&str> {
-        to_optstr!(AbsorptionMode, self.0.absorption)
+        to_optstr!(AbsorptionMode, self.inner.absorption)
     }
 
     #[setter]
     fn set_absorption(&mut self, value: Option<&str>) -> Result<()> {
-        from_optstr!(AbsorptionMode, self.0.absorption, value);
+        from_optstr!(AbsorptionMode, self.inner.absorption, value);
         Ok(())
     }
 
     #[getter]
     fn get_boundary(&self) -> Option<usize> {
-        match self.0.boundary {
+        match self.inner.boundary {
             TransportBoundary::None => None,
             TransportBoundary::Sector(index) => Some(index),
         }
@@ -111,41 +131,41 @@ impl PyTransportSettings {
     #[setter]
     fn set_boundary(&mut self, value: Option<usize>) -> Result<()> {
         match value {
-            None => self.0.boundary = TransportBoundary::None,
-            Some(index) => self.0.boundary = TransportBoundary::Sector(index),
+            None => self.inner.boundary = TransportBoundary::None,
+            Some(index) => self.inner.boundary = TransportBoundary::Sector(index),
         };
         Ok(())
     }
 
     #[getter]
     fn get_compton_method(&self) -> &str {
-        self.0.compton_method.into()
+        self.inner.compton_method.into()
     }
 
     #[setter]
     fn set_compton_method(&mut self, value: &str) -> Result<()> {
-        self.0.compton_method = ComptonMethod::try_from(value)?;
+        self.inner.compton_method = ComptonMethod::try_from(value)?;
         Ok(())
     }
 
     #[getter]
     fn get_compton_mode(&self) -> Option<&str> {
-        to_optstr!(ComptonMode, self.0.compton_mode)
+        to_optstr!(ComptonMode, self.inner.compton_mode)
     }
 
     #[setter]
     fn set_compton_mode(&mut self, value: Option<&str>) -> Result<()> {
-        from_optstr!(ComptonMode, self.0.compton_mode, value);
-        match self.0.compton_mode {
+        from_optstr!(ComptonMode, self.inner.compton_mode, value);
+        match self.inner.compton_mode {
             Adjoint => {
-                self.0.mode = Backward;
+                self.inner.mode = Backward;
             },
             Direct => {
-                self.0.mode = Forward;
+                self.inner.mode = Forward;
             },
             Inverse => {
-                self.0.mode = Backward;
-                self.0.compton_method = ComptonMethod::InverseTransform;
+                self.inner.mode = Backward;
+                self.inner.compton_method = ComptonMethod::InverseTransform;
             },
             ComptonMode::None => (),
         }
@@ -154,67 +174,81 @@ impl PyTransportSettings {
 
     #[getter]
     fn get_compton_model(&self) -> &str {
-        self.0.compton_model.into()
+        self.inner.compton_model.into()
     }
 
     #[setter]
     fn set_compton_model(&mut self, value: &str) -> Result<()> {
-        self.0.compton_model = ComptonModel::try_from(value)?;
+        self.inner.compton_model = ComptonModel::try_from(value)?;
         Ok(())
     }
 
     #[getter]
-    fn get_constraint(&self) -> Option<Float> {
-        self.0.constraint
+    fn get_constrained(&self) -> bool {
+        self.constrained
     }
 
     #[setter]
-    fn set_constraint(&mut self, value: Option<Float>) -> Result<()> {
-        self.0.constraint = value;
+    fn set_constrained(&mut self, value: Option<bool>) -> Result<()> {
+        let value = value.unwrap_or(false);
+        self.constrained = value;
+        if value {
+            self.inner.constraint = Some(1.0);
+        } else {
+            self.inner.constraint = None;
+        }
         Ok(())
     }
 
     #[getter]
-    fn get_rayleigh(&self) -> Option<&str> {
-        to_optstr!(RayleighMode, self.0.rayleigh)
+    fn get_rayleigh(&self) -> bool {
+        match self.inner.rayleigh {
+            RayleighMode::FormFactor => true,
+            RayleighMode::None => false,
+        }
     }
 
     #[setter]
-    fn set_rayleigh(&mut self, value: Option<&str>) -> Result<()> {
-        from_optstr!(RayleighMode, self.0.rayleigh, value);
+    fn set_rayleigh(&mut self, value: Option<bool>) -> Result<()> {
+        let value = value.unwrap_or(false);
+        if value {
+            self.inner.rayleigh = RayleighMode::FormFactor;
+        } else {
+            self.inner.rayleigh = RayleighMode::None;
+        }
         Ok(())
     }
 
     #[getter]
     fn get_energy_min(&self) -> Option<Float> {
-        self.0.energy_min
+        self.inner.energy_min
     }
 
     #[setter]
     fn set_energy_min(&mut self, value: Option<Float>) -> Result<()> {
-        self.0.energy_min = value;
+        self.inner.energy_min = value;
         Ok(())
     }
 
     #[getter]
     fn get_energy_max(&self) -> Option<Float> {
-        self.0.energy_max
+        self.inner.energy_max
     }
 
     #[setter]
     fn set_energy_max(&mut self, value: Option<Float>) -> Result<()> {
-        self.0.energy_max = value;
+        self.inner.energy_max = value;
         Ok(())
     }
 
     #[getter]
     fn get_length_max(&self) -> Option<Float> {
-        self.0.length_max
+        self.inner.length_max
     }
 
     #[setter]
     fn set_length_max(&mut self, value: Option<Float>) -> Result<()> {
-        self.0.length_max = value;
+        self.inner.length_max = value;
         Ok(())
     }
 }
@@ -313,8 +347,12 @@ impl PyTransportEngine {
         let registry = &mut self.registry.borrow_mut(py).inner;
         *registry = Deserialize::deserialize(&mut deserializer)?;
 
-        let settings = &mut self.settings.borrow_mut(py).0;
-        *settings = Deserialize::deserialize(&mut deserializer)?;
+        let settings = &mut self.settings.borrow_mut(py);
+        settings.inner = Deserialize::deserialize(&mut deserializer)?;
+        match settings.inner.constraint {
+            None => settings.constrained = false,
+            Some(_) => settings.constrained = true,
+        }
 
         Ok(())
     }
@@ -329,7 +367,7 @@ impl PyTransportEngine {
         let registry = &self.registry.borrow(py).inner;
         registry.serialize(&mut serializer)?;
 
-        let settings = &self.settings.borrow(py).0;
+        let settings = &self.settings.borrow(py).inner;
         settings.serialize(&mut serializer)?;
 
         Ok(PyBytes::new(py, &buffer))
@@ -351,7 +389,7 @@ impl PyTransportEngine {
         }
 
         let mode = match mode {
-            None => match &self.settings.borrow(py).0.mode {
+            None => match &self.settings.borrow(py).inner.mode {
                 TransportMode::Backward => CompileMode::Backward,
                 TransportMode::Forward => CompileMode::Forward,
             },
@@ -360,7 +398,7 @@ impl PyTransportEngine {
                 "Backward" => CompileMode::Backward,
                 "Both" => CompileMode::Both,
                 "Forward" => CompileMode::Forward,
-                _ => bail!(
+                _ => value_error!(
                     "bad mode (expected 'All', 'Backward', 'Both' or 'Forward', found '{}')",
                     mode,
                 ),
@@ -399,20 +437,20 @@ impl PyTransportEngine {
         // release the mutable borrow on the registry.
         match mode {
             CompileMode::All | CompileMode::Both | CompileMode::Forward => {
-                let mut settings = self.settings.borrow(py).0.clone();
+                let mut settings = self.settings.borrow(py).inner.clone();
                 settings.mode = Forward;
                 match settings.compton_mode {
                     Adjoint | Inverse => settings.compton_mode = Direct,
                     _ =>(),
                 }
-                let args = (PyTransportSettings(settings),);
+                let args = (Into::<PyTransportSettings>::into(settings),);
                 self.registry.call_method(py, "compute", args, kwargs)?;
             },
             _ => (),
         }
         match mode {
             CompileMode::All | CompileMode::Both | CompileMode::Backward => {
-                let mut settings = self.settings.borrow(py).0.clone();
+                let mut settings = self.settings.borrow(py).inner.clone();
                 settings.mode = Backward;
                 match settings.compton_mode {
                     Direct => settings.compton_mode = Adjoint,
@@ -421,18 +459,18 @@ impl PyTransportEngine {
                 if let Inverse = settings.compton_mode {
                     settings.compton_method = ComptonMethod::InverseTransform;
                 }
-                let args = (PyTransportSettings(settings),);
+                let args = (Into::<PyTransportSettings>::into(settings),);
                 self.registry.call_method(py, "compute", args, kwargs)?;
             },
             _ => (),
         }
         match mode {
             CompileMode::All => {
-                let mut settings = self.settings.borrow(py).0.clone();
+                let mut settings = self.settings.borrow(py).inner.clone();
                 settings.mode = Backward;
                 settings.compton_mode = Inverse;
                 settings.compton_method = ComptonMethod::InverseTransform;
-                let args = (PyTransportSettings(settings),);
+                let args = (Into::<PyTransportSettings>::into(settings),);
                 self.registry.call_method(py, "compute", args, kwargs)?;
             },
             _ => (),
@@ -440,7 +478,26 @@ impl PyTransportEngine {
         Ok(())
     }
 
-    fn transport(&self, py: Python, states: &PyArray<CState>) -> Result<PyObject> {
+    fn transport(
+        &self,
+        states: &PyArray<CState>,
+        constraints: Option<ArrayOrFloat>,
+    ) -> Result<PyObject> {
+        // Check constraints and states consistency.
+        if let Some(constraints) = constraints.as_ref() {
+            if let ArrayOrFloat::Array(constraints) = constraints {
+                if constraints.size() != states.size() {
+                    value_error!(
+                        "bad constraints (expected a scalar or a size {} array, \
+                         found a size {} array)",
+                        states.size(),
+                        constraints.size(),
+                    )
+                }
+            }
+        }
+
+        let py = states.py();
         match &self.geometry {
             None => type_error!(
                 "bad geometry (expected an instance of 'ExternalGeometry' or 'SimpleGeometry' \
@@ -449,12 +506,12 @@ impl PyTransportEngine {
             Some(geometry) => match geometry {
                 PyGeometryDefinition::External(external) => {
                     self.transport_with::<_, ExternalTracer>(
-                        py, &external.borrow(py).0, states
+                        &external.borrow(py).0, states, constraints,
                     )
                 },
                 PyGeometryDefinition::Simple(simple) => {
                     self.transport_with::<_, SimpleTracer>(
-                        py, &simple.borrow(py).0, states
+                        &simple.borrow(py).0, states, constraints,
                     )
                 },
             },
@@ -475,20 +532,37 @@ impl PyTransportEngine {
 
     fn transport_with<'a, G, T>(
         &self,
-        py: Python,
         geometry: &'a G,
         states: &PyArray<CState>,
+        constraints: Option<ArrayOrFloat>,
     ) -> Result<PyObject>
     where
         G: GeometryDefinition,
         T: GeometryTracer<'a, G>,
     {
         // Create the status array.
+        let py = states.py();
         let status = PyArray::<i32>::empty(py, &states.shape())?;
 
         // Unpack registry and settings.
         let registry = &self.registry.borrow(py).inner;
-        let settings = &self.settings.borrow(py).0;
+        let mut settings = self.settings.borrow(py).inner.clone();
+        if constraints.is_none() {
+            settings.constraint = None;
+        }
+
+        // Check consistency of settings with explicit constraints.
+        if !constraints.is_none() {
+            if settings.mode == TransportMode::Forward {
+                value_error!("bad constraints (unused in 'Forward' mode)")
+            } else {
+                if settings.constraint.is_none() {
+                    value_error!("bad constraints (disabled by transport settings)")
+                }
+            }
+        }
+
+        // XXX Use table energy limits if no explicit bound was specified (?)
 
         // Get a transport agent.
         let rng: &mut PyRandomStream = &mut self.random.borrow_mut(py);
@@ -498,7 +572,14 @@ impl PyTransportEngine {
         let n = states.size();
         for i in 0..n {
             let mut state: PhotonState = states.get(i)?.into();
-            let flag = agent.transport(settings, &mut state)?;
+            if let Some(constraints) = constraints.as_ref() {
+                let constraint = match constraints {
+                    ArrayOrFloat::Array(constraints) => constraints.get(i)?,
+                    ArrayOrFloat::Float(constraint) => *constraint,
+                };
+                settings.constraint = Some(constraint);
+            }
+            let flag = agent.transport(&settings, &mut state)?;
             states.set(i, state.into())?;
             status.set(i, flag.into())?;
 

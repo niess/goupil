@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Error, Result};
+use anyhow::{anyhow, Error, Result};
 use crate::numerics::{
     float::Float,
     grids::Grid,
@@ -312,7 +312,7 @@ impl PyMaterialRegistry {
         compton_method: Option<&str>,
         compton_model: Option<&str>,
         compton_mode: Option<&str>,
-        constraint: Option<PyConstraint>,
+        constraint: Option<bool>,
         energy_max: Option<Float>,
         energy_min: Option<Float>,
     ) -> Result<()> {
@@ -340,7 +340,7 @@ impl PyMaterialRegistry {
 
         let mode = mode
             .map(|s| TransportMode::try_from(s))
-            .or(settings.map(|settings| Ok(settings.0.mode)));
+            .or(settings.map(|settings| Ok(settings.inner.mode)));
         let mode = match mode {
             None => None,
             Some(mode) => {
@@ -356,35 +356,35 @@ impl PyMaterialRegistry {
 
         config.absorption = absorption
             .map(|s| AbsorptionMode::try_from(s))
-            .or(settings.map(|settings| Ok(settings.0.absorption)))
+            .or(settings.map(|settings| Ok(settings.inner.absorption)))
             .unwrap_or(Ok(Discrete))?;
 
         config.compton_model = compton_model
             .map(|s| ComptonModel::try_from(s))
-            .or(settings.map(|settings| Ok(settings.0.compton_model)))
+            .or(settings.map(|settings| Ok(settings.inner.compton_model)))
             .unwrap_or(Ok(ScatteringFunction))?;
 
         config.energy_max = energy_max
-            .or(settings.and_then(|settings| settings.0.energy_max));
+            .or(settings.and_then(|settings| settings.inner.energy_max));
 
         config.energy_min = energy_min
-            .or(settings.and_then(|settings| settings.0.energy_min));
+            .or(settings.and_then(|settings| settings.inner.energy_min));
 
         config.compton_method = compton_method
             .map(|s| ComptonMethod::try_from(s))
-            .or(settings.map(|settings| Ok(settings.0.compton_method)))
+            .or(settings.map(|settings| Ok(settings.inner.compton_method)))
             .unwrap_or(Ok(RejectionSampling))?;
 
         config.compton_mode = compton_mode
             .map(|s| ComptonMode::try_from(s))
-            .or(settings.map(|settings| Ok(settings.0.compton_mode)))
+            .or(settings.map(|settings| Ok(settings.inner.compton_mode)))
             .unwrap_or(Ok(Direct))?;
 
         match &config.compton_mode {
             Adjoint | Inverse => match mode {
                 None => config.mode = Backward,
                 Some(mode) => if let Forward = mode {
-                    bail!(
+                    value_error!(
                         "bad transport mode for compton mode '{}' (expected '{}', found '{}')",
                         config.compton_mode,
                         Backward,
@@ -395,7 +395,7 @@ impl PyMaterialRegistry {
             Direct => match mode {
                 None => config.mode = Forward,
                 Some(mode) => if let Backward = mode {
-                    bail!(
+                    value_error!(
                         "bad transport mode for compton mode '{}' (expected '{}', found '{}')",
                         config.compton_mode,
                         Forward,
@@ -409,14 +409,10 @@ impl PyMaterialRegistry {
         config.constraint = match config.compton_mode {
             Direct => None,
             _ => match constraint {
-                None => settings.and_then(|settings| settings.0.constraint),
-                Some(constraint) => match constraint {
-                    PyConstraint::Bool(b) => if b { Some(1.0) } else { None },
-                    PyConstraint::Float(f) => Some(f),
-                }
+                None => settings.and_then(|settings| settings.inner.constraint ),
+                Some(constraint) => if constraint { Some(1.0) } else { None },
             },
         };
-
 
         if !self.inner.atomic_data_loaded() {
             // Load default atomic data.
