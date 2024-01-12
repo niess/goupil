@@ -206,3 +206,21 @@ def test_MaterialRecord():
     assert(isinstance(table, goupil.FormFactor))
     assert(table.process == "Rayleigh")
     assert(table.material is record)
+
+
+def test_TransportEngine():
+    """Test usage of a TransportEngine."""
+
+    H2O = goupil.MaterialDefinition("H2O")
+    geometry = goupil.SimpleGeometry(H2O, 1.0)
+    engine = goupil.TransportEngine(geometry)
+    engine.constrained = True
+
+    states = goupil.states(3)
+    status = engine.transport(states)
+
+    record = engine.registry["H2O"]
+    assert(record.absorption_cross_section() is not None)
+    assert(record.compton_cross_section(mode="Adjoint") is not None)
+    assert(record.compton_cross_section(mode="Direct") is not None)
+    assert(record.compton_cdf(mode="Adjoint") is not None)

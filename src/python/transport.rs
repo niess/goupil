@@ -268,6 +268,8 @@ pub struct PyTransportEngine {
     registry: Py<PyMaterialRegistry>,
     #[pyo3(get)]
     settings: Py<PyTransportSettings>,
+
+    compiled: bool,
 }
 
 #[derive(FromPyObject)]
@@ -312,7 +314,7 @@ impl PyTransportEngine {
             None => Py::new(py, PyTransportSettings::new())?,
             Some(settings) => settings.into(),
         };
-        Ok(Self { geometry, random, registry, settings })
+        Ok(Self { geometry, random, registry, settings, compiled: false })
     }
 
     fn __getattr__(&self, py: Python, name: &PyString) -> Result<PyObject> {
@@ -354,6 +356,8 @@ impl PyTransportEngine {
             Some(_) => settings.constrained = true,
         }
 
+        self.compiled = Deserialize::deserialize(&mut deserializer)?;
+
         Ok(())
     }
 
@@ -370,12 +374,14 @@ impl PyTransportEngine {
         let settings = &self.settings.borrow(py).inner;
         settings.serialize(&mut serializer)?;
 
+        self.compiled.serialize(&mut serializer)?;
+
         Ok(PyBytes::new(py, &buffer))
     }
 
     #[pyo3(signature = (mode=None, atomic_data=None, **kwargs))]
     fn compile(
-        &self,
+        &mut self,
         py: Python,
         mode: Option<&str>,
         atomic_data: Option<&str>,
@@ -475,11 +481,15 @@ impl PyTransportEngine {
             },
             _ => (),
         }
+
+        // Record compilation step.
+        self.compiled = true;
+
         Ok(())
     }
 
     fn transport(
-        &self,
+        &mut self,
         states: &PyArray<CState>,
         constraints: Option<ArrayOrFloat>,
     ) -> Result<PyObject> {
@@ -497,7 +507,13 @@ impl PyTransportEngine {
             }
         }
 
+        // Compile, if not already done.
         let py = states.py();
+        if !self.compiled {
+            self.compile(py, Some("Both"), None, None)?;
+        }
+
+        // Run the Monte Carlo simulation.
         match &self.geometry {
             None => type_error!(
                 "bad geometry (expected an instance of 'ExternalGeometry' or 'SimpleGeometry' \
