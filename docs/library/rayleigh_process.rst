@@ -5,14 +5,48 @@
 
 ----
 
-This class represents a Rayleigh process (XXX ellaborate)
+This class provides access to the implementation of the Rayleigh scattering
+process, as detailed in [Baro95]_. All methods described below are defined at
+the class level.  For instance,
+
+>>> goupil.RayleighProcess.cross_section(0.1, H2O)
+...
 
 
 Constructor
 -----------
 
-.. py:class:: RayleighProcess(seed=None)
+.. py:class:: RayleighProcess
+
+   .. note::
+
+      This class serves as a namespace and is not intended for instantiation.
+      Any attempt to do so will result in a :external:py:class:`TypeError`.
 
 
-Attributes
-----------
+Methods
+-------
+
+.. py:method:: RayleighProcess.cross_section(energy, material)
+
+   Computes the total cross-section for Rayleigh scattering of a photon with a
+   specified *energy* (in MeV) on an atom of a given *material*. The *energy*
+   can be a :external:py:class:`float` or a :external:py:class:`numpy.ndarray`
+   of floats. The *material* must be an instance of :doc:`material_record`.
+
+.. py:method:: RayleighProcess.dcs(energy, cos_theta, material)
+
+   Computes the differential cross-section (DCS) for Rayleigh scattering of a
+   photon on an atom of a given *material*. The input parameters are the photon
+   *energy* (in MeV) and the cosine of the scattering angle (*cos_theta*), which
+   can be a single :external:py:class:`float` or a
+   :external:py:class:`numpy.ndarray` of floats. The *material* must be provided
+   as a :doc:`material_record` object.
+
+.. py:method:: RayleighProcess.sample(energy, material)
+
+   This function generates random Rayleigh collisions. The photon *energy*, in
+   MeV, can be a :external:py:class:`float` or a
+   :external:py:class:`numpy.ndarray`. The target *material* must be an instance
+   of :doc:`material_record`. The output is the cosine of the scattering
+   angle(s).

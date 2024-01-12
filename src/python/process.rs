@@ -383,52 +383,90 @@ impl<'py> Material<'py> {
 // Python wrapper for Rayleigh process.
 // ===============================================================================================
 #[pyclass(name = "RayleighProcess", module = "goupil")]
-pub struct PyRayleighProcess (RayleighSampler);
+pub struct PyRayleighProcess ();
 
 #[pymethods]
 impl PyRayleighProcess {
-    #[new]
-    fn new() -> Self {
-        Self(RayleighSampler::new(RayleighMode::FormFactor))
-    }
-
+    #[staticmethod]
     fn cross_section(
-        &self,
-        energy: Float, // XXX Vectorize these functions.
+        energy: ArrayOrFloat,
         material: PyRef<PyMaterialRecord>,
-    ) -> Result<Float> {
-        let py = material.py();
-        let cs = match material.get(py)?.rayleigh_cross_section() {
-            None => 0.0,
-            Some(table) => table.interpolate(energy),
-        };
-        Ok(cs)
-    }
-
-    fn dcs(
-        &self,
-        energy: Float,
-        cos_theta: Float,
-        material: PyRef<PyMaterialRecord>
-    ) -> Result<Float> {
+    ) -> Result<PyObject> {
         let py = material.py();
         let material = material.get(py)?;
-        self.0.dcs(energy, cos_theta, material)
+        let compute = |energy: Float| -> Float {
+            match material.rayleigh_cross_section() {
+                None => 0.0,
+                Some(table) => table.interpolate(energy),
+            }
+        };
+        let result: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let result = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let v = compute(energy.get(i)?);
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => compute(energy).into_py(py),
+        };
+        Ok(result)
     }
 
-    fn sample(
-        &self,
+    #[staticmethod]
+    fn dcs(
         energy: Float,
+        cos_theta: ArrayOrFloat,
+        material: PyRef<PyMaterialRecord>
+    ) -> Result<PyObject> {
+        let sampler = RayleighSampler::new(RayleighMode::FormFactor);
+        let py = material.py();
+        let material = material.get(py)?;
+        let result: PyObject = match cos_theta {
+            ArrayOrFloat::Array(cos_theta) => {
+                let result = PyArray::<Float>::empty(py, &cos_theta.shape())?;
+                let n = cos_theta.size();
+                for i in 0..n {
+                    let v = sampler.dcs(energy, cos_theta.get(i)?, material)?;
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(cos_theta) => {
+                let result = sampler.dcs(energy, cos_theta, material)?;
+                result.into_py(py)
+            },
+        };
+        Ok(result)
+    }
+
+    #[staticmethod]
+    fn sample(
+        energy: ArrayOrFloat,
         material: PyRef<PyMaterialRecord>
     )
-    -> Result<Float> {
+    -> Result<PyObject> {
+        let sampler = RayleighSampler::new(RayleighMode::FormFactor);
         let py = material.py();
         let mut rng = rand::thread_rng();
-        let cos_theta = self.0.sample_angle(
-            &mut rng,
-            energy,
-            material.get(py)?
-        )?;
-        Ok(cos_theta)
+        let material = material.get(py)?;
+        let result: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let result = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let v = sampler.sample_angle(&mut rng, energy.get(i)?, material)?;
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => {
+                let result = sampler.sample_angle(&mut rng, energy, material)?;
+                result.into_py(py)
+            },
+        };
+        Ok(result)
     }
 }

@@ -18,7 +18,7 @@ Constructor
 
 .. py:class:: TransportStatus
 
-   .. warning::
+   .. note::
 
       This class is not meant to be instantiated. Attempting to do so will
       result in a :external:py:class:`TypeError`.
