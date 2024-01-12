@@ -10,7 +10,7 @@ process, as detailed in [Baro95]_. All methods described below are defined at
 the class level.  For instance,
 
 >>> goupil.RayleighProcess.cross_section(0.1, H2O)
-...
+1.600238e-25
 
 
 Constructor
