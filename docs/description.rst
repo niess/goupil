@@ -36,7 +36,7 @@ installation of the Python module) as
 
 .. code:: console
 
-   $ ls $(goupil-config --prefix)/interfaces/geant4
+   $ ls $(python3 -m goupil --prefix)/interfaces/geant4
    G4Goupil.cc  G4Goupil.hh
 
 In addition, it is also necessary to have a working installation of Geant4 in

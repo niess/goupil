@@ -124,6 +124,9 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     // Initialise Numpy array interface.
     numpy::initialise(py)?;
 
+    // Register attributes.
+    module.add("PREFIX", prefix(py)?)?;
+
     // Register class object(s).
     module.add_class::<PyAtomicElement>()?;
     module.add_class::<PyComptonProcess>()?;
