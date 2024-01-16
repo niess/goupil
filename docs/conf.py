@@ -20,6 +20,10 @@ rst_prolog = """
 .. role:: python(code)
     :language: python
     :class: highlight
+
+.. role:: cpp(code)
+    :language: c++
+    :class: highlight
 """
 
 # Mappings for links to externals documentations.
