@@ -241,6 +241,29 @@ the energy of volume sources.
 Inspecting results
 ------------------
 
+The :py:meth:`transport <TransportEngine.transport>` method returns an array of
+integer codes (:doc:`library/transport_status`) which indicate the
+termination condition for each propagated photon. For instance, backward
+propagated photons that are consistent with a volume source can be selected as
+follows:
 
-Simulating a spectrum
----------------------
+>>> sel = (status == goupil.TransportStatus.ENERGY_CONSTRAINT)
+
+These photons should have an energy of :python:`1.0` MeV, as requested:
+
+>>> events[sel]["energy"]
+array([1., 1., ...])
+
+The corresponding geometry sectors can be located as:
+
+>>> geometry.locate(events[sel])
+array([1, 1, ...])
+
+Finally, assuming a uniform volume activity of sources of :math:`1\,
+\text{cm}^{-3} \text{sr}^{-1} \text{s}^{-1}`, a Monte-Carlo
+estimate of the flux at the observation point is given as
+
+>>> numpy.mean(events[sel]["weight"])
+
+where the result has units :math:`\text{MeV}^{-1}\text{cm}^{-2} \text{sr}^{-1}
+\text{s}^{-1}`.
