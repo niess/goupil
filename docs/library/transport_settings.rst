@@ -20,15 +20,15 @@ Constructor
    .. list-table::
 
       * - absorption
-        - :python:`"Continuous"`
-
-      * - constrained
-        - :python:`False`
+        - :python:`"Discrete"`
 
       * - mode
         - :python:`"Forward"`
 
       * - rayleigh
+        - :python:`True`
+
+      * - volume_sources
         - :python:`True`
 
 
@@ -47,7 +47,7 @@ Attributes
         - Absorption is considered a continuous process by weighting Monte Carlo
           trajectories.
 
-      * - :python:`"Forward"`
+      * - :python:`"Discrete"`
         - Absorption is modelled as a discrete interaction process, resulting in
           the random termination of Monte Carlo trajectories.
 
@@ -57,9 +57,10 @@ Attributes
 .. py:attribute:: TransportSettings.boundary
    :type: int | None
 
-   This attribute represents an optional geometry boundary for Monte Carlo
+   This attribute represents an inner geometry boundary for Monte Carlo
    transport, which is specified as a sector index, for example, in an
-   :doc:`external_geometry`.
+   :doc:`external_geometry`. The Monte Carlo transport stops whenever a
+   trajectory enters the corresponding sector.
 
 .. py:attribute:: TransportSettings.compton_method
    :type: str
@@ -81,12 +82,6 @@ Attributes
    This attribute determines the physics model for Compton collisions. Refer
    to the :py:attr:`ComptonProcess.model` section for a list of available
    values.
-
-.. py:attribute:: TransportSettings.constrained
-   :type: bool
-
-   This flag determines whether the energy of the photon source is externally
-   constrained during backward Monte Carlo transport.
 
 .. py:attribute:: TransportSettings.energy_max
    :type: float | None
@@ -110,7 +105,7 @@ Attributes
    :type: str
 
    This flag controls the direction of flow for Monte Carlo transport. Switching
-   this flag between :python:`"Forward"` and :python:`"Forward"` results in a
+   this flag between :python:`"Backward"` and :python:`"Forward"` results in a
    default set of settings being selected. Use the :py:attr:`compton_mode
    <TransportSettings.compton_mode>` attribute instead if thinner control is
    needed.
@@ -128,3 +123,9 @@ Attributes
 
    Enable (true) or disable (false) Rayleigh collisions during the Monte Carlo
    transport.
+
+.. py:attribute:: TransportSettings.volume_sources
+   :type: bool
+
+   This flag controls whether the backward Monte Carlo transport considers
+   volume sources with discrete energies or not.

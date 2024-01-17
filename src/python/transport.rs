@@ -37,19 +37,19 @@ use super::{
 #[pyclass(name = "TransportSettings", module = "goupil")]
 pub(crate) struct PyTransportSettings {
     pub inner: TransportSettings,
-    pub constrained: bool,
+    pub volume_sources: bool,
 }
 
 // Convert from raw type.
 impl Into<PyTransportSettings> for TransportSettings {
     fn into(self) -> PyTransportSettings {
-        let constrained = match self.constraint {
+        let volume_sources = match self.constraint {
             None => false,
             Some(_) => true,
         };
         PyTransportSettings {
             inner: self,
-            constrained
+            volume_sources
         }
     }
 }
@@ -78,9 +78,11 @@ macro_rules! to_optstr {
 impl PyTransportSettings {
     #[new]
     fn new() -> Self {
+        let mut inner = TransportSettings::default();
+        inner.constraint = Some(1.0);
         Self {
-            inner: TransportSettings::default(),
-            constrained: false,
+            inner,
+            volume_sources: true,
         }
     }
 
@@ -184,14 +186,14 @@ impl PyTransportSettings {
     }
 
     #[getter]
-    fn get_constrained(&self) -> bool {
-        self.constrained
+    fn get_volume_sources(&self) -> bool {
+        self.volume_sources
     }
 
     #[setter]
-    fn set_constrained(&mut self, value: Option<bool>) -> Result<()> {
+    fn set_volume_sources(&mut self, value: Option<bool>) -> Result<()> {
         let value = value.unwrap_or(false);
-        self.constrained = value;
+        self.volume_sources = value;
         if value {
             self.inner.constraint = Some(1.0);
         } else {
@@ -352,8 +354,8 @@ impl PyTransportEngine {
         let settings = &mut self.settings.borrow_mut(py);
         settings.inner = Deserialize::deserialize(&mut deserializer)?;
         match settings.inner.constraint {
-            None => settings.constrained = false,
-            Some(_) => settings.constrained = true,
+            None => settings.volume_sources = false,
+            Some(_) => settings.volume_sources = true,
         }
 
         self.compiled = Deserialize::deserialize(&mut deserializer)?;
@@ -711,8 +713,8 @@ impl PyTransportStatus {
     }
 
     #[classattr]
-    fn CONSTRAINT(py: Python<'_>) -> Result<PyObject> {
-        Self::into_i32(py, TransportStatus::Constraint)
+    fn ENERGY_CONSTRAINT(py: Python<'_>) -> Result<PyObject> {
+        Self::into_i32(py, TransportStatus::EnergyConstraint)
     }
 
     #[classattr]

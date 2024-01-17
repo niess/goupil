@@ -87,16 +87,16 @@ Methods
    (*kwargs*). For more details, refer to the :py:meth:`compute
    <MaterialRegistry.compute>` method in the :doc:`material_registry`.
 
-.. py:method:: TransportEngine.transport(states, constraints=None) -> numpy.ndarray
+.. py:method:: TransportEngine.transport(states, sources_energies=None) -> numpy.ndarray
 
    Performs a Monte Carlo transport of photon *states*, which were, e.g.,
-   initially generated using the :doc:`states` function. This method allows for
-   optional external *constraints* on the photon source to be specified, either
-   as a :external:py:class:`float` or a :external:py:class:`numpy.ndarray` of
-   floats, for backward mode. Upon completion, the function returns a
-   :external:py:class:`numpy.ndarray` of integers that map the end-condition of
-   each simulated trajectory. Please refer to :doc:`transport_status` for the
-   precise definition of these numbers.
+   initially generated using the :doc:`states` function. The optional
+   *sources_energies* argument should be used to specify the energies of volume
+   sources, either as a :external:py:class:`float` or a
+   :external:py:class:`numpy.ndarray` of floats, for backward mode. Upon
+   completion, the function returns a :external:py:class:`numpy.ndarray` of
+   integers that map the end-condition of each simulated trajectory. Please
+   refer to :doc:`transport_status` for the precise definition of these numbers.
 
    .. warning::
 

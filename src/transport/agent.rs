@@ -318,7 +318,7 @@ where
                     state.direction = rayleigh_sampler.sample(
                         self.rng, state.energy, state.direction, properties.material)?;
                 } else if status.is_last() {
-                    status = SteppingStatus::Stop(TransportStatus::Constraint);
+                    status = SteppingStatus::Stop(TransportStatus::EnergyConstraint);
                 } else {
                     let momentum_in = state.direction * state.energy;
                     let mut sample = compton_sampler.sample(
@@ -399,7 +399,7 @@ where
                     TransportStatus::Absorbed => {
                         state.weight = 0.0;
                     },
-                    TransportStatus::Constraint => {
+                    TransportStatus::EnergyConstraint => {
                         // Patch boundary weight in reverse mode (flux end-condition).
                         if let Some(lambda) = interaction_length {
                             let density_value = Self::get_density(
@@ -505,7 +505,7 @@ impl<'a, 'b, G: GeometryDefinition> LocalProperties<'a, 'b, G> {
 pub enum TransportStatus {
     Absorbed,
     Boundary,
-    Constraint,
+    EnergyConstraint,
     EnergyMax,
     EnergyMin,
     Exit,
@@ -513,13 +513,13 @@ pub enum TransportStatus {
 }
 
 impl TransportStatus {
-    const ABSORBED: &str = "absorbed";
-    const BOUNDARY: &str = "boundary";
-    const CONSTRAINT: &str = "constraint";
-    const ENERGY_MAX: &str = "energy_max";
-    const ENERGY_MIN: &str = "energy_min";
-    const EXIT: &str = "exit";
-    const LENGTH_MAX: &str = "length_max";
+    const ABSORBED: &str = "Absorbed";
+    const BOUNDARY: &str = "Boundary";
+    const ENERGY_CONSTRAINT: &str = "Energy Constraint";
+    const ENERGY_MAX: &str = "Energy Max";
+    const ENERGY_MIN: &str = "Energy Min";
+    const EXIT: &str = "Exit";
+    const LENGTH_MAX: &str = "Length Max";
 }
 
 impl From<TransportStatus> for i32 {
@@ -527,7 +527,7 @@ impl From<TransportStatus> for i32 {
         match status {
             TransportStatus::Absorbed => 0,
             TransportStatus::Boundary => 1,
-            TransportStatus::Constraint => 2,
+            TransportStatus::EnergyConstraint => 2,
             TransportStatus::EnergyMax => 3,
             TransportStatus::EnergyMin => 4,
             TransportStatus::Exit => 5,
@@ -543,7 +543,7 @@ impl TryFrom<i32> for TransportStatus {
         match value {
             0 => Ok(Self::Absorbed),
             1 => Ok(Self::Boundary),
-            2 => Ok(Self::Constraint),
+            2 => Ok(Self::EnergyConstraint),
             3 => Ok(Self::EnergyMax),
             4 => Ok(Self::EnergyMin),
             5 => Ok(Self::Exit),
@@ -569,7 +569,7 @@ impl TryFrom<&str> for TransportStatus {
         match value {
             Self::ABSORBED => Ok(Self::Absorbed),
             Self::BOUNDARY => Ok(Self::Boundary),
-            Self::CONSTRAINT => Ok(Self::Constraint),
+            Self::ENERGY_CONSTRAINT => Ok(Self::EnergyConstraint),
             Self::ENERGY_MAX => Ok(Self::EnergyMax),
             Self::ENERGY_MIN => Ok(Self::EnergyMin),
             Self::EXIT => Ok(Self::Exit),
@@ -584,7 +584,7 @@ impl From<TransportStatus> for String {
         match value {
             TransportStatus::Absorbed => Self::from(TransportStatus::ABSORBED),
             TransportStatus::Boundary => Self::from(TransportStatus::BOUNDARY),
-            TransportStatus::Constraint => Self::from(TransportStatus::CONSTRAINT),
+            TransportStatus::EnergyConstraint => Self::from(TransportStatus::ENERGY_CONSTRAINT),
             TransportStatus::EnergyMax => Self::from(TransportStatus::ENERGY_MAX),
             TransportStatus::EnergyMin => Self::from(TransportStatus::ENERGY_MIN),
             TransportStatus::Exit => Self::from(TransportStatus::EXIT),

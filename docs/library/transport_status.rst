@@ -33,13 +33,13 @@ Attributes
 
 .. py:attribute:: TransportStatus.BOUNDARY
 
-   Indicates that the photon reached a transport boundary, as specified by
-   :py:attr:`TransportSettings.boundary`.
+   Indicates that the photon reached an inner transport :py:attr:`boundary
+   <TransportSettings.boundary>`.
 
-.. py:attribute:: TransportStatus.CONSTRAINT
+.. py:attribute:: TransportStatus.ENERGY_CONSTRAINT
 
-   Indicates that the photon reached an external energy constraints, during
-   backward transport. Typically, this corresponds to a potential source.
+   Indicates that the photon reached the energy constraint of a potential volume
+   source, during backward transport.
 
 .. py:attribute:: TransportStatus.ENERGY_MAX
 
@@ -70,4 +70,4 @@ Methods
    Returns a string representation of a transport status *code*. For instance,
 
    >>> goupil.TransportStatus.str(5)
-   "exit"
+   "Exit"

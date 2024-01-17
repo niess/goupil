@@ -214,7 +214,6 @@ def test_TransportEngine():
     H2O = goupil.MaterialDefinition("H2O")
     geometry = goupil.SimpleGeometry(H2O, 1.0)
     engine = goupil.TransportEngine(geometry)
-    engine.constrained = True
 
     states = goupil.states(3)
     status = engine.transport(states)

@@ -132,17 +132,16 @@ that are defined by the geometry. For instance, as:
 Modifying the geometry
 ----------------------
 
-To modify the physical properties of a geometry, an
-:doc:`library/external_geometry` provides the :py:meth:`update_material
-<ExternalGeometry.update_material>` and :py:meth:`update_sector
-<ExternalGeometry.update_sector>` methods. For example, let us define an
-exponential :doc:`library/density_gradient` to describe the air density in the
-lower part of the Earth atmosphere (i.e. the troposphere).
+The physical properties of an :doc:`library/external_geometry` can be modified
+with the :py:meth:`update_material <ExternalGeometry.update_material>` and
+:py:meth:`update_sector <ExternalGeometry.update_sector>` methods. For example,
+let us define an exponential :doc:`library/density_gradient` to describe the air
+density in the lower part of the Earth atmosphere (i.e. the troposphere).
 
 >>> gradient = goupil.DensityGradient(1.205E-03, 1.04E+05)
 
 Then, the density model of the first sector (index :python:`0`) can be changed
-as follows.
+as:
 
 >>> geometry.update_sector(0, density=gradient)
 
@@ -162,7 +161,7 @@ Running a simulation
 --------------------
 
 The Monte Carlo transport of photons is managed by a
-:doc:`library/transport_engine` that is specific to a particular geometry. The
+:doc:`library/transport_engine` taking in charge a specific geometry. A
 :doc:`library/transport_engine` is created as:
 
 >>> engine = goupil.TransportEngine(geometry)
@@ -172,18 +171,22 @@ through the :py:attr:`random <TransportEngine.random>` attribute. By default,
 this stream is seeded from the system entropy. For example purposes, let us set
 a specific seed value.
 
->>> engine.random.seed = 123456
+>>> engine.random.seed = 123456789
 
 .. note::
 
    Setting a seed has the effect of reseting the pseudo-random stream.
 
-In addition, let us customise some :doc:`library/transport_settings`. Let us
-configure the engine for backward transport with an external constraint on the
-source energy. This is done as
+The transport engine is set to perform a classical (forward) Monte Carlo
+simulation by default. Let us instead configure the engine for backward
+transport. This is done as:
 
 >>> engine.mode = "Backward"
->>> engine.constrained = True
+
+.. note::
+
+   See :doc:`library/transport_settings` for a summary of configurable
+   parameters.
 
 
 Then, let us define a set of :python:`100` Monte Carlo states representing
@@ -194,36 +197,45 @@ photons with an energy of :python:`0.5` MeV. This is done with the
 
 The :doc:`library/states` function returns a `numpy structured array
 <https://numpy.org/doc/stable/user/basics.rec.html>`_ of states, containing the
-photons energy, location, etc. Since we perform a backward simulation, these
-states represent final states e.g. at a particular observation point. In
-practice, one would also specify the position and direction of observed photons.
-However, for now, let us use default values for those.
+photons energies, their locations, etc. Since we perform a backward simulation,
+these states represent final states, e.g., at a particular observation point. In
+practice, one would also specify the positions and directions of observed
+photons. However, for now, let us use default values for those.
 
-The Monte-Carlo simulation is run by applying the :py:meth:`transport
-<TransportEngine.transport>` method of the :doc:`library/transport_engine` to
-the :python:`states` array, as
+Then, let us backward propagate the observed photons through the geometry. This
+is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
 
->>> status = engine.transport(states, constraints=1.0)
-
-Since we perform a constrained backward simulation, we also need to specify the
-:python:`constraints` for the source energy. In this case, a constant value of
-:python:`1.0` MeV was chosen. In the case of an unconstrained simulation, e.g. a
-forward one, this second argument should be omitted.
-
+>>> status = engine.transport(states, sources_energies=1.0)
 
 .. warning::
 
-   The :python:`states` array is modified in-place when calling the
-   :py:meth:`transport <TransportEngine.transport>` method. That is, at return
-   the input :python:`states` array contains transported photons.
+   The :py:meth:`transport <TransportEngine.transport>` method modifies the
+   *states* array in-place. After completion, the *states* array will
+   contain the propagated photons instead of the original ones.
+
+The second argument, *sources_energies*, requires further explanation. When
+running a backward Monte Carlo simulation, information about sources is needed
+to correctly terminate the transport. Goupil considers two types of sources:
+
+- Surface sources with a distributed energy spectrum, such as an external flux
+  of gamma-rays.
+- Volume sources with a discrete energy spectrum, such as scattered
+  radio-isotopes.
+
+In the previous example, a constant value of :python:`1.0` MeV was assumed for
+the energy of volume sources.
 
 .. note::
 
-   In order to be efficient, the engine requires some preparatory steps which
-   might take a long time when first calling the :py:meth:`transport
-   <TransportEngine.transport>` method. These steps mostly imply compiling
-   physics tables for each possible interaction process with the geometry
-   materials.
+   The *sources_energies* argument should be omitted if there are no volume
+   sources or in the case of a forward Monte Carlo.
+
+.. note::
+
+   In a backward transport, contained surface sources (i.e. not located on an
+   outer boundary of the geometry) can be specified as a sector
+   :py:attr:`boundary <TransportSettings.boundary>` at the level of the
+   :doc:`library/transport_engine`.
 
 
 Inspecting results
@@ -232,7 +244,3 @@ Inspecting results
 
 Simulating a spectrum
 ---------------------
-
-
-Collecting photons
-------------------
