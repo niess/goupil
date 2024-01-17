@@ -27,8 +27,10 @@ Attributes
 
 .. note::
 
-   Geometry attributes are read-only. However, the corresponding data can be
-   edited using the methods_ described below.
+   Geometry attributes are read-only. However, physical properties can be edited
+   using the :py:meth:`update_material <ExternalGeometry.update_material>`
+   and :py:meth:`update_sector <ExternalGeometry.update_sector>` methods
+   described below.
 
 .. py:attribute:: ExternalGeometry.materials
    :type: tuple[MaterialDefinition]
@@ -46,6 +48,28 @@ Attributes
 
 Methods
 -------
+
+.. py:method:: ExternalGeometry.locate(states) -> numpy.ndarray
+
+   Locates the specified *states* within the geometry. The input *states* must
+   be a structured :external:py:class:`numpy.ndarray` as returned by the
+   :py:func:`states <states>` function. The function returns a
+   :external:py:class:`numpy.ndarray` of sector indices.
+
+.. py:method:: ExternalGeometry.trace(states, lengths=None, density=None) -> numpy.ndarray
+
+   Casts rays through the geometry, starting from the specified *states*. The
+   *states* must be a structured :external:py:class:`numpy.ndarray` as returned
+   by the :py:func:`states <states>` function. This function returns a
+   :external:py:class:`numpy.ndarray` containing the path length of rays in each
+   geometry sector. Optionally, you can provide a *lengths*
+   :external:py:class:`numpy.ndarray` of floats, or a single float, indicating
+   the lengths of rays. If no *lengths* are specified, rays are traced until the
+   geometry outer boundary.
+
+   If the *density* parameter is set to :python:`True`, this function will
+   return the column depth (grammage) along rays, in each sector, rather than
+   the path length.
 
 .. py:method:: ExternalGeometry.update_material(index, material)
 

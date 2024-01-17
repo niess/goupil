@@ -42,6 +42,7 @@ struct ArrayInterface {
     dtype_int32: PyObject,
     dtype_shell: PyObject,
     dtype_state: PyObject,
+    dtype_usize: PyObject,
     type_ndarray: PyObject,
     // Functions.
     empty: *const PyArray_Empty,
@@ -155,6 +156,10 @@ pub fn initialise(py: Python) -> PyResult<()> {
             .into_py(py)
     };
 
+    let dtype_usize: PyObject = dtype
+        .call1((format!("u{}", std::mem::size_of::<usize>()),))?
+        .into_py(py);
+
     // Parse C interface.
     // See e.g. numpy/_core/code_generators/numpy_api.py for API mapping.
     let ptr = capsule
@@ -179,6 +184,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
         dtype_int32,
         dtype_shell,
         dtype_state,
+        dtype_usize,
         type_ndarray: object(2),
         // Functions.
         empty:               function(184) as *const PyArray_Empty,
@@ -656,6 +662,13 @@ impl Dtype for CState {
     #[inline]
     fn dtype(py: Python) -> PyResult<PyObject> {
         Ok(api(py).dtype_state.clone_ref(py))
+    }
+}
+
+impl Dtype for usize {
+    #[inline]
+    fn dtype(py: Python) -> PyResult<PyObject> {
+        Ok(api(py).dtype_usize.clone_ref(py))
     }
 }
 

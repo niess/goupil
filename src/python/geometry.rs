@@ -1,11 +1,18 @@
 use anyhow::Result;
+use crate::numerics::Float;
 use crate::transport::{
     density::DensityModel,
-    geometry::{ExternalGeometry, SimpleGeometry},
+    geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
+               SimpleGeometry},
+    PhotonState,
 };
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use super::ctrlc_catched;
+use super::macros::value_error;
 use super::materials::PyMaterialDefinition;
+use super::numpy::{ArrayOrFloat, PyArray};
+use super::transport::CState;
 
 
 // ===============================================================================================
@@ -83,6 +90,101 @@ impl PyExternalGeometry {
             ))
             .collect();
         PyTuple::new(py, sectors)
+    }
+
+    fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
+        let py = states.py();
+        let sectors = PyArray::<usize>::empty(py, &states.shape())?;
+        let mut tracer = ExternalTracer::new(&self.0)?;
+        let m = self.0.sectors().len();
+        let n = states.size();
+        for i in 0..n {
+            let state: PhotonState = states.get(i)?.into();
+            tracer.reset(state.position, state.direction)?;
+            let sector = tracer.sector().unwrap_or(m);
+            sectors.set(i, sector)?;
+
+            if i % 1000 == 0 { // Check for a Ctrl+C interrupt, catched by Python.
+                ctrlc_catched()?;
+            }
+        }
+        let sectors: &PyAny = sectors;
+        Ok(sectors.into_py(py))
+    }
+
+    fn trace(
+        &self,
+        states: &PyArray<CState>,
+        lengths: Option<ArrayOrFloat>,
+        density: Option<bool>,
+    ) -> Result<PyObject> {
+        let n = states.size();
+        if let Some(lengths) = lengths.as_ref() {
+            if let ArrayOrFloat::Array(lengths) = &lengths {
+                if lengths.size() != states.size() {
+                    value_error!(
+                        "bad lengths (expected a float or a size {} array, found a size {} array)",
+                        states.size(),
+                        lengths.size(),
+                    )
+                }
+            }
+        }
+
+        let mut shape = states.shape();
+        let m = self.0.sectors().len();
+        shape.push(m);
+        let py = states.py();
+        let result = PyArray::<Float>::empty(py, &shape)?;
+
+        let density = density.unwrap_or(false);
+        let mut tracer = ExternalTracer::new(&self.0)?;
+        let mut k: usize = 0;
+        for i in 0..n {
+            let state: PhotonState = states.get(i)?.into();
+            let mut grammages: Vec<Float> = vec![0.0; m];
+            tracer.reset(state.position, state.direction)?;
+            let mut length = match lengths.as_ref() {
+                None => Float::INFINITY,
+                Some(lengths) => match &lengths {
+                    ArrayOrFloat::Array(lengths) => lengths.get(i)?,
+                    ArrayOrFloat::Float(lengths) => *lengths,
+                },
+            };
+            loop {
+                match tracer.sector() {
+                    None => break,
+                    Some(sector) => {
+                        let step_length = tracer.trace(length)?;
+                        if density {
+                            let model = &self.0.sectors[sector].density;
+                            let position = tracer.position();
+                            grammages[sector] += model.column_depth(
+                                position, state.direction, step_length
+                            );
+                        } else {
+                            grammages[sector] += step_length;
+                        }
+                        if lengths.is_some() {
+                            length -= step_length;
+                            if length <= 0.0 { break }
+                        }
+                        tracer.update(step_length, state.direction)?;
+                    },
+                }
+                k += 1;
+                if k == 1000 { // Check for a Ctrl+C interrupt, catched by Python.
+                    ctrlc_catched()?;
+                    k = 0;
+                }
+            }
+            let j0 = i * m;
+            for j in 0..m {
+                result.set(j0 + j, grammages[j])?;
+            }
+        }
+        let result: &PyAny = result;
+        Ok(result.into_py(py))
     }
 
     fn update_material(

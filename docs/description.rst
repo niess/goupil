@@ -226,8 +226,8 @@ forward one, this second argument should be omitted.
    materials.
 
 
-Analysing results
------------------
+Inspecting results
+------------------
 
 
 Simulating a spectrum
