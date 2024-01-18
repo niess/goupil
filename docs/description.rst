@@ -247,23 +247,84 @@ termination condition for each propagated photon. For instance, backward
 propagated photons that are consistent with a volume source can be selected as
 follows:
 
->>> sel = (status == goupil.TransportStatus.ENERGY_CONSTRAINT)
+>>> constrained = (status == goupil.TransportStatus.ENERGY_CONSTRAINT)
 
 These photons should have an energy of :python:`1.0` MeV, as requested:
 
->>> events[sel]["energy"]
+>>> events[constrained]["energy"]
 array([1., 1., ...])
 
 The corresponding geometry sectors can be located as:
 
->>> geometry.locate(events[sel])
+>>> geometry.locate(events[constrained])
 array([1, 1, ...])
 
-Finally, assuming a uniform volume activity of sources of :math:`1\,
-\text{cm}^{-3} \text{sr}^{-1} \text{s}^{-1}`, a Monte-Carlo
-estimate of the flux at the observation point is given as
 
->>> numpy.mean(events[sel]["weight"])
+Backward Monte Carlo estimate
+-----------------------------
 
-where the result has units :math:`\text{MeV}^{-1}\text{cm}^{-2} \text{sr}^{-1}
-\text{s}^{-1}`.
+An important property that you will use is the transport weight (hereafter noted
+:math:`\omega`) associated with each backward propagated photon. These weights
+are given as:
+
+>>> weights = states["weight"]
+
+A backward Monte Carlo estimate of the gamma-ray flux for the expected
+state :math:`\mathcal{S}_f` is given by
+
+.. math::
+
+   \phi(\mathcal{S}_f) \simeq \frac{1}{N} \sum_{i=1}^N {
+        \omega\left(\mathcal{S}_f,\mathcal{S_i}\right)
+        S(\mathcal{S}_i)
+   },
+
+where the :math:`\mathcal{S}_i` denote the :math:`N` backward sampled
+photon states, and where the source term :math:`S` depends on the
+termination condition of each Monte Carlo event, as
+
+.. math::
+
+   S(\mathcal{S}_i) = \begin{cases}
+        \mathcal{A}(\mathcal{S}_i) & \text{on }\scriptstyle{ENERGY\_CONSTRAINT} \\
+        \phi_0(\mathcal{S}_i) & \text{on }{\scriptstyle{BOUNDARY}}\text{ or }\scriptstyle{EXIT} \\
+        0 & \text{otherwise} \\
+   \end{cases}.
+
+In the previous equation, :math:`\mathcal{A}` is the activity per unit volume
+and solid angle of volume sources, while :math:`\phi_0` is an external flux
+associated with surface sources.
+
+.. note::
+
+   In case of an :python:`ENERGY_CONSTRAINT` termination, transport weights have
+   units cm |nbsp| MeV\ :sup:`-1`. In other cases, transport weights are
+   unitless.
+
+.. note::
+
+   In the case of a forward Monte Carlo simulation, Goupil's transport weights
+   are all equal to one, i.e., Goupil's forward transport is *analogue*.
+
+As an example, consider only volume sources with a uniform activity
+:math:`\mathcal{A}_0` per unit volume and solid angle. Then the expected flux
+can be written as
+
+.. math::
+
+   \phi(\mathcal{S}_f) = K({\mathcal{S}_f}) \mathcal{A}_0, \quad
+   K({\mathcal{S}_f}) \simeq \frac{1}{N} \sum_i{
+        \omega\left(\mathcal{S}_f,\mathcal{S_i}\right)
+   },
+
+where it should be understood that the sum only runs over events with an
+:python:`ENERGY_CONSTRAINT` termination, but the normalisation :math:`N`
+considers all simulated events. The quantity :math:`K` can be interpreted as a
+sensitivity to volume sources. It is estimated as
+
+>>> K = sum(weights[constrained]) / weights.size
+
+This section concludes the current overview of Goupil. For further insight,
+please refer to the `examples/
+<https://github.com/niess/goupil/tree/master/examples>`_ folder that is
+distributed with Goupil's source.

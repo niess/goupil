@@ -24,6 +24,9 @@ rst_prolog = """
 .. role:: cpp(code)
     :language: c++
     :class: highlight
+
+.. |nbsp| unicode:: 0xA0
+   :trim:
 """
 
 # Mappings for links to externals documentations.
