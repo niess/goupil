@@ -17,16 +17,20 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 rst_prolog = """
-.. role:: python(code)
-    :language: python
+.. |nbsp| unicode:: 0xA0
+   :trim:
+
+.. role:: c(code)
+    :language: c
     :class: highlight
 
 .. role:: cpp(code)
     :language: c++
     :class: highlight
 
-.. |nbsp| unicode:: 0xA0
-   :trim:
+.. role:: python(code)
+    :language: python
+    :class: highlight
 """
 
 # Mappings for links to externals documentations.
