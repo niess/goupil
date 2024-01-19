@@ -3,8 +3,6 @@ Overview
 
 .. _description:
 
-----
-
 This section provides a practical overview of Goupil illustrated with examples.
 Refer to the :doc:`Python <library/index>` and :doc:`C <interface/index>`
 interface sections of this document for a detailed description of the user

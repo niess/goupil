@@ -3,8 +3,6 @@
 `TransportStatus`_
 ==================
 
-----
-
 This class serves as a namespace for return codes from the :py:meth:`transport
 <TransportEngine.transport>` method. All attributes and methods described below
 are defined at the class level. For instance,

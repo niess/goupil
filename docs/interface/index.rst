@@ -3,8 +3,6 @@ C interface
 
 .. _c_interface:
 
-----
-
 This section provides information on how to interface an existing geometry
 engine with Goupil, at the C level. To adapt a specific geometry engine to
 Goupil, one needs to create a concrete implementation of Goupil's C interface,

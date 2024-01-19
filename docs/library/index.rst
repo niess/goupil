@@ -4,8 +4,6 @@ Python interface
 .. py:module:: goupil
    :synopsis: Python interface
 
-----
-
 This section provides a detailed list of `classes`_ and `functions`_ defined by
 Goupil's Python interface. For additional information on a specific item, please
 browse the corresponding entry.

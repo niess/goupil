@@ -3,8 +3,6 @@
 `ComptonProcess`_
 =================
 
-----
-
 This class provides an interface to a variety of implementations of the Compton
 scattering process.
 

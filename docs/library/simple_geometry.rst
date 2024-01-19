@@ -3,8 +3,6 @@
 `SimpleGeometry`_
 =================
 
-----
-
 This class represents a basic unbounded geometry, composed of a single material
 and extending infinitely.  It is intended solely for testing purposes. For
 practical geometry implementations, please refer instead to the

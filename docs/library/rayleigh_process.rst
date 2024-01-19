@@ -3,8 +3,6 @@
 `RayleighProcess`_
 ==================
 
-----
-
 This class provides access to the implementation of the Rayleigh scattering
 process, as detailed in [Baro95]_. All methods described below are defined at
 the class level.  For instance,

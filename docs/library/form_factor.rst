@@ -3,8 +3,6 @@
 `FormFactor`_
 =============
 
-----
-
 This class provides read-only views of tables that relate to the form-factor of
 a collision process. The form-factor values are tabulated over a grid of
 :math:`m` nodes, which depend on the transfered momentum :math:`q`.

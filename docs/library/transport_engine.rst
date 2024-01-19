@@ -3,8 +3,6 @@
 `TransportEngine`_
 ==================
 
-----
-
 This class is the primary interface for the Monte Carlo simulation. It allows
 one to convert a geometric description of materials distributions to an
 operational Monte-Carlo simulation of photons transport.

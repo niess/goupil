@@ -3,8 +3,6 @@
 `DensityGradient`_
 ==================
 
-----
-
 This class represents an exponential density gradient, for example, for
 modelling the density of the atmosphere. The density varies continuously with
 location :math:`\vec{r}` as

@@ -3,8 +3,6 @@
 `MaterialRecord`_
 =================
 
-----
-
 This class stores tables of pre-calculated physical properties of a material
 relevant to Monte Carlo transport, such as cross-sections. These data are
 accessible as read-only :external:py:class:`numpy.ndarray` through table views

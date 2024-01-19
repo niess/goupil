@@ -3,8 +3,6 @@
 `goupil_geometry_sector`_
 =========================
 
-----
-
 This structure stores information related to a geometry sector.
 
 .. c:struct:: goupil_geometry_sector

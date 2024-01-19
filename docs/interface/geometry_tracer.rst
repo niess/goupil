@@ -3,8 +3,6 @@
 `goupil_geometry_tracer`_
 =========================
 
-----
-
 This objects enables tracing operations on a Monte Carlo geometry. For
 information on the geometry, refer to the related
 :c:struct:`goupil_geometry_definition` object.

@@ -3,8 +3,6 @@
 `elements`_
 ===========
 
-----
-
 This is a utility function that is used to instantiate multiple
 :doc:`atomic_element` elements at the same time.
 

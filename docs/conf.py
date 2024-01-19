@@ -8,9 +8,9 @@ highlight_language = 'python3'
 
 # General settings.
 extensions = [
-    "sphinx.ext.doctest",
-    "sphinx.ext.intersphinx",
-    "sphinx.ext.mathjax",
+    'sphinx.ext.doctest',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
     'sphinx_rtd_theme',
 ]
 
@@ -49,6 +49,12 @@ html_theme = 'sphinx_rtd_theme'
 html_short_title = 'Goupil 0.1.3 Documentation'
 html_split_index = True
 html_static_path = ['_static']
+html_css_files = [
+    'css/custom.css',
+]
+
+# Syntax highlighting.
+pygments_style = "nord"
 
 # Doctest options.
 doctest_global_setup = "import goupil"

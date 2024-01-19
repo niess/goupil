@@ -3,8 +3,6 @@
 `states`_
 =========
 
-----
-
 This utility function instantiates a structured
 :external:py:class:`numpy.ndarray` of Monte Carlo states that represent photons.
 
@@ -30,7 +28,7 @@ Syntax
         - Trajectory path length, in cm.
 
       * - :python:`"position"`
-        - Current posistion, in cm, using Cartesian coordinates.
+        - Current position, in cm, using Cartesian coordinates.
 
       * - :python:`"weight"`
         - Trajectory Monte Carlo weight.

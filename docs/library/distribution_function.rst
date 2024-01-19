@@ -3,8 +3,6 @@
 `DistributionFunction`_
 =======================
 
-----
-
 This class provides read-only views of tables that relate to the Cumulative
 Distribution Function (CDF) of a collision process. The CDF values are tabulated
 over an :math:`m \times n` grid of values, which depend on the energies of the

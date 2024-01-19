@@ -3,8 +3,6 @@
 `AtomicElement`_
 ================
 
-----
-
 This class represents an atomic element and provides access to its properties as
 attributes. Atomic properties are immutable and predefined during the
 initialization of :mod:`goupil`.

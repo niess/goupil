@@ -3,8 +3,6 @@
 `goupil_weighted_element`_
 ==========================
 
-----
-
 This structure represents a weighted atomic element.
 
 .. c:struct:: goupil_weighted_element

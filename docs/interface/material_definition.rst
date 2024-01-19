@@ -3,8 +3,6 @@
 `goupil_material_definition`_
 =============================
 
-----
-
 This object provides information on a Monte Carlo material, as per Goupil.
 
 .. c:struct:: goupil_material_definition

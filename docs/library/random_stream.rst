@@ -3,8 +3,6 @@
 `RandomStream`_
 ===============
 
-----
-
 This class represents a pseudo-random stream, such as the one consumed by the
 Monte Carlo transport. The stream can be shifted forward or backward using the
 :py:attr:`index <RandomStream.index>` attribute. By default, the stream is

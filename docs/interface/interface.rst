@@ -3,8 +3,6 @@
 `goupil_interface`_
 ===================
 
-----
-
 This is an initialised C interface to Goupil, containing constructors for
 objects that interact with a Monte Carlo geometry.
 

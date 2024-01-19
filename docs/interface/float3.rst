@@ -3,8 +3,6 @@
 `goupil_float3`_
 ================
 
-----
-
 This structure contains 3-dimensional Cartesian coordinates.
 
 .. c:struct:: goupil_float3

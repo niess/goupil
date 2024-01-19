@@ -3,8 +3,6 @@
 `MaterialDefinition`_
 =====================
 
-----
-
 This class is an abstract representation of the target material of a collision.
 It is used, for example, in defining the geometry of Monte Carlo simulations.
 Materials are treated as ideal gases in :mod:`goupil`, meaning they are mixtures

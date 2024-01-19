@@ -3,8 +3,6 @@
 `ExternalGeometry`_
 ===================
 
-----
-
 This class encapsulates an external geometry, usually implemented through the
 :doc:`C interface <../interface/index>`. The geometry is represented as a set of
 sectors with a specific atomic composition, as defined by a

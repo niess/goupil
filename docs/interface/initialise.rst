@@ -3,8 +3,6 @@
 goupil_initialise_
 ==================
 
-----
-
 Initialises a C interface to Goupil.
 
 

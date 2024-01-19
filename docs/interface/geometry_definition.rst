@@ -3,8 +3,6 @@
 `goupil_geometry_definition`_
 =============================
 
-----
-
 This objects provides a high level definition of a Monte Carlo geometry,
 according to Goupil. For tracing operations on the geometry, refer to the
 related :c:struct:`goupil_geometry_tracer` object.

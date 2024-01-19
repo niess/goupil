@@ -3,8 +3,6 @@
 `CrossSection`_
 ===============
 
-----
-
 This class provides read-only views of tables that relate to the cross-section
 of a collision process. The cross-section values are tabulated over a grid of
 :math:`m` nodes, which depend on the energy :math:`\nu_i` of the incoming

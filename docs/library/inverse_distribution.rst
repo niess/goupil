@@ -3,8 +3,6 @@
 `InverseDistribution`_
 ======================
 
-----
-
 This class provides read-only views of tables that relate to the inverse of the
 Cumulative Density Function (CDF) of a collision process, i.e. energy values of
 the outgoing photon (:math:`\nu_f`). The inverse CDF values are tabulated over

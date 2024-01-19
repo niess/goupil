@@ -1,0 +1,187 @@
+@import "nord.css";
+
+/* Sidebar */
+nav.wy-nav-side {
+    background: var(--nord1);
+    color: var(--nord5);
+}
+
+.wy-side-nav-search {
+    background-color: var(--nord2);
+    color: var(--nord6);
+}
+
+.wy-menu-vertical li.current {
+    background: var(--nord4);
+}
+
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3>a {
+    background: var(--nord5);
+}
+
+ .wy-menu-vertical li.toctree-l3.current li.toctree-l4>a {
+    background: var(--nord6);
+}
+
+.wy-menu-vertical li.toctree-l2 a {
+    color: var(--nord3);
+}
+
+.wy-menu-vertical li.toctree-l3 a {
+    color: var(--nord2);
+}
+
+.wy-menu-vertical li.toctree-l4 a {
+    color: var(--nord1);
+}
+
+.wy-menu-vertical li.current>a {
+    background: var(--nord6);
+    color: var(--nord2);
+}
+
+/* Content background */
+.wy-nav-content {
+    background: var(--nord0);
+}
+
+.wy-nav-content-wrap {
+    background-color: var(--nord0);
+}
+
+/* Content text */
+div.wy-nav-content,
+div.wy-nav-content div.citation p,
+div.wy-nav-content div.citation-list span.label {
+    color: var(--nord4);
+}
+
+div.wy-nav-content p {
+    text-align: justify;
+}
+
+/* Content references */
+div.wy-nav-content a {
+    color: var(--nord7);
+}
+
+div.wy-nav-content a:visited {
+    color: var(--nord7);
+}
+
+div.wy-nav-content a:hover {
+    color: var(--nord8);
+}
+
+.rst-content code.xref {
+    color: inherit; /* override */
+}
+
+/* Admonitions */
+div.admonition.note,
+div.admonition.seealso {
+    background: var(--nord1);
+}
+
+div.admonition.note .admonition-title,
+div.admonition.seealso .admonition-title
+{
+    background: var(--nord2);
+    color: var(--nord5);
+}
+
+div.admonition.warning {
+    background: var(--nord2);
+}
+
+div.admonition.warning .admonition-title {
+    background: var(--nord3);
+    color: var(--nord13);
+}
+
+/* Syntax highlighting */
+.rst-content code {
+    background: transparent;
+    border: none;
+}
+
+/* Footer */
+footer {
+    color: var(--nord4);
+}
+
+.btn-neutral {
+    background-color: var(--nord4)!important;
+    color: var(--nord0)!important;
+}
+
+.btn-neutral: visited {
+    color: var(--nord0)!important;
+}
+
+/* Tables */
+div.wy-table-responsive tr:nth-child(2n-1) td {
+    background-color: var(--nord2)!important;
+    color: var(--nord4);
+}
+
+div.wy-table-responsive tr:nth-child(2n) td {
+    background-color: var(--nord1)!important;
+    color: var(--nord5);
+}
+
+/* Python interface */
+dt.sig.sig-object.py {
+    background: transparent!important;
+    border: none!important;
+}
+
+dt.sig.sig-object.py,
+dt.sig.sig-object.py span.sig-name.descname,
+dt.sig.sig-object.py span.sig-prename.descclassname,
+dt.sig.sig-object.py span.sig-paren,
+dt.sig.sig-object.py em.sig-param {
+    color: var(--nord6)!important;
+}
+
+dt.sig.sig-object.py em.property,
+dt.sig.sig-object.py em.sig-param span.default_value,
+dt.sig.sig-object.py span.sig-return {
+    color: var(--nord9)!important;
+}
+
+dt.sig.sig-object.py span.sig-return span.sig-return-icon {
+    padding-left: 6px;
+}
+
+dl.py.attribute,
+dl.py.function,
+dl.py.method {
+    border: 1px solid var(--nord2);
+    padding: 8px;
+}
+
+/* C interface */
+dt.sig.sig-object.c {
+    background: transparent!important;
+    border: none!important;
+}
+
+dt.sig.sig-object.c span.sig-name.descname,
+dt.sig.sig-object.c span.sig-paren,
+dt.sig.sig-object.c>span.n span.pre,
+dt.sig.sig-object.c>span.p span.pre {
+    color: var(--nord6)!important;
+}
+
+dt.sig.sig-object.c>span.k span.pre,
+dt.sig.sig-object.c>span.kt span.pre {
+    color: var(--nord9)!important;
+}
+
+dl.c.function,
+dl.c.type,
+dl.c.var {
+    border: 1px solid var(--nord2);
+    padding: 8px;
+}

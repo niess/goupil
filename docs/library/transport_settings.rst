@@ -3,8 +3,6 @@
 `TransportSettings`_
 ====================
 
-----
-
 This class collects settings related to Monte Carlo transport. These settings
 can be accessed as mutable attributes, which are described below.
 

@@ -3,8 +3,6 @@
 `ElectronicStructure`_
 ======================
 
-----
-
 This class represents the electronic structure of an atomic element, compound,
 or mixture in terms of shells. It is a wrapper over a structured
 :external:py:class:`numpy.ndarray` that contains shell data (see the

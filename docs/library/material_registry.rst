@@ -3,8 +3,6 @@
 `MaterialRegistry`_
 ===================
 
-----
-
 This class acts as a container for simulation materials and handles the
 precomputation of properties, such as cross-sections, that are important for
 Monte Carlo transport. To add new materials to the registry, a
