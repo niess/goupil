@@ -72,7 +72,8 @@ Interface
 ---------
 
 Goupil's C interface defines 1 function and 8 types, which are listed below. For
-additional information on each item, please browse the corresponding entries.
+additional information on a specific item, please browse the corresponding
+entry.
 
 
 Functions
