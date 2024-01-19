@@ -1,7 +1,7 @@
-:c:struct:`goupil_geometry_sector`
-==================================
+.. _goupil_geometry_sector:
 
-.. _geometry_sector:
+`goupil_geometry_sector`_
+=========================
 
 ----
 

@@ -1,7 +1,7 @@
-:class:`RandomStream`
-=====================
-
 .. _RandomStream:
+
+`RandomStream`_
+===============
 
 ----
 

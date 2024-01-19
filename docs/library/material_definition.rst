@@ -1,7 +1,7 @@
-:class:`MaterialDefinition`
-===========================
-
 .. _MaterialDefinition:
+
+`MaterialDefinition`_
+=====================
 
 ----
 

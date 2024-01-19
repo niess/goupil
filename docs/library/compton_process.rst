@@ -1,7 +1,7 @@
-:class:`ComptonProcess`
-=======================
+.. _ComptonProcess:
 
-.. _compton_process:
+`ComptonProcess`_
+=================
 
 ----
 

@@ -1,7 +1,7 @@
-:class:`DistributionFunction`
-=============================
-
 .. _DistributionFunction:
+
+`DistributionFunction`_
+=======================
 
 ----
 

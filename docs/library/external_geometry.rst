@@ -1,7 +1,7 @@
-:class:`ExternalGeometry`
-=========================
-
 .. _ExternalGeometry:
+
+`ExternalGeometry`_
+===================
 
 ----
 

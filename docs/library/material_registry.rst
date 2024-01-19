@@ -1,7 +1,7 @@
-:class:`MaterialRegistry`
-=========================
-
 .. _MaterialRegistry:
+
+`MaterialRegistry`_
+===================
 
 ----
 

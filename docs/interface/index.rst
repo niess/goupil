@@ -9,8 +9,8 @@ This section provides information on how to interface an existing geometry
 engine with Goupil, at the C level. To adapt a specific geometry engine to
 Goupil, one needs to create a concrete implementation of Goupil's C interface,
 which is thus called an *adapter* herein. The `description`_ section below
-offers insight into how to implement an adapter, while the `interface`_ section
-provides a technical overview.
+offers insight into how to implement an adapter, while the `functions`_ and
+`types`_ sections provide a technical overview.
 
 .. note::
 
@@ -68,16 +68,8 @@ interfaces to containers. Please refer to the `types`_ section below for a
 complete list.
 
 
-Interface
----------
-
-Goupil's C interface defines 1 function and 8 types, which are listed below. For
-additional information on a specific item, please browse the corresponding
-entry.
-
-
 Functions
-~~~~~~~~~
+---------
 
 .. toctree::
    :maxdepth: 1
@@ -86,7 +78,7 @@ Functions
 
 
 Types
-~~~~~
+-----
 
 .. toctree::
    :maxdepth: 1

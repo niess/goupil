@@ -1,7 +1,7 @@
-:class:`TransportEngine`
-========================
-
 .. _TransportEngine:
+
+`TransportEngine`_
+==================
 
 ----
 

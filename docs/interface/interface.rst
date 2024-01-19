@@ -1,7 +1,7 @@
-:c:struct:`goupil_interface`
-============================
+.. _goupil_interface:
 
-.. _interface:
+`goupil_interface`_
+===================
 
 ----
 

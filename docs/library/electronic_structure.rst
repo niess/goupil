@@ -1,7 +1,7 @@
-:class:`ElectronicStructure`
-============================
-
 .. _ElectronicStructure:
+
+`ElectronicStructure`_
+======================
 
 ----
 

@@ -1,7 +1,7 @@
-:class:`CrossSection`
-=====================
-
 .. _CrossSection:
+
+`CrossSection`_
+===============
 
 ----
 

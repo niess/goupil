@@ -1,7 +1,7 @@
-:c:struct:`goupil_material_definition`
-======================================
+.. _goupil_material_definition:
 
-.. _material_definition:
+`goupil_material_definition`_
+=============================
 
 ----
 

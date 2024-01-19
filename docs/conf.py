@@ -11,6 +11,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
+    'sphinx_rtd_theme',
 ]
 
 templates_path = ['_templates']
@@ -44,18 +45,7 @@ toc_object_entries = True
 toc_object_entries_show_parents = 'hide'
 
 # HTML options.
-html_theme_options = {
-    'collapsiblesidebar': True,
-    'root_include_title': False
-}
-html_sidebars = {
-    '**': [
-        'localtoc.html',
-        'relations.html',
-        'sourcelink.html',
-    ]
-}
-html_theme = 'python_docs_theme'
+html_theme = 'sphinx_rtd_theme'
 html_short_title = 'Goupil 0.1.3 Documentation'
 html_split_index = True
 html_static_path = ['_static']

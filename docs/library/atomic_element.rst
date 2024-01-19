@@ -1,7 +1,7 @@
-:class:`AtomicElement`
-======================
-
 .. _AtomicElement:
+
+`AtomicElement`_
+================
 
 ----
 

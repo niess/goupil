@@ -1,7 +1,7 @@
+.. _goupil_initialise:
+
 goupil_initialise_
 ==================
-
-.. _goupil_initialise:
 
 ----
 

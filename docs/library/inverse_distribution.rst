@@ -1,7 +1,7 @@
-:class:`InverseDistribution`
-============================
-
 .. _InverseDistribution:
+
+`InverseDistribution`_
+======================
 
 ----
 

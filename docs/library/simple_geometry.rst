@@ -1,7 +1,7 @@
-:class:`SimpleGeometry`
-=======================
-
 .. _SimpleGeometry:
+
+`SimpleGeometry`_
+=================
 
 ----
 

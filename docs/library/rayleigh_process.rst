@@ -1,7 +1,7 @@
-:class:`RayleighProcess`
-========================
-
 .. _RayleighProcess:
+
+`RayleighProcess`_
+==================
 
 ----
 

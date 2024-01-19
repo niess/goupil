@@ -1,7 +1,7 @@
-:c:struct:`goupil_float3`
-=========================
+.. _goupil_float3:
 
-.. _float3:
+`goupil_float3`_
+================
 
 ----
 

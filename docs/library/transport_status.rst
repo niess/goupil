@@ -1,7 +1,7 @@
-:class:`TransportStatus`
-========================
-
 .. _TransportStatus:
+
+`TransportStatus`_
+==================
 
 ----
 

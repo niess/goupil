@@ -1,7 +1,7 @@
-:c:struct:`goupil_weighted_element`
-===================================
+.. _goupil_weighted_element:
 
-.. _weighted_element:
+`goupil_weighted_element`_
+==========================
 
 ----
 

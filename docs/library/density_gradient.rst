@@ -1,7 +1,7 @@
-:class:`DensityGradient`
-========================
-
 .. _DensityGradient:
+
+`DensityGradient`_
+==================
 
 ----
 

@@ -1,7 +1,7 @@
-:class:`MaterialRecord`
-=======================
-
 .. _MaterialRecord:
+
+`MaterialRecord`_
+=================
 
 ----
 

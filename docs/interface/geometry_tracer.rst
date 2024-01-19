@@ -1,7 +1,7 @@
-:c:struct:`goupil_geometry_tracer`
-==================================
+.. _goupil_geometry_tracer:
 
-.. _geometry_tracer:
+`goupil_geometry_tracer`_
+=========================
 
 ----
 

@@ -1,7 +1,7 @@
-:c:type:`goupil_float_t`
-========================
+.. _goupil_float_t:
 
-.. _float_t:
+`goupil_float_t`_
+=================
 
 ----
 

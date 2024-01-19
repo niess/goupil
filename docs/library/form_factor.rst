@@ -1,7 +1,7 @@
-:class:`FormFactor`
-===================
-
 .. _FormFactor:
+
+`FormFactor`_
+=============
 
 ----
 

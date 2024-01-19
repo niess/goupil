@@ -1,7 +1,7 @@
-:c:struct:`goupil_geometry_definition`
-======================================
+.. _goupil_geometry_definition:
 
-.. _geometry_definition:
+`goupil_geometry_definition`_
+=============================
 
 ----
 

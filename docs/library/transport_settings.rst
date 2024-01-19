@@ -1,7 +1,7 @@
-:class:`TransportSettings`
-==========================
-
 .. _TransportSettings:
+
+`TransportSettings`_
+====================
 
 ----
 
