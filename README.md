@@ -1,4 +1,4 @@
-# Goupil
+# Goupil [![Documentation Status](https://readthedocs.org/projects/goupil/badge/?version=latest)](https://goupil.readthedocs.io/en/latest/?badge=latest)
 (_**G**amma transp**O**rt **U**tility, a**P**proximate but revert**I**b**L**e_)
 
 ## License
