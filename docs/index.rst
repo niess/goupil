@@ -1,4 +1,4 @@
-Goupil 0.1.3
+Goupil 0.2.0
 ============
 
 Goupil is a Monte Carlo transport engine designed for low-energy gamma photons
