@@ -52,6 +52,8 @@ html_static_path = ['_static']
 html_css_files = [
     'css/custom.css',
 ]
+html_logo = 'goupil.svg'
+html_favicon = 'goupil.svg'
 
 # Syntax highlighting.
 pygments_style = "nord"

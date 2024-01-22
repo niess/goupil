@@ -40,6 +40,11 @@ nav.wy-nav-side {
     color: var(--nord2);
 }
 
+/* Logo */
+.wy-side-nav-search>a img.logo {
+    max-width: 50%;
+}
+
 /* Content background */
 .wy-nav-content {
     background: var(--nord0);
