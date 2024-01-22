@@ -15,13 +15,13 @@ offers insight into how to implement an adapter, while the `functions`_ and
    Goupil comes with a source distribution of a `Geant4
    <https://geant4.web.cern.ch/>`_ adapter, which also serves as a detailed
    example of an adapter implementation. For instructions on how to use this
-   adapter, see the :doc:`../description` section.
+   adapter, see the :doc:`../overview` section.
 
 .. warning::
 
    Prior knowledge of Goupil's geometry model is assumed in this section. To aid
    comprehension, it is advisable to first become acquainted with
-   :doc:`../library/external_geometry` objects through the Python interface.
+   :doc:`../py/external_geometry` objects through the Python interface.
 
 
 Description

@@ -11,7 +11,7 @@ browse the corresponding entry.
 .. note::
 
    For a practical description of Goupil, including examples, please refer to
-   the :doc:`../description` section.
+   the :doc:`../overview` section.
 
 
 Classes

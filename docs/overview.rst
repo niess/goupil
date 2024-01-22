@@ -4,9 +4,8 @@ Overview
 .. _description:
 
 This section provides a practical overview of Goupil illustrated with examples.
-Refer to the :doc:`Python <library/index>` and :doc:`C <interface/index>`
-interface sections of this document for a detailed description of the user
-interfaces.
+Refer to the :doc:`Python <py/index>` and :doc:`C <py/index>` interface sections
+of this document for a detailed description of the user interfaces.
 
 .. note::
 
@@ -33,9 +32,9 @@ it can be installed as:
 
 Goupil only implements transport physics. For practical applications, an
 external geometry engine and software adaptation (according to the
-specifications of the Goupil :doc:`C interface <interface/index>`) are also
-required. Goupil comes with a source distribution of a Geant4 adapter, hereafter
-called :cpp:`G4Goupil`. The corresponding source files can be accessed as:
+specifications of the Goupil :doc:`C interface <py/index>`) are also required.
+Goupil comes with a source distribution of a Geant4 adapter, hereafter called
+:cpp:`G4Goupil`. The corresponding source files can be accessed as:
 
 .. code:: console
 
@@ -98,8 +97,8 @@ Importing the geometry
 ----------------------
 
 The previous geometry library is imported in Python by using an
-:doc:`library/external_geometry` wrapper object. First, let us import
-:doc:`goupil <library/index>` module as
+:doc:`py/external_geometry` wrapper object. First, let us import :doc:`goupil
+<py/index>` module as
 
 >>> import goupil
 
@@ -111,7 +110,7 @@ loaded as
 According to Goupil's model, a Monte Carlo geometry is a set of sectors that are
 connected by one or more interface. Each sector is filled with a material that
 has a uniform atomic composition, but its density may vary continuously.
-Following, an :doc:`library/external_geometry` has two read-only attributes:
+Following, an :doc:`py/external_geometry` has two read-only attributes:
 :py:attr:`materials <ExternalGeometry.materials>` and :py:attr:`sectors
 <ExternalGeometry.sectors>`. These attributes list all the materials and sectors
 that are defined by the geometry. For instance, as:
@@ -123,10 +122,10 @@ that are defined by the geometry. For instance, as:
 Modifying the geometry
 ----------------------
 
-The physical properties of an :doc:`library/external_geometry` can be modified
-with the :py:meth:`update_material <ExternalGeometry.update_material>` and
+The physical properties of an :doc:`py/external_geometry` can be modified with
+the :py:meth:`update_material <ExternalGeometry.update_material>` and
 :py:meth:`update_sector <ExternalGeometry.update_sector>` methods. For example,
-let us define an exponential :doc:`library/density_gradient` to describe the air
+let us define an exponential :doc:`py/density_gradient` to describe the air
 density in the lower part of the Earth atmosphere (i.e. the troposphere).
 
 >>> gradient = goupil.DensityGradient(1.205E-03, 1.04E+05)
@@ -140,27 +139,27 @@ as:
 
    It is not possible to modify the structural properties of the external
    geometry, such as the number of sectors, directly from :doc:`goupil
-   <library/index>`. However, it is possible to implement mutable structural
+   <py/index>`. However, it is possible to implement mutable structural
    properties at the C level in the geometry library, which can be accessed from
    Python e.g. using :external:py:mod:`ctypes`. In this case, the
-   :doc:`library/external_geometry` must be reloaded whenever the Geant4
-   geometry needs to be rebuilt, (i.e. when :cpp:`Geometry::Construct` is
-   invoked, in the current example).
+   :doc:`py/external_geometry` must be reloaded whenever the Geant4 geometry
+   needs to be rebuilt, (i.e. when :cpp:`Geometry::Construct` is invoked, in the
+   current example).
 
 
 Running a simulation
 --------------------
 
-The Monte Carlo transport of photons is managed by a
-:doc:`library/transport_engine` taking in charge a specific geometry. A
-:doc:`library/transport_engine` is created as:
+The Monte Carlo transport of photons is managed by a :doc:`py/transport_engine`
+taking in charge a specific geometry. A :doc:`py/transport_engine` is created
+as:
 
 >>> engine = goupil.TransportEngine(geometry)
 
-Each engine has its own :doc:`library/random_stream`, which can be accessed
-through the :py:attr:`random <TransportEngine.random>` attribute. By default,
-this stream is seeded from the system entropy. For example purposes, let us set
-a specific seed value.
+Each engine has its own :doc:`py/random_stream`, which can be accessed through
+the :py:attr:`random <TransportEngine.random>` attribute. By default, this
+stream is seeded from the system entropy. For example purposes, let us set a
+specific seed value.
 
 >>> engine.random.seed = 123456789
 
@@ -176,17 +175,16 @@ transport. This is done as:
 
 .. note::
 
-   See :doc:`library/transport_settings` for a summary of configurable
-   parameters.
+   See :doc:`py/transport_settings` for a summary of configurable parameters.
 
 
 Then, let us define a set of :python:`100` Monte Carlo states representing
 photons with an energy of :python:`0.5` MeV. This is done with the
-:doc:`library/states` function as
+:doc:`py/states` function as
 
 >>> states = goupil.states(100, energy=0.5)
 
-The :doc:`library/states` function returns a `numpy structured array
+The :doc:`py/states` function returns a `numpy structured array
 <https://numpy.org/doc/stable/user/basics.rec.html>`_ of states, containing the
 photons energies, their locations, etc. Since we perform a backward simulation,
 these states represent final states, e.g., at a particular observation point. In
@@ -226,17 +224,16 @@ the energy of volume sources.
    In a backward transport, contained surface sources (i.e. not located on an
    outer boundary of the geometry) can be specified as a sector
    :py:attr:`boundary <TransportSettings.boundary>` at the level of the
-   :doc:`library/transport_engine`.
+   :doc:`py/transport_engine`.
 
 
 Inspecting results
 ------------------
 
 The :py:meth:`transport <TransportEngine.transport>` method returns an array of
-integer codes (:doc:`library/transport_status`) which indicate the
-termination condition for each propagated photon. For instance, backward
-propagated photons that are consistent with a volume source can be selected as
-follows:
+integer codes (:doc:`py/transport_status`) which indicate the termination
+condition for each propagated photon. For instance, backward propagated photons
+that are consistent with a volume source can be selected as follows:
 
 >>> constrained = (status == goupil.TransportStatus.ENERGY_CONSTRAINT)
 
@@ -289,8 +286,9 @@ associated with surface sources.
 .. note::
 
    In case of an :python:`ENERGY_CONSTRAINT` termination, transport weights have
-   units cm |nbsp| MeV\ :sup:`-1`. In other cases, transport weights are
-   unitless.
+   units cm |nbsp| MeV\ :sup:`-1`, if :math:`\nu_f < \nu_i` or cm, if
+   :math:`\nu_f = \nu_i`, where :math:`\nu_f` (:math:`\nu_i`) is the final
+   (initial) photon energy. In other cases, transport weights are unitless.
 
 .. note::
 
