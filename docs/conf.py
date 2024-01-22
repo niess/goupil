@@ -2,7 +2,7 @@
 project = 'Goupil'
 copyright = 'Université Clermont Auvergne, CNRS/IN2P3, LPC'
 author = 'Valentin Niess'
-release = '0.1.3'
+release = '0.2.0'
 
 highlight_language = 'python3'
 
@@ -46,11 +46,13 @@ toc_object_entries_show_parents = 'hide'
 
 # HTML options.
 html_theme = 'sphinx_rtd_theme'
-html_short_title = 'Goupil 0.1.3 Documentation'
 html_split_index = True
 html_static_path = ['_static']
 html_css_files = [
     'css/custom.css',
+]
+html_js_files = [
+    'js/custom.js',
 ]
 html_logo = 'goupil.svg'
 html_favicon = 'goupil.svg'

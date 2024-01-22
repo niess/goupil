@@ -1,5 +1,5 @@
-Goupil 0.2.0
-============
+Goupil
+======
 
 Goupil is a Monte Carlo transport engine designed for low-energy gamma photons
 (0.1-3 MeV), typically emitted by radio-isotopes like radon-222 descendants. By
