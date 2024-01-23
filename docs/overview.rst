@@ -116,7 +116,7 @@ Following, an :doc:`py/external_geometry` has two read-only attributes:
 that are defined by the geometry. For instance, as:
 
 >>> geometry.materials
-(G4_AIR, G4_SILICON_DIOXIDE)
+(G4_AIR, G4_CALCIUM_CARBONATE)
 
 
 Modifying the geometry
@@ -187,11 +187,11 @@ photons with an energy of :python:`0.5` MeV. This is done with the
 The :doc:`py/states` function returns a `numpy structured array
 <https://numpy.org/doc/stable/user/basics.rec.html>`_ of states, containing the
 photons energies, their locations, etc. Since we perform a backward simulation,
-these states represent final states, e.g., at a particular observation point. In
-practice, one would also specify the positions and directions of observed
-photons. However, for now, let us use default values for those.
+these states represent expected final states, e.g., at a particular observation
+point. In practice, one would also specify the positions and directions of
+expected photons. However, for now, let us use default values for those.
 
-Then, let us backward propagate the observed photons through the geometry. This
+Then, let us backward propagate the expected photons through the geometry. This
 is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
 
 >>> status = engine.transport(states, sources_energies=1.0)
