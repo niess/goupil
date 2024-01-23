@@ -5,9 +5,15 @@ use super::density::DensityModel;
 
 pub(crate) mod external;
 pub(crate) mod simple;
+pub(crate) mod stratified;
 
 pub use external::{ExternalGeometry, ExternalTracer};
 pub use simple::{SimpleGeometry, SimpleTracer};
+pub use stratified::{
+    StratifiedGeometry,
+    TopographyData,
+    TopographyMap,
+};
 
 
 // ===============================================================================================

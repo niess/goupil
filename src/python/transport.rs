@@ -493,10 +493,10 @@ impl PyTransportEngine {
     fn transport(
         &mut self,
         states: &PyArray<CState>,
-        constraints: Option<ArrayOrFloat>,
+        sources_energies: Option<ArrayOrFloat>,
     ) -> Result<PyObject> {
         // Check constraints and states consistency.
-        if let Some(constraints) = constraints.as_ref() {
+        if let Some(constraints) = sources_energies.as_ref() {
             if let ArrayOrFloat::Array(constraints) = constraints {
                 if constraints.size() != states.size() {
                     value_error!(
@@ -524,12 +524,12 @@ impl PyTransportEngine {
             Some(geometry) => match geometry {
                 PyGeometryDefinition::External(external) => {
                     self.transport_with::<_, ExternalTracer>(
-                        &external.borrow(py).0, states, constraints,
+                        &external.borrow(py).0, states, sources_energies,
                     )
                 },
                 PyGeometryDefinition::Simple(simple) => {
                     self.transport_with::<_, SimpleTracer>(
-                        &simple.borrow(py).0, states, constraints,
+                        &simple.borrow(py).0, states, sources_energies,
                     )
                 },
             },

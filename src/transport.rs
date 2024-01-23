@@ -29,6 +29,9 @@ pub use self::geometry::{
     GeometryTracer,
     SimpleGeometry,
     SimpleTracer,
+    StratifiedGeometry,
+    TopographyData,
+    TopographyMap,
 };
 
 
