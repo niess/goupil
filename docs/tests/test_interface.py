@@ -223,3 +223,27 @@ def test_TransportEngine():
     assert(record.compton_cross_section(mode="Adjoint") is not None)
     assert(record.compton_cross_section(mode="Direct") is not None)
     assert(record.compton_cdf(mode="Adjoint") is not None)
+
+
+def test_TopographyMap():
+    """Test usage of a TopographyMap."""
+
+    m0 = goupil.TopographyMap((-1, 1), (-10, 10), shape=(201, 21))
+    assert((m0.x == numpy.linspace(-1, 1, 21)).all())
+    assert((m0.y == numpy.linspace(-10, 10, 201)).all())
+    assert((m0.z == numpy.zeros((201, 21))).all())
+
+    z = numpy.random.rand(201, 21)
+    m1 = goupil.TopographyMap((-1, 1), (-10, 10), z)
+    assert((m1.x == numpy.linspace(-1, 1, 21)).all())
+    assert((m1.y == numpy.linspace(-10, 10, 201)).all())
+    assert((m1.z == z).all())
+
+    m0.z[:] = z
+    assert((m0.z == m1.z).all())
+
+    with pytest.raises(ValueError):
+        m0.x[0] = 0.0
+
+    with pytest.raises(ValueError):
+        m0.y[0] = 0.0

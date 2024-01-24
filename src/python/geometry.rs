@@ -3,15 +3,16 @@ use crate::numerics::Float;
 use crate::transport::{
     density::DensityModel,
     geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
-               SimpleGeometry},
+               SimpleGeometry, TopographyMap},
     PhotonState,
 };
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use std::rc::Rc;
 use super::ctrlc_catched;
 use super::macros::value_error;
 use super::materials::PyMaterialDefinition;
-use super::numpy::{ArrayOrFloat, PyArray};
+use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags};
 use super::transport::CState;
 
 
@@ -202,6 +203,118 @@ impl PyExternalGeometry {
         density: Option<DensityModel>,
     ) -> Result<()> {
         self.0.update_sector(index, material, density.as_ref())
+    }
+}
+
+
+// ===============================================================================================
+// Python wrapper for a topography map object.
+// ===============================================================================================
+
+#[pyclass(name = "TopographyMap", module = "goupil")]
+pub struct PyTopographyMap {
+    inner: Rc<TopographyMap>,
+
+    #[pyo3(get)]
+    x: PyObject,
+    #[pyo3(get)]
+    y: PyObject,
+    #[pyo3(get)]
+    z: PyObject,
+}
+
+unsafe impl Send for PyTopographyMap {}
+
+#[pymethods]
+impl PyTopographyMap {
+    #[new]
+    fn new(
+        py: Python,
+        xrange: [Float; 2],
+        yrange: [Float; 2],
+        z: Option<&PyArray<Float>>,
+        shape: Option<[usize; 2]>,
+    ) -> Result<Py<Self>> {
+        let shape = match shape {
+            None => match z {
+                None => value_error!(
+                    "cannot infer map's shape (expected a length-2 sequence, found 'None')"
+                ),
+                Some(z) => {
+                    let shape = z.shape();
+                    if shape.len() != 2 {
+                        value_error!(
+                            "bad shape for z-array (expected a 2D array, found a {}D array)",
+                            shape.len(),
+                        )
+                    }
+                    [shape[0], shape[1]]
+                },
+            },
+            Some(shape) => {
+                if let Some(z) = z {
+                    let size = shape[0] * shape[1];
+                    if z.size() != size {
+                        value_error!(
+                            "bad size for z-array (expected {}, found {})",
+                            size,
+                            z.size()
+                        )
+                    }
+                }
+                shape
+            },
+        };
+
+        let range = |min, max, n| -> Result<PyObject> {
+            let array = PyArray::<Float>::empty(py, &[n])?;
+            array.set(0, min)?;
+            let delta = (max - min) / ((n - 1) as Float);
+            for i in 1..(n-1) {
+                let v = delta * (i as Float) + min;
+                array.set(i, v)?;
+            }
+            array.set(n - 1, max)?;
+            array.readonly();
+            Ok(array.into_py(py))
+        };
+
+        // Build map.
+        let mut map = TopographyMap::new(
+            xrange[0], xrange[1], shape[1], yrange[0], yrange[1], shape[0]
+        );
+        if let Some(z) = z {
+            for i in 0..shape[0] {
+                for j in 0..shape[1] {
+                    let k = i * shape[1] + j;
+                    map.z[(i, j)] = z.get(k)?;
+                }
+            }
+        }
+
+        // Build typed Py-object.
+        let inner = Rc::new(map);
+        let x = range(xrange[0], xrange[1], shape[1])?;
+        let y = range(yrange[0], yrange[1], shape[0])?;
+        let z = py.None();
+        let result = Py::new(py, Self { inner, x, y, z })?;
+
+        // Create view of z-data, linked to Py-object.
+        let z: &PyAny = PyArray::from_data(
+            py,
+            result.borrow(py).inner.z.as_ref(),
+            result.as_ref(py),
+            PyArrayFlags::ReadWrite,
+            Some(&shape),
+        )?;
+        let z: PyObject = z.into();
+        result.borrow_mut(py).z = z;
+
+        Ok(result)
+    }
+
+    fn __call__(&self, x: Float, y: Float) -> Option<Float> { // XXX vectorise and fill
+        self.inner.z(x, y)
     }
 }
 

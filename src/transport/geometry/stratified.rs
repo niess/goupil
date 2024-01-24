@@ -15,7 +15,7 @@ use super::{GeometryDefinition, GeometrySector};
 pub struct TopographyMap {
     x: LinearGrid,
     y: LinearGrid,
-    z: BilinearInterpolator,
+    pub(crate) z: BilinearInterpolator,
 }
 
 impl TopographyMap {

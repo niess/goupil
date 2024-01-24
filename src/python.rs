@@ -6,7 +6,7 @@ use pyo3::ffi;
 use pyo3::once_cell::GILOnceCell;
 use self::density::PyDensityGradient;
 use self::elements::{elements as elements_fun, PyAtomicElement};
-use self::geometry::{PyExternalGeometry, PySimpleGeometry};
+use self::geometry::{PyExternalGeometry, PySimpleGeometry, PyTopographyMap};
 use self::materials::{
     PyCrossSection,
     PyDistributionFunction,
@@ -143,6 +143,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<PySimpleGeometry>()?;
     module.add_class::<PyRandomStream>()?;
     module.add_class::<PyRayleighProcess>()?;
+    module.add_class::<PyTopographyMap>()?;
     module.add_class::<PyTransportEngine>()?;
     module.add_class::<PyTransportSettings>()?;
     module.add_class::<PyTransportStatus>()?;
