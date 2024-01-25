@@ -296,7 +296,7 @@ impl PyTransportEngine {
                 let geometry = match geometry {
                     GeometryArg::Object(geometry) => geometry,
                     GeometryArg::Path(path) => {
-                        let external = PyExternalGeometry::new(&path)?;
+                        let external = PyExternalGeometry::new(py, &path)?;
                         let external = Py::new(py, external)?;
                         PyGeometryDefinition::External(external)
                     },
@@ -421,7 +421,7 @@ impl PyTransportEngine {
             if let Some(geometry) = &self.geometry {
                 match geometry {
                     PyGeometryDefinition::External(external) => {
-                        self.update_with(&external.borrow(py).0, registry)?
+                        self.update_with(&external.borrow(py).inner, registry)?
                     },
                     PyGeometryDefinition::Simple(simple) => {
                         self.update_with(&simple.borrow(py).0, registry)?
@@ -524,7 +524,7 @@ impl PyTransportEngine {
             Some(geometry) => match geometry {
                 PyGeometryDefinition::External(external) => {
                     self.transport_with::<_, ExternalTracer>(
-                        &external.borrow(py).0, states, sources_energies,
+                        &external.borrow(py).inner, states, sources_energies,
                     )
                 },
                 PyGeometryDefinition::Simple(simple) => {

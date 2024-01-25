@@ -17,6 +17,63 @@ use super::transport::CState;
 
 
 // ===============================================================================================
+// Python wrapper for a description of a geometry sector.
+// ===============================================================================================
+
+#[pyclass(name = "GeometrySector", module = "goupil")]
+pub struct PyGeometrySector {
+    #[pyo3(get)]
+    material: PyObject,
+    #[pyo3(get)]
+    density: PyObject,
+    #[pyo3(get)]
+    description: Option<String>,
+}
+
+#[pymethods]
+impl PyGeometrySector {
+    #[new]
+    fn new(
+        material: PyRef<PyMaterialDefinition>,
+        density: PyObject,
+        description: Option<&str>
+    ) -> Result<Self> {
+        let py = material.py();
+        let material: PyObject = material.into_py(py);
+        let _: DensityModel = density.extract(py)?; // type check.
+        let description = description.map(|s| s.to_string());
+        let result = Self { material, density, description };
+        Ok(result)
+    }
+
+    fn __repr__(&self, py: Python) -> Result<String> {
+        let material = self.material
+            .as_ref(py)
+            .repr()?
+            .to_str()?;
+        let density = self.density
+            .as_ref(py)
+            .repr()?
+            .to_str()?;
+        let result = match self.description.as_ref() {
+            None => format!(
+                "GeometrySector({}, {})",
+                material,
+                density,
+            ),
+            Some(description) => format!(
+                "GeometrySector({}, {}, '{}')",
+                material,
+                density,
+                description,
+            ),
+        };
+        Ok(result)
+    }
+}
+
+
+// ===============================================================================================
 // Python wrapper for a simple geometry object.
 // ===============================================================================================
 
@@ -57,47 +114,52 @@ impl PySimpleGeometry {
 // ===============================================================================================
 
 #[pyclass(name = "ExternalGeometry", module = "goupil")]
-pub struct PyExternalGeometry (pub ExternalGeometry);
+pub struct PyExternalGeometry {
+    pub inner: ExternalGeometry,
+
+    #[pyo3(get)]
+    materials: PyObject,
+    #[pyo3(get)]
+    sectors: PyObject,
+}
 
 #[pymethods]
 impl PyExternalGeometry {
     #[new]
-    pub fn new(path: &str) -> Result<Self> {
-        let geometry = unsafe { ExternalGeometry::new(path)? };
-        Ok(Self(geometry))
-    }
-
-    #[getter]
-    fn get_materials<'p>(&self, py: Python<'p>) -> &'p PyTuple {
-        let mut materials = Vec::<PyObject>::with_capacity(self.0.materials.len());
-        for material in self.0.materials.iter() {
-            let material = PyMaterialDefinition(material.clone());
-            materials.push(material.into_py(py));
-        }
-        PyTuple::new(py, materials)
-    }
-
-    #[getter]
-    fn get_sectors<'p>(&self, py: Python<'p>) -> &'p PyTuple {
-        let sectors: Vec<_> = self.0
-            .sectors
-            .iter()
-            .map(|sector| (
-                sector.material,
-                sector.density,
-                sector.description
-                    .as_ref()
-                    .map(|description| description.to_string()),
-            ))
-            .collect();
-        PyTuple::new(py, sectors)
+    pub fn new(py: Python, path: &str) -> Result<Self> {
+        let inner = unsafe { ExternalGeometry::new(path)? };
+        let materials: &PyTuple = {
+            let mut materials = Vec::<PyObject>::with_capacity(inner.materials.len());
+            for material in inner.materials.iter() {
+                let material = PyMaterialDefinition(material.clone());
+                materials.push(material.into_py(py));
+            }
+            PyTuple::new(py, materials)
+        };
+        let sectors: PyObject = {
+            let sectors: std::result::Result<Vec<_>, _> = inner
+                .sectors
+                .iter()
+                .map(|sector| Py::new(py, PyGeometrySector {
+                    material: (&materials[sector.material]).into_py(py),
+                    density: sector.density.into_py(py),
+                    description: sector.description
+                        .as_ref()
+                        .map(|description| description.to_string()),
+                }))
+                .collect();
+            PyTuple::new(py, sectors?).into_py(py)
+        };
+        let materials: PyObject = materials.into_py(py);
+        let result = Self { inner, materials, sectors };
+        Ok(result)
     }
 
     fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
         let py = states.py();
         let sectors = PyArray::<usize>::empty(py, &states.shape())?;
-        let mut tracer = ExternalTracer::new(&self.0)?;
-        let m = self.0.sectors().len();
+        let mut tracer = ExternalTracer::new(&self.inner)?;
+        let m = self.inner.sectors().len();
         let n = states.size();
         for i in 0..n {
             let state: PhotonState = states.get(i)?.into();
@@ -133,13 +195,13 @@ impl PyExternalGeometry {
         }
 
         let mut shape = states.shape();
-        let m = self.0.sectors().len();
+        let m = self.inner.sectors().len();
         shape.push(m);
         let py = states.py();
         let result = PyArray::<Float>::empty(py, &shape)?;
 
         let density = density.unwrap_or(false);
-        let mut tracer = ExternalTracer::new(&self.0)?;
+        let mut tracer = ExternalTracer::new(&self.inner)?;
         let mut k: usize = 0;
         for i in 0..n {
             let state: PhotonState = states.get(i)?.into();
@@ -158,7 +220,7 @@ impl PyExternalGeometry {
                     Some(sector) => {
                         let step_length = tracer.trace(length)?;
                         if density {
-                            let model = &self.0.sectors[sector].density;
+                            let model = &self.inner.sectors[sector].density;
                             let position = tracer.position();
                             grammages[sector] += model.column_depth(
                                 position, state.direction, step_length
@@ -193,16 +255,40 @@ impl PyExternalGeometry {
         index: usize,
         material: PyRef<PyMaterialDefinition>
     ) -> Result<()> {
-        self.0.update_material(index, &material.0)
+        // Update inner state.
+        self.inner.update_material(index, &material.0)?;
+
+        // Update external state.
+        let py = material.py();
+        let materials: &PyTuple = self.materials.extract(py)?;
+        let mut this: PyRefMut<PyMaterialDefinition> = materials[index].extract()?;
+        this.0 = material.0.clone();
+
+        Ok(())
     }
 
     fn update_sector(
         &mut self,
+        py: Python,
         index: usize,
         material: Option<usize>,
         density: Option<DensityModel>,
     ) -> Result<()> {
-        self.0.update_sector(index, material, density.as_ref())
+        // Update inner state.
+        self.inner.update_sector(index, material, density.as_ref())?;
+
+        // Update external state.
+        let sectors: &PyTuple = self.sectors.extract(py)?;
+        let mut this: PyRefMut<PyGeometrySector> = sectors[index].extract()?;
+        if let Some(material) = material {
+            let materials: &PyTuple = self.materials.extract(py)?;
+            this.material = materials[material].into_py(py);
+        }
+        if let Some(density) = density.as_ref() {
+            this.density = density.into_py(py);
+        }
+
+        Ok(())
     }
 }
 

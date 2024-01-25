@@ -98,10 +98,6 @@ impl ExternalGeometry {
         Ok(geometry)
     }
 
-    pub fn push_material(&mut self, material: &MaterialDefinition) {
-        self.materials.push(material.clone());
-    }
-
     pub fn update_material(
         &mut self,
         index: usize,
