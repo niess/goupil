@@ -399,9 +399,76 @@ impl PyTopographyMap {
         Ok(result)
     }
 
+    fn __add__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+        let py = lhs.py();
+        let map: PyObject = lhs.into_py(py);
+        PyTopographyOffset { map, offset: rhs }
+    }
+
+    fn __radd__(rhs: PyRef<Self>, lhs: Float) -> PyTopographyOffset {
+        Self::__add__(rhs, lhs)
+    }
+
+    fn __sub__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+        Self::__add__(lhs, -rhs)
+    }
+
     fn __call__(&self, x: Float, y: Float) -> Option<Float> { // XXX vectorise and fill
         self.inner.z(x, y)
     }
+}
+
+
+// ===============================================================================================
+// Python wrapper for a topography map offset.
+// ===============================================================================================
+
+#[pyclass(name = "TopographyOffset", module = "goupil")]
+pub struct PyTopographyOffset {
+    #[pyo3(get)]
+    map: PyObject,
+    #[pyo3(get)]
+    offset: Float,
+}
+
+#[pymethods]
+impl PyTopographyOffset {
+    #[new]
+    fn new(lhs: MapOrOffset, rhs: Float) -> Result<Self> {
+        let result = match lhs {
+            MapOrOffset::Map(map) => {
+                let py = map.py();
+                let map: PyObject = map.into_py(py);
+                Self { map, offset: rhs }
+            },
+            MapOrOffset::Offset(offset) => {
+                let py = offset.py();
+                let map = Py::clone_ref(&offset.map, py);
+                Self { map, offset: offset.offset + rhs }
+            },
+        };
+        Ok(result)
+    }
+
+    fn __add__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+        let py = lhs.py();
+        let map = Py::clone_ref(&lhs.map, py);
+        PyTopographyOffset { map, offset: rhs + lhs.offset }
+    }
+
+    fn __radd__(rhs: PyRef<Self>, lhs: Float) -> PyTopographyOffset {
+        Self::__add__(rhs, lhs)
+    }
+
+    fn __sub__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+        Self::__add__(lhs, -rhs)
+    }
+}
+
+#[derive(FromPyObject)]
+pub enum MapOrOffset<'py> {
+    Map(PyRef<'py, PyTopographyMap>),
+    Offset(PyRef<'py, PyTopographyOffset>),
 }
 
 
