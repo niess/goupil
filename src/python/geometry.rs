@@ -3,7 +3,7 @@ use crate::numerics::Float;
 use crate::transport::{
     density::DensityModel,
     geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
-               SimpleGeometry, TopographyMap},
+               SimpleGeometry, StratifiedGeometry, TopographyMap},
     PhotonState,
 };
 use pyo3::prelude::*;
@@ -315,6 +315,30 @@ impl PyTopographyMap {
 
     fn __call__(&self, x: Float, y: Float) -> Option<Float> { // XXX vectorise and fill
         self.inner.z(x, y)
+    }
+}
+
+
+// ===============================================================================================
+// Python wrapper for a stratified geometry object.
+// ===============================================================================================
+
+#[pyclass(name = "StratifiedGeometry", module = "goupil")]
+pub struct PyStratifiedGeometry (pub StratifiedGeometry);
+
+unsafe impl Send for PyStratifiedGeometry {}
+
+#[pymethods]
+impl PyStratifiedGeometry {
+    #[new]
+    pub fn new(
+        material: PyRef<PyMaterialDefinition>,
+        density: &PyAny,
+        description: Option<&str>,
+    ) -> Result<Self> {
+        let density: DensityModel = density.extract()?;
+        let geometry = StratifiedGeometry::new(&material.0, density, description);
+        Ok(Self(geometry))
     }
 }
 

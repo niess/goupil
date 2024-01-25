@@ -46,21 +46,21 @@ impl TopographyMap {
 // ===============================================================================================
 
 #[derive(Clone)]
-pub enum TopographyData {
+pub enum TopographyData<'a> {
     Constant(Float),
-    Map(Rc<TopographyMap>),
-    Offset(Float, Rc<TopographyMap>),
+    Map(&'a Rc<TopographyMap>),
+    Offset(Float, &'a Rc<TopographyMap>),
 }
 
-impl TopographyData {
+impl<'a> TopographyData<'a> {
     fn resolve(&self, maps: &mut Vec<Rc<TopographyMap>>) -> ResolvedData {
         let mut get_index = |map: &Rc<TopographyMap>| -> usize  {
             for (i, mi) in maps.iter().enumerate() {
-                if Rc::ptr_eq(&map, mi) {
+                if Rc::ptr_eq(map, mi) {
                     return i
                 }
             }
-            maps.push(map.clone());
+            maps.push(Rc::clone(map));
             maps.len() - 1
         };
 

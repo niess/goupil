@@ -112,7 +112,7 @@ impl PyDensityGradient {
 // ===============================================================================================
 
 #[derive(FromPyObject)]
-enum DensityArg<'py> {
+pub(crate) enum DensityArg<'py> {
     Gradient(PyRef<'py, PyDensityGradient>),
     Uniform(Float),
 }
