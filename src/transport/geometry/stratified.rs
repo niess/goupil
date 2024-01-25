@@ -46,13 +46,13 @@ impl TopographyMap {
 // ===============================================================================================
 
 #[derive(Clone)]
-pub enum TopographyData<'a> {
+pub enum TopographyData {
     Constant(Float),
-    Map(&'a Rc<TopographyMap>),
-    Offset(Float, &'a Rc<TopographyMap>),
+    Map(Rc<TopographyMap>),
+    Offset(Rc<TopographyMap>, Float),
 }
 
-impl<'a> TopographyData<'a> {
+impl TopographyData {
     fn resolve(&self, maps: &mut Vec<Rc<TopographyMap>>) -> ResolvedData {
         let mut get_index = |map: &Rc<TopographyMap>| -> usize  {
             for (i, mi) in maps.iter().enumerate() {
@@ -67,7 +67,7 @@ impl<'a> TopographyData<'a> {
         match self {
             Self::Constant(z) => ResolvedData::Constant(*z),
             Self::Map(m) => ResolvedData::Map(get_index(m)),
-            Self::Offset(o, m) => ResolvedData::Offset(*o, get_index(m)),
+            Self::Offset(m, o) => ResolvedData::Offset(*o, get_index(m)),
         }
     }
 
@@ -99,8 +99,8 @@ enum ResolvedData {
 pub struct StratifiedGeometry {
     interfaces: Vec<TopographyInterface>,
     maps: Vec<Rc<TopographyMap>>,
-    materials: Vec<MaterialDefinition>,
-    sectors: Vec<GeometrySector>,
+    pub(crate) materials: Vec<MaterialDefinition>,
+    pub(crate) sectors: Vec<GeometrySector>,
 }
 
 // Public interface.
@@ -112,11 +112,22 @@ impl StratifiedGeometry {
         density: DensityModel,
         description: Option<&str>
     ) -> Self {
-        let interfaces = Vec::new();
+        let interfaces = vec![Vec::new(), Vec::new()];
         let maps = Vec::new();
         let materials = vec![material.clone()];
         let sectors = vec![Self::new_sector(0, density, description)];
         Self { interfaces, maps, materials, sectors }
+    }
+
+    pub fn set_bottom(&mut self, interface: &[TopographyData]) {
+        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+        self.interfaces[0] = interface;
+    }
+
+    pub fn set_top(&mut self, interface: &[TopographyData]) {
+        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+        let last = self.interfaces.len() - 1;
+        self.interfaces[last] = interface;
     }
 
     pub fn push_layer(
@@ -136,7 +147,8 @@ impl StratifiedGeometry {
         let sector = Self::new_sector(material, density, description);
         self.sectors.push(sector);
         let interface = TopographyData::resolve_all(interface, &mut self.maps);
-        self.interfaces.push(interface);
+        let last = self.interfaces.len() - 1;
+        self.interfaces.insert(last, interface);
         Ok(())
     }
 }

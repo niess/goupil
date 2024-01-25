@@ -3,7 +3,7 @@ use crate::numerics::Float;
 use crate::transport::{
     density::DensityModel,
     geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
-               SimpleGeometry, StratifiedGeometry, TopographyMap},
+               SimpleGeometry, StratifiedGeometry, TopographyData, TopographyMap},
     PhotonState,
 };
 use pyo3::prelude::*;
@@ -34,7 +34,7 @@ pub struct PyGeometrySector {
 impl PyGeometrySector {
     #[new]
     fn new(
-        material: PyRef<PyMaterialDefinition>,
+        material: PyRef<PyMaterialDefinition>, // XXX Allow for a string?
         density: PyObject,
         description: Option<&str>
     ) -> Result<Self> {
@@ -463,10 +463,12 @@ impl PyTopographyOffset {
     fn __sub__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
         Self::__add__(lhs, -rhs)
     }
+
+    // XXX Add call method?
 }
 
 #[derive(FromPyObject)]
-pub enum MapOrOffset<'py> {
+enum MapOrOffset<'py> {
     Map(PyRef<'py, PyTopographyMap>),
     Offset(PyRef<'py, PyTopographyOffset>),
 }
@@ -477,21 +479,155 @@ pub enum MapOrOffset<'py> {
 // ===============================================================================================
 
 #[pyclass(name = "StratifiedGeometry", module = "goupil")]
-pub struct PyStratifiedGeometry (pub StratifiedGeometry);
+pub struct PyStratifiedGeometry {
+    inner: StratifiedGeometry,
+
+    #[pyo3(get)]
+    materials: PyObject,
+    #[pyo3(get)]
+    sectors: PyObject,
+}
 
 unsafe impl Send for PyStratifiedGeometry {}
 
 #[pymethods]
 impl PyStratifiedGeometry {
     #[new]
-    pub fn new(
-        material: PyRef<PyMaterialDefinition>,
-        density: &PyAny,
-        description: Option<&str>,
-    ) -> Result<Self> {
-        let density: DensityModel = density.extract()?;
-        let geometry = StratifiedGeometry::new(&material.0, density, description);
-        Ok(Self(geometry))
+    #[pyo3(signature = (*args))]
+    pub fn new(args: &PyTuple) -> Result<Self> {
+        let py = args.py();
+
+        let n = args.len();
+        if n == 0 {
+            value_error!(
+                "bad number of argument(s) (expected one or more argument(s), found zero)"
+            )
+        }
+
+        // Initialise inner geometry object.
+        let (mut last, sector, bottom) = {
+            let result: std::result::Result<PyRef<PyGeometrySector>, _> = args[n - 1].extract();
+            match result {
+                std::result::Result::Err(_) => {
+                    let bottom: PyTopographyInterface = args[n - 1].extract()?;
+                    let bottom: Vec<TopographyData> = bottom.into();
+                    let last = n - 2;
+                    let sector: PyRef<PyGeometrySector> = args[last].extract()?;
+                    (last, sector, Some(bottom))
+                },
+                std::result::Result::Ok(result) => {
+                    (n - 1, result, None)
+                },
+            }
+        };
+
+        let material: PyRef<PyMaterialDefinition> = sector.material.extract(py)?;
+        let density: DensityModel = sector.density.extract(py)?;
+        let description = sector.description.as_ref().map(|s| s.as_str());
+        let mut inner = StratifiedGeometry::new(&material.0, density, description);
+
+        if let Some(bottom) = bottom {
+            inner.set_bottom(&bottom);
+        }
+
+        // Loop over additional layers.
+        while last > 1 {
+            // Extract interface.
+            let interface: PyTopographyInterface = args[last - 1].extract()?;
+            let interface: Vec<TopographyData> = interface.into();
+
+            // Extract sector.
+            let sector: PyRef<PyGeometrySector> = args[last - 2].extract()?;
+            let material: PyRef<PyMaterialDefinition> = sector.material.extract(py)?;
+            let density: DensityModel = sector.density.extract(py)?;
+            let description = sector.description.as_ref().map(|s| s.as_str());
+
+            // Update the geometry.
+            inner.push_layer(&interface, &material.0, density, description)?;
+            last -= 2;
+        }
+
+        if last == 1 {
+            let top: PyTopographyInterface = args[0].extract()?;
+            let top: Vec<TopographyData> = top.into();
+            inner.set_top(&top);
+        }
+
+        let inner = inner; // Lock mutability at this point.
+
+        // Export materials and sectors.
+        let materials: &PyTuple = {
+            let mut materials = Vec::<PyObject>::with_capacity(inner.materials.len());
+            for material in inner.materials.iter() {
+                let material = PyMaterialDefinition(material.clone());
+                materials.push(material.into_py(py));
+            }
+            PyTuple::new(py, materials)
+        };
+        let sectors: PyObject = {
+            let sectors: std::result::Result<Vec<_>, _> = inner
+                .sectors
+                .iter()
+                .map(|sector| Py::new(py, PyGeometrySector {
+                    material: (&materials[sector.material]).into_py(py),
+                    density: sector.density.into_py(py),
+                    description: sector.description
+                        .as_ref()
+                        .map(|description| description.to_string()),
+                }))
+                .collect();
+            PyTuple::new(py, sectors?).into_py(py)
+        };
+        let materials: PyObject = materials.into_py(py);
+
+        // Wrap geometry and return.
+        Ok(Self { inner, materials, sectors })
+    }
+}
+
+#[derive(FromPyObject)]
+enum PyTopographyData<'py> {
+    Constant(Float),
+    Map(PyRef<'py, PyTopographyMap>),
+    Offset(PyRef<'py, PyTopographyOffset>),
+}
+
+impl<'py> From<PyTopographyData<'py>> for TopographyData {
+    fn from(value: PyTopographyData) -> Self {
+        match value {
+            PyTopographyData::Constant(value) => TopographyData::Constant(value),
+            PyTopographyData::Map(value) => TopographyData::Map(Rc::clone(&value.inner)),
+            PyTopographyData::Offset(value) => {
+                let py = value.py();
+                let map: PyRef<PyTopographyMap> = value.map.extract(py).unwrap();
+                TopographyData::Offset(Rc::clone(&map.inner), value.offset)
+            },
+        }
+    }
+}
+
+#[derive(FromPyObject)]
+enum PyTopographyInterface<'py> { // XXX Export this type?
+    Scalar(PyTopographyData<'py>),
+    Sequence(Vec<PyTopographyData<'py>>),
+}
+
+impl<'py> From<PyTopographyInterface<'py>> for Vec<TopographyData> {
+    fn from(value: PyTopographyInterface) -> Self {
+        match value {
+            PyTopographyInterface::Scalar(value) => {
+                let value: TopographyData = value.into();
+                vec![value]
+            },
+            PyTopographyInterface::Sequence(values) => {
+                let mut result = Vec::<TopographyData>::with_capacity(values.len());
+                for value in values {
+                    let value: TopographyData = value.into();
+                    result.push(value);
+                }
+                result
+            }
+        }
     }
 }
 

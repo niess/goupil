@@ -11,7 +11,8 @@ use self::geometry::{
     PyGeometrySector,
     PySimpleGeometry,
     PyStratifiedGeometry,
-    PyTopographyMap
+    PyTopographyMap,
+    PyTopographyOffset,
 };
 use self::materials::{
     PyCrossSection,
@@ -152,6 +153,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<PyRandomStream>()?;
     module.add_class::<PyRayleighProcess>()?;
     module.add_class::<PyTopographyMap>()?;
+    module.add_class::<PyTopographyOffset>()?;
     module.add_class::<PyTransportEngine>()?;
     module.add_class::<PyTransportSettings>()?;
     module.add_class::<PyTransportStatus>()?;
