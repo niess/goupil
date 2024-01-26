@@ -30,6 +30,7 @@ pub use self::geometry::{
     SimpleGeometry,
     SimpleTracer,
     StratifiedGeometry,
+    StratifiedTracer,
     TopographyData,
     TopographyMap,
 };

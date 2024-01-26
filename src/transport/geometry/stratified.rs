@@ -1,11 +1,11 @@
 use anyhow::{bail, Result};
-use crate::numerics::Float;
+use crate::numerics::{Float, Float3};
 use crate::numerics::grids::{Grid, GridCoordinate, LinearGrid};
 use crate::numerics::interpolate::BilinearInterpolator;
 use crate::physics::materials::MaterialDefinition;
 use crate::transport::density::DensityModel;
 use std::rc::Rc;
-use super::{GeometryDefinition, GeometrySector};
+use super::{GeometryDefinition, GeometrySector, GeometryTracer};
 
 
 // ===============================================================================================
@@ -229,5 +229,194 @@ impl GeometryDefinition for StratifiedGeometry {
     #[inline]
     fn sectors(&self)-> &[GeometrySector] {
         &self.sectors
+    }
+}
+
+
+// ===============================================================================================
+// Stratified geometry tracer.
+// ===============================================================================================
+
+pub struct StratifiedTracer<'a> {
+    definition: &'a StratifiedGeometry,
+
+    position: Float3,
+    direction: Float3,
+    current_sector: Option<usize>,
+    next_sector: Option<usize>,
+    length: Float,
+    cache: Vec<CachedValue<'a>>,
+    delta_min: Option<Float>,
+}
+
+struct CachedValue<'a> {
+    x: Float,
+    y: Float,
+    z: Option<Float>,
+    map: &'a TopographyMap,
+}
+
+impl<'a> CachedValue<'a> {
+    fn new(map: &'a TopographyMap) -> Self {
+        let x = 0.0;
+        let y = 0.0;
+        let z = map.z(x, y);
+        Self { x, y, z, map }
+    }
+
+    #[inline]
+    fn update(&mut self, x: Float, y: Float) -> Option<Float> {
+        if (x != self.x) || (y != self.y) {
+            self.z = self.map.z(x, y);
+        }
+        self.z
+    }
+}
+
+impl ResolvedData {
+    fn compute_z(
+        &self,
+        cache: &mut [CachedValue],
+        x: Float,
+        y: Float
+    ) -> Option<Float> {
+        match self {
+            Self::Constant(value) => Some(*value),
+            Self::Map(index) => cache[*index].update(x, y),
+            Self::Offset(index, value) => {
+                cache[*index]
+                    .update(x, y)
+                    .map(|v| v + *value)
+            },
+        }
+    }
+
+    fn interface_z(
+        interface: &[Self],
+        cache: &mut [CachedValue],
+        x: Float,
+        y: Float
+    ) -> Option<Float> {
+        for data in interface.iter() {
+            let value = data.compute_z(cache, x, y);
+            if value.is_some() {
+                return value;
+            }
+        }
+        None
+    }
+}
+
+impl<'a> StratifiedTracer<'a> {
+    fn locate(&mut self, r: Float3) -> (Option<usize>, Float) {
+        let interfaces = &self.definition.interfaces;
+        let n = interfaces.len();
+        let mut delta = Float::INFINITY;
+
+        let bound = |x: Float| -> Float {
+            match self.delta_min {
+                None => x,
+                Some(delta_min) => x.max(delta_min),
+            }
+        };
+
+        // Check bottom layer.
+        let zb = ResolvedData::interface_z(&interfaces[0], &mut self.cache, r.0, r.1);
+        if let Some(zb) = zb {
+            if r.2 < zb {
+                return (None, bound(zb - r.2))
+            } else {
+                delta = r.2 - zb;
+            }
+        }
+
+        for i in 1..(n-1) {
+            let zi = ResolvedData::interface_z(&interfaces[i], &mut self.cache, r.0, r.1);
+            if let Some(zi) = zi {
+                let d = (r.2 - zi).abs();
+                if d < delta { delta = d }
+                if r.2 < zi {
+                    return (Some(i - 1), bound(delta))
+                }
+            }
+        }
+        (None, bound(delta))
+    }
+}
+
+impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
+    #[inline]
+    fn definition(&self) -> &'a StratifiedGeometry {
+        self.definition
+    }
+
+    fn new(definition: &'a StratifiedGeometry) -> Result<Self> {
+        // Initialise local state.
+        let position = Float3::default();
+        let direction = Float3::default();
+        let current_sector = None;
+        let next_sector = None;
+        let length = 0.0;
+        let cache: Vec<_> = definition.maps.iter()
+            .map(|map| CachedValue::new(map))
+            .collect();
+
+        let delta_min = {
+            let mut delta: Option<Float> = None;
+            for map in definition.maps.iter() {
+                let d = map.x.width(0)
+                    .min(map.y.width(0));
+                if d > 0.0 {
+                    match delta {
+                        None => { delta = Some(d) },
+                        Some(value) => if value > d {
+                            delta = Some(d);
+                        },
+                    }
+                }
+            }
+            delta
+        };
+
+        Ok(Self {
+            definition,
+            position,
+            direction,
+            current_sector,
+            next_sector,
+            length,
+            cache,
+            delta_min
+        })
+    }
+
+    fn position(&self) -> Float3 {
+        self.position
+    }
+
+    fn reset(&mut self, position: Float3, direction: Float3) -> Result<()> {
+        self.position = position;
+        self.direction = direction;
+        let (sector, _) = self.locate(position); // XXX Cache delta?
+        self.current_sector = sector;
+        Ok(())
+    }
+
+    fn sector(&self) -> Option<usize> {
+        self.current_sector
+    }
+
+    fn trace(&mut self, physical_length: Float) -> Result<Float> {
+        // XXX HERE I AM. Implement this.
+        Ok(self.length)
+    }
+
+    fn update(&mut self, length: Float, direction: Float3) -> Result<()> {
+        self.position += self.direction * length;
+        self.direction = direction;
+        if length == self.length {
+            self.current_sector = self.next_sector;
+        }
+        Ok(())
     }
 }

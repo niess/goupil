@@ -11,6 +11,7 @@ pub use external::{ExternalGeometry, ExternalTracer};
 pub use simple::{SimpleGeometry, SimpleTracer};
 pub use stratified::{
     StratifiedGeometry,
+    StratifiedTracer,
     TopographyData,
     TopographyMap,
 };
