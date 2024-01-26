@@ -67,7 +67,7 @@ impl TopographyData {
         match self {
             Self::Constant(z) => ResolvedData::Constant(*z),
             Self::Map(m) => ResolvedData::Map(get_index(m)),
-            Self::Offset(m, o) => ResolvedData::Offset(*o, get_index(m)),
+            Self::Offset(m, o) => ResolvedData::Offset(get_index(m), *o),
         }
     }
 
@@ -88,7 +88,17 @@ type TopographyInterface = Vec<ResolvedData>;
 enum ResolvedData {
     Constant(Float),
     Map(usize),
-    Offset(Float, usize),
+    Offset(usize, Float),
+}
+
+impl ResolvedData {
+    fn get_z(&self, z: &[Option<Float>]) -> Option<Float> {
+        match self {
+            Self::Constant(value) => Some(*value),
+            Self::Map(index) => z[*index],
+            Self::Offset(index, value) => z[*index].map(|v| v + *value),
+        }
+    }
 }
 
 
@@ -119,17 +129,7 @@ impl StratifiedGeometry {
         Self { interfaces, maps, materials, sectors }
     }
 
-    pub fn set_bottom(&mut self, interface: &[TopographyData]) {
-        let interface = TopographyData::resolve_all(interface, &mut self.maps);
-        self.interfaces[0] = interface;
-    }
-
-    pub fn set_top(&mut self, interface: &[TopographyData]) {
-        let interface = TopographyData::resolve_all(interface, &mut self.maps);
-        let last = self.interfaces.len() - 1;
-        self.interfaces[last] = interface;
-    }
-
+    /// Adds a new layer on top of the geometry, separated by the provided interface.
     pub fn push_layer(
         &mut self,
         interface: &[TopographyData],
@@ -150,6 +150,42 @@ impl StratifiedGeometry {
         let last = self.interfaces.len() - 1;
         self.interfaces.insert(last, interface);
         Ok(())
+    }
+
+    /// Sets the geometry bottom interface. By default, the geometry is not bounded from below.
+    pub fn set_bottom(&mut self, interface: &[TopographyData]) {
+        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+        self.interfaces[0] = interface;
+    }
+
+    /// Sets the geometry to interface. By default, the geometry is not bounded from above.
+    pub fn set_top(&mut self, interface: &[TopographyData]) {
+        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+        let last = self.interfaces.len() - 1;
+        self.interfaces[last] = interface;
+    }
+
+    /// Returns the interfaces' elevation values `z` at (`x`, `y`) coordinates.
+    pub fn z(&self, x: Float, y: Float) -> Vec<Option<Float>> {
+        let z_map: Vec<_> = self.maps
+            .iter()
+            .map(|m| m.z(x, y))
+            .collect();
+        let get_z = |data: &[ResolvedData]| -> Option<Float> {
+            for d in data.iter() {
+                let value = d.get_z(&z_map);
+                if value.is_some() {
+                    return value
+                }
+            }
+            None
+        };
+        let mut result = Vec::<Option<Float>>::with_capacity(self.interfaces.len());
+        for interface in self.interfaces.iter() {
+            let zi = get_z(interface);
+            result.push(zi);
+        }
+        result
     }
 }
 

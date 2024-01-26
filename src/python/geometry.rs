@@ -583,6 +583,10 @@ impl PyStratifiedGeometry {
         // Wrap geometry and return.
         Ok(Self { inner, materials, sectors })
     }
+
+    fn z(&self, x: Float, y: Float) -> Vec<Option<Float>> { // XXX Vectorise this.
+        self.inner.z(x, y)
+    }
 }
 
 #[derive(FromPyObject)]
