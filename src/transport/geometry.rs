@@ -12,8 +12,8 @@ pub use simple::{SimpleGeometry, SimpleTracer};
 pub use stratified::{
     StratifiedGeometry,
     StratifiedTracer,
-    TopographyData,
     TopographyMap,
+    TopographySurface,
 };
 
 

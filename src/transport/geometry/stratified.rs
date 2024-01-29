@@ -4,6 +4,8 @@ use crate::numerics::grids::{Grid, GridCoordinate, LinearGrid};
 use crate::numerics::interpolate::BilinearInterpolator;
 use crate::physics::materials::MaterialDefinition;
 use crate::transport::density::DensityModel;
+use std::fmt;
+use std::ops::Deref;
 use std::rc::Rc;
 use super::{GeometryDefinition, GeometrySector, GeometryTracer};
 
@@ -15,15 +17,32 @@ use super::{GeometryDefinition, GeometrySector, GeometryTracer};
 pub struct TopographyMap {
     x: LinearGrid,
     y: LinearGrid,
-    pub(crate) z: BilinearInterpolator,
+    pub(crate) z: MapData,
 }
 
+pub(crate) enum MapData {
+    Interpolator(BilinearInterpolator),
+    Scalar(Float),
+}
+
+// Public interface.
 impl TopographyMap {
-    pub fn new(xmin: Float, xmax: Float, nx: usize, ymin: Float, ymax: Float, ny: usize) -> Self {
-        let x = LinearGrid::new(xmin, xmax, nx);
-        let y = LinearGrid::new(ymin, ymax, ny);
-        let z = BilinearInterpolator::new(ny, nx);
-        Self { x, y, z }
+    pub fn new(xrange: &[Float; 2], yrange: &[Float; 2], shape: Option<&[usize; 2]>) -> Self {
+        match shape {
+            None => {
+                let x = LinearGrid::new(xrange[0], xrange[1], 2);
+                let y = LinearGrid::new(yrange[0], yrange[1], 2);
+                let z = MapData::Scalar(0.0);
+                Self { x, y, z }
+            },
+            Some(shape) => {
+                let [ny, nx] = shape;
+                let x = LinearGrid::new(xrange[0], xrange[1], *nx);
+                let y = LinearGrid::new(yrange[0], yrange[1], *ny);
+                let z = MapData::Interpolator(BilinearInterpolator::new(*ny, *nx));
+                Self { x, y, z }
+            }
+        }
     }
 
     pub fn z(&self, x: Float, y: Float) -> Option<Float> {
@@ -35,25 +54,130 @@ impl TopographyMap {
             GridCoordinate::Inside(j, hj) => (j, hj),
             _ => return None,
         };
-        let zij = self.z.interpolate_raw(i, hi, j, hj);
+        let zij = match &self.z {
+            MapData::Interpolator(z) => z.interpolate_raw(i, hi, j, hj),
+            MapData::Scalar(z) => *z,
+        };
         Some(zij)
+    }
+}
+
+// Private interface.
+impl TopographyMap {
+    fn get_box(&self) -> MapBox {
+        let get_bounds = |grid: &LinearGrid| -> (Float, Float) {
+            let x0 = grid.get(0);
+            let x1 = grid.get(grid.len() - 1);
+            if x0 < x1 {
+                (x0, x1)
+            } else {
+                (x1, x0)
+            }
+        };
+        let (xmin, xmax) = get_bounds(&self.x);
+        let (ymin, ymax) = get_bounds(&self.y);
+        MapBox { xmin, xmax, ymin, ymax }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct MapBox {
+    xmin: Float,
+    xmax: Float,
+    ymin: Float,
+    ymax: Float,
+}
+
+impl fmt::Display for MapBox {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{({}, {}), ({}, {})}}", self.xmin, self.xmax, self.ymin, self.ymax)
     }
 }
 
 
 // ===============================================================================================
-// Representations of topography data.
+// Representation of a topography surface.
 // ===============================================================================================
 
 #[derive(Clone)]
-pub enum TopographyData {
-    Constant(Float),
-    Map(Rc<TopographyMap>),
-    Offset(Rc<TopographyMap>, Float),
+pub struct TopographySurface {
+    maps: Vec<Rc<TopographyMap>>,
+    pub offset: Float,
 }
 
-impl TopographyData {
-    fn resolve(&self, maps: &mut Vec<Rc<TopographyMap>>) -> ResolvedData {
+impl TopographySurface {
+    pub fn new(maps: &[&Rc<TopographyMap>]) -> Result<Self> {
+        let offset = 0.0;
+        let result = if maps.len() == 0 {
+            let maps = Vec::new();
+            Self { maps, offset }
+        } else {
+            if maps.len() > 1 {
+                let mut box0: MapBox = maps[0].get_box();
+                for i in 1..maps.len() {
+                    let box1 = maps[i].get_box();
+                    if (box1.xmin < box0.xmin) ||
+                       (box1.xmax > box0.xmax) ||
+                       (box1.ymin < box0.ymin) ||
+                       (box1.ymax > box0.ymax) {
+                        bail!(
+                            "bad maps size (expected {} to be included in {})",
+                            box1,
+                            box0,
+                        )
+                    }
+                    box0 = box1;
+                }
+            }
+            let maps: Vec<_> = maps
+                .iter()
+                .map(|m| Rc::clone(m))
+                .collect();
+            Self { maps, offset }
+        };
+        Ok(result)
+    }
+
+    pub fn z(&self, x: Float, y: Float) -> Option<Float> {
+        for map in self.maps.iter() {
+            let value = map.z(x, y);
+            if let Some(value) = value {
+                return Some(value + self.offset)
+            }
+        }
+        None
+    }
+}
+
+impl Deref for TopographySurface {
+    type Target = [Rc<TopographyMap>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.maps
+    }
+}
+
+impl From<&Rc<TopographyMap>> for TopographySurface {
+    fn from(value: &Rc<TopographyMap>) -> Self {
+        let maps = vec![Rc::clone(value)];
+        let offset = 0.0;
+        Self { maps, offset }
+    }
+}
+
+
+// ===============================================================================================
+// Internal type storing a resolved topography surface.
+// ===============================================================================================
+
+#[derive(Default)]
+struct ResolvedSurface {
+    maps: Vec<usize>,
+    offset: Float,
+}
+
+impl ResolvedSurface {
+    fn new(interface: &TopographySurface, maps: &mut Vec<Rc<TopographyMap>>) -> Self {
         let mut get_index = |map: &Rc<TopographyMap>| -> usize  {
             for (i, mi) in maps.iter().enumerate() {
                 if Rc::ptr_eq(map, mi) {
@@ -63,41 +187,12 @@ impl TopographyData {
             maps.push(Rc::clone(map));
             maps.len() - 1
         };
-
-        match self {
-            Self::Constant(z) => ResolvedData::Constant(*z),
-            Self::Map(m) => ResolvedData::Map(get_index(m)),
-            Self::Offset(m, o) => ResolvedData::Offset(get_index(m), *o),
-        }
-    }
-
-    fn resolve_all(
-        interface: &[Self],
-        maps: &mut Vec<Rc<TopographyMap>>
-    ) -> TopographyInterface {
-        let interface: Vec<_> = interface
+        let maps: Vec<_> = interface.maps
             .iter()
-            .map(|data| data.resolve(maps))
+            .map(|m| get_index(m))
             .collect();
-        interface
-    }
-}
-
-type TopographyInterface = Vec<ResolvedData>;
-
-enum ResolvedData {
-    Constant(Float),
-    Map(usize),
-    Offset(usize, Float),
-}
-
-impl ResolvedData {
-    fn get_z(&self, z: &[Option<Float>]) -> Option<Float> {
-        match self {
-            Self::Constant(value) => Some(*value),
-            Self::Map(index) => z[*index],
-            Self::Offset(index, value) => z[*index].map(|v| v + *value),
-        }
+        let offset = interface.offset;
+        Self { maps, offset }
     }
 }
 
@@ -107,7 +202,7 @@ impl ResolvedData {
 // ===============================================================================================
 
 pub struct StratifiedGeometry {
-    interfaces: Vec<TopographyInterface>,
+    interfaces: Vec<ResolvedSurface>,
     maps: Vec<Rc<TopographyMap>>,
     pub(crate) materials: Vec<MaterialDefinition>,
     pub(crate) sectors: Vec<GeometrySector>,
@@ -122,7 +217,7 @@ impl StratifiedGeometry {
         density: DensityModel,
         description: Option<&str>
     ) -> Self {
-        let interfaces = vec![Vec::new(), Vec::new()];
+        let interfaces = vec![ResolvedSurface::default(), ResolvedSurface::default()];
         let maps = Vec::new();
         let materials = vec![material.clone()];
         let sectors = vec![Self::new_sector(0, density, description)];
@@ -132,7 +227,7 @@ impl StratifiedGeometry {
     /// Adds a new layer on top of the geometry, separated by the provided interface.
     pub fn push_layer(
         &mut self,
-        interface: &[TopographyData],
+        interface: &TopographySurface,
         material: &MaterialDefinition,
         density: DensityModel,
         description: Option<&str>,
@@ -146,21 +241,21 @@ impl StratifiedGeometry {
         };
         let sector = Self::new_sector(material, density, description);
         self.sectors.push(sector);
-        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+        let interface = ResolvedSurface::new(interface, &mut self.maps);
         let last = self.interfaces.len() - 1;
         self.interfaces.insert(last, interface);
         Ok(())
     }
 
     /// Sets the geometry bottom interface. By default, the geometry is not bounded from below.
-    pub fn set_bottom(&mut self, interface: &[TopographyData]) {
-        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+    pub fn set_bottom(&mut self, interface: &TopographySurface) {
+        let interface = ResolvedSurface::new(interface, &mut self.maps);
         self.interfaces[0] = interface;
     }
 
     /// Sets the geometry to interface. By default, the geometry is not bounded from above.
-    pub fn set_top(&mut self, interface: &[TopographyData]) {
-        let interface = TopographyData::resolve_all(interface, &mut self.maps);
+    pub fn set_top(&mut self, interface: &TopographySurface) {
+        let interface = ResolvedSurface::new(interface, &mut self.maps);
         let last = self.interfaces.len() - 1;
         self.interfaces[last] = interface;
     }
@@ -171,11 +266,11 @@ impl StratifiedGeometry {
             .iter()
             .map(|m| m.z(x, y))
             .collect();
-        let get_z = |data: &[ResolvedData]| -> Option<Float> {
-            for d in data.iter() {
-                let value = d.get_z(&z_map);
-                if value.is_some() {
-                    return value
+        let get_z = |interface: &ResolvedSurface| -> Option<Float> {
+            for index in interface.maps.iter() {
+                let value = z_map[*index];
+                if let Some(value) = value {
+                    return Some(value + interface.offset)
                 }
             }
             None
@@ -273,34 +368,17 @@ impl<'a> CachedValue<'a> {
     }
 }
 
-impl ResolvedData {
-    fn compute_z(
+impl ResolvedSurface {
+    fn z(
         &self,
-        cache: &mut [CachedValue],
         x: Float,
-        y: Float
-    ) -> Option<Float> {
-        match self {
-            Self::Constant(value) => Some(*value),
-            Self::Map(index) => cache[*index].update(x, y),
-            Self::Offset(index, value) => {
-                cache[*index]
-                    .update(x, y)
-                    .map(|v| v + *value)
-            },
-        }
-    }
-
-    fn interface_z(
-        interface: &[Self],
+        y: Float,
         cache: &mut [CachedValue],
-        x: Float,
-        y: Float
     ) -> Option<Float> {
-        for data in interface.iter() {
-            let value = data.compute_z(cache, x, y);
-            if value.is_some() {
-                return value;
+        for index in self.maps.iter() {
+            let value = cache[*index].update(x, y);
+            if let Some(value) = value {
+                return Some(value + self.offset);
             }
         }
         None
@@ -321,7 +399,7 @@ impl<'a> StratifiedTracer<'a> {
         };
 
         // Check bottom layer.
-        let zb = ResolvedData::interface_z(&interfaces[0], &mut self.cache, r.0, r.1);
+        let zb = interfaces[0].z(r.0, r.1, &mut self.cache);
         if let Some(zb) = zb {
             if r.2 < zb {
                 return (None, bound(zb - r.2))
@@ -331,7 +409,7 @@ impl<'a> StratifiedTracer<'a> {
         }
 
         for i in 1..(n-1) {
-            let zi = ResolvedData::interface_z(&interfaces[i], &mut self.cache, r.0, r.1);
+            let zi = interfaces[i].z(r.0, r.1, &mut self.cache);
             if let Some(zi) = zi {
                 let d = (r.2 - zi).abs();
                 if d < delta { delta = d }
@@ -407,7 +485,7 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
     }
 
     fn trace(&mut self, physical_length: Float) -> Result<Float> {
-        // XXX HERE I AM. Implement this.
+        // Implement this.
         Ok(self.length)
     }
 

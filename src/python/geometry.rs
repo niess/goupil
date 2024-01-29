@@ -3,7 +3,8 @@ use crate::numerics::Float;
 use crate::transport::{
     density::DensityModel,
     geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
-               SimpleGeometry, StratifiedGeometry, TopographyData, TopographyMap},
+               SimpleGeometry, stratified::MapData, StratifiedGeometry, TopographyMap,
+               TopographySurface},
     PhotonState,
 };
 use pyo3::prelude::*;
@@ -12,7 +13,7 @@ use std::rc::Rc;
 use super::ctrlc_catched;
 use super::macros::value_error;
 use super::materials::PyMaterialDefinition;
-use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags};
+use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags, PyScalar};
 use super::transport::CState;
 
 
@@ -367,14 +368,19 @@ impl PyTopographyMap {
 
         // Build map.
         let mut map = TopographyMap::new(
-            xrange[0], xrange[1], shape[1], yrange[0], yrange[1], shape[0]
+            &xrange, &yrange, Some(&shape)
         );
         if let Some(z) = z {
-            for i in 0..shape[0] {
-                for j in 0..shape[1] {
-                    let k = i * shape[1] + j;
-                    map.z[(i, j)] = z.get(k)?;
-                }
+            match &mut map.z {
+                MapData::Interpolator(interpolator) => {
+                    for i in 0..shape[0] {
+                        for j in 0..shape[1] {
+                            let k = i * shape[1] + j;
+                            interpolator[(i, j)] = z.get(k)?;
+                        }
+                    }
+                },
+                _ => unreachable!(),
             }
         }
 
@@ -386,30 +392,34 @@ impl PyTopographyMap {
         let result = Py::new(py, Self { inner, x, y, z })?;
 
         // Create view of z-data, linked to Py-object.
-        let z: &PyAny = PyArray::from_data(
-            py,
-            result.borrow(py).inner.z.as_ref(),
-            result.as_ref(py),
-            PyArrayFlags::ReadWrite,
-            Some(&shape),
-        )?;
+        let z: &PyAny = match &result.borrow(py).inner.z {
+            MapData::Interpolator(interpolator) => PyArray::from_data(
+                py,
+                interpolator.as_ref(),
+                result.as_ref(py),
+                PyArrayFlags::ReadWrite,
+                Some(&shape),
+            )?,
+            MapData::Scalar(z) => PyScalar::<Float>::new(py, *z)?.as_ref(),
+        };
+
         let z: PyObject = z.into();
         result.borrow_mut(py).z = z;
-
         Ok(result)
     }
 
-    fn __add__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+    fn __add__(lhs: PyRef<Self>, rhs: Float) -> PyTopographySurface {
         let py = lhs.py();
         let map: PyObject = lhs.into_py(py);
-        PyTopographyOffset { map, offset: rhs }
+        let maps: Py<PyTuple> = (map,).into_py(py);
+        PyTopographySurface::new(maps.as_ref(py), Some(rhs)).unwrap()
     }
 
-    fn __radd__(rhs: PyRef<Self>, lhs: Float) -> PyTopographyOffset {
+    fn __radd__(rhs: PyRef<Self>, lhs: Float) -> PyTopographySurface {
         Self::__add__(rhs, lhs)
     }
 
-    fn __sub__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+    fn __sub__(lhs: PyRef<Self>, rhs: Float) -> PyTopographySurface {
         Self::__add__(lhs, -rhs)
     }
 
@@ -420,57 +430,65 @@ impl PyTopographyMap {
 
 
 // ===============================================================================================
-// Python wrapper for a topography map offset.
+// Python wrapper for a topography surface object.
 // ===============================================================================================
 
-#[pyclass(name = "TopographyOffset", module = "goupil")]
-pub struct PyTopographyOffset {
-    #[pyo3(get)]
-    map: PyObject,
-    #[pyo3(get)]
-    offset: Float,
+#[pyclass(name = "TopographySurface", module = "goupil")]
+pub struct PyTopographySurface {
+    inner: TopographySurface,
+    maps: Py<PyTuple>,
 }
 
+unsafe impl Send for PyTopographySurface {}
+
 #[pymethods]
-impl PyTopographyOffset {
+impl PyTopographySurface {
     #[new]
-    fn new(lhs: MapOrOffset, rhs: Float) -> Result<Self> {
-        let result = match lhs {
-            MapOrOffset::Map(map) => {
-                let py = map.py();
-                let map: PyObject = map.into_py(py);
-                Self { map, offset: rhs }
-            },
-            MapOrOffset::Offset(offset) => {
-                let py = offset.py();
-                let map = Py::clone_ref(&offset.map, py);
-                Self { map, offset: offset.offset + rhs }
-            },
+    #[pyo3(signature = (*args, offset=None))]
+    fn new(args: &PyTuple, offset: Option<Float>) -> Result<Self> {
+        let py = args.py();
+        let maps: PyResult<Vec<_>> = args
+            .iter()
+            .map(|arg| -> PyResult<Rc<TopographyMap>> {
+                let map: PyRef<PyTopographyMap> = arg.extract()?;
+                Ok(Rc::clone(&map.inner))
+            })
+            .collect();
+        let maps = maps?;
+        let maps: Vec<_> = maps
+            .iter()
+            .collect();
+        let inner = {
+            let mut inner = TopographySurface::new(&maps)?;
+            if let Some(offset) = offset {
+                inner.offset = offset;
+            }
+            inner
         };
+        let maps: Py<PyTuple> = args.into_py(py);
+        let result = Self { inner, maps };
         Ok(result)
     }
 
-    fn __add__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+    fn __add__(lhs: PyRef<Self>, rhs: Float) -> Self {
         let py = lhs.py();
-        let map = Py::clone_ref(&lhs.map, py);
-        PyTopographyOffset { map, offset: rhs + lhs.offset }
+        let maps = Py::clone_ref(&lhs.maps, py);
+        let mut inner = lhs.inner.clone();
+        inner.offset += rhs;
+        Self { inner, maps }
     }
 
-    fn __radd__(rhs: PyRef<Self>, lhs: Float) -> PyTopographyOffset {
+    fn __radd__(rhs: PyRef<Self>, lhs: Float) -> Self {
         Self::__add__(rhs, lhs)
     }
 
-    fn __sub__(lhs: PyRef<Self>, rhs: Float) -> PyTopographyOffset {
+    fn __sub__(lhs: PyRef<Self>, rhs: Float) -> Self {
         Self::__add__(lhs, -rhs)
     }
 
-    // XXX Add call method?
-}
-
-#[derive(FromPyObject)]
-enum MapOrOffset<'py> {
-    Map(PyRef<'py, PyTopographyMap>),
-    Offset(PyRef<'py, PyTopographyOffset>),
+    fn __call__(&self, x: Float, y: Float) -> Option<Float> { // XXX vectorise and fill
+        self.inner.z(x, y)
+    }
 }
 
 
@@ -509,8 +527,8 @@ impl PyStratifiedGeometry {
             let result: std::result::Result<PyRef<PyGeometrySector>, _> = args[n - 1].extract();
             match result {
                 std::result::Result::Err(_) => {
-                    let bottom: PyTopographyInterface = args[n - 1].extract()?;
-                    let bottom: Vec<TopographyData> = bottom.into();
+                    let bottom: MapOrSurface = args[n - 1].extract()?;
+                    let bottom: TopographySurface = bottom.into();
                     let last = n - 2;
                     let sector: PyRef<PyGeometrySector> = args[last].extract()?;
                     (last, sector, Some(bottom))
@@ -533,8 +551,8 @@ impl PyStratifiedGeometry {
         // Loop over additional layers.
         while last > 1 {
             // Extract interface.
-            let interface: PyTopographyInterface = args[last - 1].extract()?;
-            let interface: Vec<TopographyData> = interface.into();
+            let interface: MapOrSurface = args[last - 1].extract()?;
+            let interface: TopographySurface = interface.into();
 
             // Extract sector.
             let sector: PyRef<PyGeometrySector> = args[last - 2].extract()?;
@@ -548,8 +566,8 @@ impl PyStratifiedGeometry {
         }
 
         if last == 1 {
-            let top: PyTopographyInterface = args[0].extract()?;
-            let top: Vec<TopographyData> = top.into();
+            let top: MapOrSurface = args[0].extract()?;
+            let top: TopographySurface = top.into();
             inner.set_top(&top);
         }
 
@@ -590,47 +608,16 @@ impl PyStratifiedGeometry {
 }
 
 #[derive(FromPyObject)]
-enum PyTopographyData<'py> {
-    Constant(Float),
+enum MapOrSurface<'py> {
     Map(PyRef<'py, PyTopographyMap>),
-    Offset(PyRef<'py, PyTopographyOffset>),
+    Surface(PyRef<'py, PyTopographySurface>),
 }
 
-impl<'py> From<PyTopographyData<'py>> for TopographyData {
-    fn from(value: PyTopographyData) -> Self {
+impl<'py> From<MapOrSurface<'py>> for TopographySurface {
+    fn from(value: MapOrSurface) -> Self {
         match value {
-            PyTopographyData::Constant(value) => TopographyData::Constant(value),
-            PyTopographyData::Map(value) => TopographyData::Map(Rc::clone(&value.inner)),
-            PyTopographyData::Offset(value) => {
-                let py = value.py();
-                let map: PyRef<PyTopographyMap> = value.map.extract(py).unwrap();
-                TopographyData::Offset(Rc::clone(&map.inner), value.offset)
-            },
-        }
-    }
-}
-
-#[derive(FromPyObject)]
-enum PyTopographyInterface<'py> { // XXX Export this type?
-    Scalar(PyTopographyData<'py>),
-    Sequence(Vec<PyTopographyData<'py>>),
-}
-
-impl<'py> From<PyTopographyInterface<'py>> for Vec<TopographyData> {
-    fn from(value: PyTopographyInterface) -> Self {
-        match value {
-            PyTopographyInterface::Scalar(value) => {
-                let value: TopographyData = value.into();
-                vec![value]
-            },
-            PyTopographyInterface::Sequence(values) => {
-                let mut result = Vec::<TopographyData>::with_capacity(values.len());
-                for value in values {
-                    let value: TopographyData = value.into();
-                    result.push(value);
-                }
-                result
-            }
+            MapOrSurface::Map(value) => (&value.inner).into(),
+            MapOrSurface::Surface(value) => value.inner.clone(),
         }
     }
 }

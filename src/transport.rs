@@ -31,8 +31,8 @@ pub use self::geometry::{
     SimpleTracer,
     StratifiedGeometry,
     StratifiedTracer,
-    TopographyData,
     TopographyMap,
+    TopographySurface,
 };
 
 
