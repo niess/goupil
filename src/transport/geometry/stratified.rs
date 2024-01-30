@@ -381,7 +381,7 @@ pub struct StratifiedTracer<'a> {
     outer_length: Float,
     next_delta: Float,
     cache: Vec<CachedValue<'a>>,
-    delta_min: Option<Float>,
+    delta_min: Float,
 }
 
 struct CachedValue<'a> {
@@ -438,10 +438,7 @@ impl<'a> StratifiedTracer<'a> {
         let mut delta = Float::INFINITY;
 
         let bound = |x: Float| -> Float {
-            match self.delta_min {
-                None => x,
-                Some(delta_min) => x.max(delta_min),
-            }
+            x.max(self.delta_min)
         };
 
         // Check bottom layer.
@@ -499,19 +496,22 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
         let delta_min = {
             let mut delta: Option<Float> = None;
             for map in definition.maps.iter() {
-                let d = map.x.width(0)
-                    .min(map.y.width(0));
-                if d > 0.0 {
-                    match delta {
-                        None => { delta = Some(d) },
-                        Some(value) => if value > d {
-                            delta = Some(d);
-                        },
+                if let MapData::Interpolator(_) = &map.z {
+                    let d = map.x.width(0)
+                        .min(map.y.width(0));
+                    if d > 0.0 {
+                        match delta {
+                            None => { delta = Some(d) },
+                            Some(value) => if value > d {
+                                delta = Some(d);
+                            },
+                        }
                     }
                 }
             }
             delta
         };
+        let delta_min = delta_min.unwrap_or(1.0);
 
         Ok(Self {
             definition,
@@ -548,13 +548,6 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
     }
 
     fn trace(&mut self, physical_length: Float) -> Result<Float> {
-        // Compute tentative step length.
-        let factor = self.direction.2.abs().max(0.4);
-        let mut inner_length = (self.next_delta * factor)
-            .min(physical_length);
-
-        // XXX Manage delta_min None case.
-
         // Compute length to xy sides.
         let side_length = {
             let size = self.definition.size;
@@ -577,9 +570,12 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
             let dy = compute_length(self.position.1, self.direction.1, size.ymin, size.ymax);
             dx.min(dy)
         };
-        if side_length < inner_length {
-            inner_length = side_length;
-        }
+
+        // Compute tentative step length.
+        let factor = self.direction.2.abs().max(0.4);
+        let mut inner_length = (self.next_delta * factor)
+            .min(physical_length)
+            .min(side_length);
 
         // Check corresponding location.
         let r1 = self.position + inner_length * self.direction;
