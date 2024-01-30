@@ -90,10 +90,10 @@ struct MapBox {
 
 impl MapBox {
     fn new() -> Self {
-        let xmin = Float::INFINITY;
-        let xmax = -Float::INFINITY;
-        let ymin = Float::INFINITY;
-        let ymax = -Float::INFINITY;
+        let xmin = -Float::INFINITY;
+        let xmax = Float::INFINITY;
+        let ymin = -Float::INFINITY;
+        let ymax = Float::INFINITY;
         Self { xmin, xmax, ymin, ymax }
     }
 
@@ -427,6 +427,12 @@ impl ResolvedSurface {
 
 impl<'a> StratifiedTracer<'a> {
     fn locate(&mut self, r: Float3) -> (Option<usize>, Float) {
+        let size = &self.definition.size;
+        if (r.0 < size.xmin) || (r.0 > size.xmax) ||
+           (r.1 < size.ymin) || (r.1 > size.ymax) {
+               return (None, Float::INFINITY)
+        }
+
         let interfaces = &self.definition.interfaces;
         let n = interfaces.len();
         let mut delta = Float::INFINITY;
@@ -547,6 +553,34 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
         let mut inner_length = (self.next_delta * factor)
             .min(physical_length);
 
+        // XXX Manage delta_min None case.
+
+        // Compute length to xy sides.
+        let side_length = {
+            let size = self.definition.size;
+            let compute_length = |x, ux, xmin, xmax| {
+                if x < xmin {
+                    if ux > 0.0 { (xmin - x) / ux } else { Float::INFINITY }
+                } else if x > xmax {
+                    if ux < 0.0 { (xmax - x) / ux } else { Float::INFINITY }
+                } else {
+                    if ux > 0.0 {
+                        (xmax - x) / ux
+                    } else if ux < 0.0 {
+                        (xmin - x) / ux
+                    } else {
+                        Float::INFINITY
+                    }
+                }
+            };
+            let dx = compute_length(self.position.0, self.direction.0, size.xmin, size.xmax);
+            let dy = compute_length(self.position.1, self.direction.1, size.ymin, size.ymax);
+            dx.min(dy)
+        };
+        if side_length < inner_length {
+            inner_length = side_length;
+        }
+
         // Check corresponding location.
         let r1 = self.position + inner_length * self.direction;
         let (mut sector, mut delta) = self.locate(r1);
@@ -569,6 +603,11 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
             }
             inner_length = s0;
             self.outer_length = s1;
+        }
+
+        // Side check.
+        if self.outer_length == side_length {
+            sector = None;
         }
 
         // Update and return.
