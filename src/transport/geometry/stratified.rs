@@ -88,6 +88,31 @@ struct MapBox {
     ymax: Float,
 }
 
+impl MapBox {
+    fn new() -> Self {
+        let xmin = Float::INFINITY;
+        let xmax = -Float::INFINITY;
+        let ymin = Float::INFINITY;
+        let ymax = -Float::INFINITY;
+        Self { xmin, xmax, ymin, ymax }
+    }
+
+    fn clip(&mut self, other: &Self) {
+        if other.xmin > self.xmin {
+            self.xmin = other.xmin;
+        }
+        if other.xmax < self.xmax {
+            self.xmax = other.xmax;
+        }
+        if other.ymin > self.ymin {
+            self.ymin = other.ymin;
+        }
+        if other.ymax < self.ymax {
+            self.ymax = other.ymax;
+        }
+    }
+}
+
 impl fmt::Display for MapBox {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{({}, {}), ({}, {})}}", self.xmin, self.xmax, self.ymin, self.ymax)
@@ -116,10 +141,10 @@ impl TopographySurface {
                 let mut box0: MapBox = maps[0].get_box();
                 for i in 1..maps.len() {
                     let box1 = maps[i].get_box();
-                    if (box1.xmin < box0.xmin) ||
-                       (box1.xmax > box0.xmax) ||
-                       (box1.ymin < box0.ymin) ||
-                       (box1.ymax > box0.ymax) {
+                    if (box0.xmin < box1.xmin) ||
+                       (box0.xmax > box1.xmax) ||
+                       (box0.ymin < box1.ymin) ||
+                       (box0.ymax > box1.ymax) {
                         bail!(
                             "bad maps size (expected {} to be included in {})",
                             box1,
@@ -206,6 +231,7 @@ pub struct StratifiedGeometry {
     maps: Vec<Rc<TopographyMap>>,
     pub(crate) materials: Vec<MaterialDefinition>,
     pub(crate) sectors: Vec<GeometrySector>,
+    size: MapBox,
 }
 
 // Public interface.
@@ -220,8 +246,9 @@ impl StratifiedGeometry {
         let interfaces = vec![ResolvedSurface::default(), ResolvedSurface::default()];
         let maps = Vec::new();
         let materials = vec![material.clone()];
-        let sectors = vec![Self::new_sector(0, density, description)];
-        Self { interfaces, maps, materials, sectors }
+        let sectors = vec![Self::new_sector(0, density, 0, description)];
+        let size = MapBox::new();
+        Self { interfaces, maps, materials, sectors, size }
     }
 
     /// Adds a new layer on top of the geometry, separated by the provided interface.
@@ -239,8 +266,11 @@ impl StratifiedGeometry {
             },
             Some(material) => material,
         };
-        let sector = Self::new_sector(material, density, description);
+        let sector = Self::new_sector(material, density, self.sectors.len(), description);
         self.sectors.push(sector);
+        if let Some(map) = interface.maps.last() {
+            self.size.clip(&map.get_box());
+        }
         let interface = ResolvedSurface::new(interface, &mut self.maps);
         let last = self.interfaces.len() - 1;
         self.interfaces.insert(last, interface);
@@ -249,12 +279,18 @@ impl StratifiedGeometry {
 
     /// Sets the geometry bottom interface. By default, the geometry is not bounded from below.
     pub fn set_bottom(&mut self, interface: &TopographySurface) {
+        if let Some(map) = interface.maps.last() {
+            self.size.clip(&map.get_box());
+        }
         let interface = ResolvedSurface::new(interface, &mut self.maps);
         self.interfaces[0] = interface;
     }
 
     /// Sets the geometry to interface. By default, the geometry is not bounded from above.
     pub fn set_top(&mut self, interface: &TopographySurface) {
+        if let Some(map) = interface.maps.last() {
+            self.size.clip(&map.get_box());
+        }
         let interface = ResolvedSurface::new(interface, &mut self.maps);
         let last = self.interfaces.len() - 1;
         self.interfaces[last] = interface;
@@ -305,11 +341,13 @@ impl StratifiedGeometry {
     fn new_sector(
         material: usize,
         density: DensityModel,
+        sectors: usize,
         description: Option<&str>
     ) -> GeometrySector {
-        let description = description
-            .unwrap_or("Layer 0")
-            .to_string();
+        let description = match description {
+            None => format!("Layer {}", sectors),
+            Some(description) => description.to_string(),
+        };
         let description = Some(description);
         GeometrySector { density, material, description }
     }
@@ -339,7 +377,9 @@ pub struct StratifiedTracer<'a> {
     direction: Float3,
     current_sector: Option<usize>,
     next_sector: Option<usize>,
-    length: Float,
+    inner_length: Float,
+    outer_length: Float,
+    next_delta: Float,
     cache: Vec<CachedValue<'a>>,
     delta_min: Option<Float>,
 }
@@ -408,14 +448,23 @@ impl<'a> StratifiedTracer<'a> {
             }
         }
 
-        for i in 1..(n-1) {
+        for i in 1..n {
             let zi = interfaces[i].z(r.0, r.1, &mut self.cache);
-            if let Some(zi) = zi {
-                let d = (r.2 - zi).abs();
-                if d < delta { delta = d }
-                if r.2 < zi {
-                    return (Some(i - 1), bound(delta))
-                }
+            match zi {
+                None => {
+                    if i == n - 1 {
+                        return (Some(i - 1), bound(delta))
+                    } else {
+                        unreachable!();
+                    }
+                },
+                Some(zi) => {
+                    let d = (r.2 - zi).abs();
+                    if d < delta { delta = d }
+                    if r.2 < zi {
+                        return (Some(i - 1), bound(delta))
+                    }
+                },
             }
         }
         (None, bound(delta))
@@ -434,7 +483,9 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
         let direction = Float3::default();
         let current_sector = None;
         let next_sector = None;
-        let length = 0.0;
+        let inner_length = 0.0;
+        let outer_length = 0.0;
+        let next_delta = 0.0;
         let cache: Vec<_> = definition.maps.iter()
             .map(|map| CachedValue::new(map))
             .collect();
@@ -462,7 +513,9 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
             direction,
             current_sector,
             next_sector,
-            length,
+            inner_length,
+            outer_length,
+            next_delta,
             cache,
             delta_min
         })
@@ -475,8 +528,12 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
     fn reset(&mut self, position: Float3, direction: Float3) -> Result<()> {
         self.position = position;
         self.direction = direction;
-        let (sector, _) = self.locate(position); // XXX Cache delta?
+        let (sector, delta) = self.locate(position);
+        self.inner_length = 0.0;
+        self.outer_length = 0.0;
+        self.next_delta = delta;
         self.current_sector = sector;
+        self.next_sector = None;
         Ok(())
     }
 
@@ -485,16 +542,50 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
     }
 
     fn trace(&mut self, physical_length: Float) -> Result<Float> {
-        // Implement this.
-        Ok(self.length)
+        // Compute tentative step length.
+        let factor = self.direction.2.abs().max(0.4);
+        let mut inner_length = (self.next_delta * factor)
+            .min(physical_length);
+
+        // Check corresponding location.
+        let r1 = self.position + inner_length * self.direction;
+        let (mut sector, mut delta) = self.locate(r1);
+        if sector == self.current_sector {
+            self.outer_length = inner_length;
+        } else {
+            let mut s0 = 0.0;
+            let mut s1 = inner_length;
+            while s1 - s0 > 1E-03 {
+                let si = 0.5 * (s0 + s1);
+                let ri = self.position + si * self.direction;
+                let (sector_i, delta_i) = self.locate(ri);
+                if sector_i == self.current_sector {
+                    s0 = si;
+                } else {
+                    s1 = si;
+                    sector = sector_i;
+                    delta = delta_i;
+                }
+            }
+            inner_length = s0;
+            self.outer_length = s1;
+        }
+
+        // Update and return.
+        self.inner_length = inner_length;
+        self.next_sector = sector;
+        self.next_delta = delta;
+        Ok(inner_length)
     }
 
     fn update(&mut self, length: Float, direction: Float3) -> Result<()> {
-        self.position += self.direction * length;
-        self.direction = direction;
-        if length == self.length {
+        if length == self.inner_length {
+            self.position += self.direction * self.outer_length;
             self.current_sector = self.next_sector;
+        } else {
+            self.position += self.direction * length;
         }
+        self.direction = direction;
         Ok(())
     }
 }

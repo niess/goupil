@@ -3,8 +3,8 @@ use crate::numerics::Float;
 use crate::transport::{
     density::DensityModel,
     geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
-               SimpleGeometry, stratified::MapData, StratifiedGeometry, TopographyMap,
-               TopographySurface},
+               SimpleGeometry, stratified::MapData, StratifiedGeometry, StratifiedTracer,
+               TopographyMap, TopographySurface},
     PhotonState,
 };
 use pyo3::prelude::*;
@@ -157,23 +157,7 @@ impl PyExternalGeometry {
     }
 
     fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
-        let py = states.py();
-        let sectors = PyArray::<usize>::empty(py, &states.shape())?;
-        let mut tracer = ExternalTracer::new(&self.inner)?;
-        let m = self.inner.sectors().len();
-        let n = states.size();
-        for i in 0..n {
-            let state: PhotonState = states.get(i)?.into();
-            tracer.reset(state.position, state.direction)?;
-            let sector = tracer.sector().unwrap_or(m);
-            sectors.set(i, sector)?;
-
-            if i % 1000 == 0 { // Check for a Ctrl+C interrupt, catched by Python.
-                ctrlc_catched()?;
-            }
-        }
-        let sectors: &PyAny = sectors;
-        Ok(sectors.into_py(py))
+        locate::<ExternalGeometry, ExternalTracer>(&self.inner, states)
     }
 
     fn trace(
@@ -182,73 +166,7 @@ impl PyExternalGeometry {
         lengths: Option<ArrayOrFloat>,
         density: Option<bool>,
     ) -> Result<PyObject> {
-        let n = states.size();
-        if let Some(lengths) = lengths.as_ref() {
-            if let ArrayOrFloat::Array(lengths) = &lengths {
-                if lengths.size() != states.size() {
-                    value_error!(
-                        "bad lengths (expected a float or a size {} array, found a size {} array)",
-                        states.size(),
-                        lengths.size(),
-                    )
-                }
-            }
-        }
-
-        let mut shape = states.shape();
-        let m = self.inner.sectors().len();
-        shape.push(m);
-        let py = states.py();
-        let result = PyArray::<Float>::empty(py, &shape)?;
-
-        let density = density.unwrap_or(false);
-        let mut tracer = ExternalTracer::new(&self.inner)?;
-        let mut k: usize = 0;
-        for i in 0..n {
-            let state: PhotonState = states.get(i)?.into();
-            let mut grammages: Vec<Float> = vec![0.0; m];
-            tracer.reset(state.position, state.direction)?;
-            let mut length = match lengths.as_ref() {
-                None => Float::INFINITY,
-                Some(lengths) => match &lengths {
-                    ArrayOrFloat::Array(lengths) => lengths.get(i)?,
-                    ArrayOrFloat::Float(lengths) => *lengths,
-                },
-            };
-            loop {
-                match tracer.sector() {
-                    None => break,
-                    Some(sector) => {
-                        let step_length = tracer.trace(length)?;
-                        if density {
-                            let model = &self.inner.sectors[sector].density;
-                            let position = tracer.position();
-                            grammages[sector] += model.column_depth(
-                                position, state.direction, step_length
-                            );
-                        } else {
-                            grammages[sector] += step_length;
-                        }
-                        if lengths.is_some() {
-                            length -= step_length;
-                            if length <= 0.0 { break }
-                        }
-                        tracer.update(step_length, state.direction)?;
-                    },
-                }
-                k += 1;
-                if k == 1000 { // Check for a Ctrl+C interrupt, catched by Python.
-                    ctrlc_catched()?;
-                    k = 0;
-                }
-            }
-            let j0 = i * m;
-            for j in 0..m {
-                result.set(j0 + j, grammages[j])?;
-            }
-        }
-        let result: &PyAny = result;
-        Ok(result.into_py(py))
+        trace::<ExternalGeometry, ExternalTracer>(&self.inner, states, lengths, density)
     }
 
     fn update_material(
@@ -319,37 +237,40 @@ impl PyTopographyMap {
         py: Python,
         xrange: [Float; 2],
         yrange: [Float; 2],
-        z: Option<&PyArray<Float>>,
+        z: Option<ArrayOrFloat>,
         shape: Option<[usize; 2]>,
     ) -> Result<Py<Self>> {
         let shape = match shape {
-            None => match z {
-                None => value_error!(
-                    "cannot infer map's shape (expected a length-2 sequence, found 'None')"
-                ),
-                Some(z) => {
-                    let shape = z.shape();
-                    if shape.len() != 2 {
-                        value_error!(
-                            "bad shape for z-array (expected a 2D array, found a {}D array)",
-                            shape.len(),
-                        )
-                    }
-                    [shape[0], shape[1]]
+            None => match z.as_ref() {
+                None => None,
+                Some(z) => match z {
+                    ArrayOrFloat::Array(z) => {
+                        let shape = z.shape();
+                        if shape.len() != 2 {
+                            value_error!(
+                                "bad shape for z-array (expected a 2D array, found a {}D array)",
+                                shape.len(),
+                            )
+                        }
+                        Some([shape[0], shape[1]])
+                    },
+                    ArrayOrFloat::Float(_) => None,
                 },
             },
             Some(shape) => {
-                if let Some(z) = z {
-                    let size = shape[0] * shape[1];
-                    if z.size() != size {
-                        value_error!(
-                            "bad size for z-array (expected {}, found {})",
-                            size,
-                            z.size()
-                        )
+                if let Some(z) = z.as_ref() {
+                    if let ArrayOrFloat::Array(z) = z {
+                        let size = shape[0] * shape[1];
+                        if z.size() != size {
+                            value_error!(
+                                "bad size for z-array (expected {}, found {})",
+                                size,
+                                z.size()
+                            )
+                        }
                     }
                 }
-                shape
+                Some(shape)
             },
         };
 
@@ -368,26 +289,39 @@ impl PyTopographyMap {
 
         // Build map.
         let mut map = TopographyMap::new(
-            &xrange, &yrange, Some(&shape)
+            &xrange, &yrange, shape.as_ref()
         );
-        if let Some(z) = z {
+        if let Some(z) = z.as_ref() {
             match &mut map.z {
                 MapData::Interpolator(interpolator) => {
+                    let shape = shape.unwrap();
                     for i in 0..shape[0] {
                         for j in 0..shape[1] {
                             let k = i * shape[1] + j;
-                            interpolator[(i, j)] = z.get(k)?;
+                            interpolator[(i, j)] = match z {
+                                ArrayOrFloat::Array(z) => z.get(k)?,
+                                ArrayOrFloat::Float(z) => *z,
+                            };
                         }
                     }
                 },
-                _ => unreachable!(),
+                MapData::Scalar(value) => {
+                    *value = match z {
+                        ArrayOrFloat::Float(z) => *z,
+                        _ => unreachable!(),
+                    }
+                },
             }
         }
 
         // Build typed Py-object.
         let inner = Rc::new(map);
-        let x = range(xrange[0], xrange[1], shape[1])?;
-        let y = range(yrange[0], yrange[1], shape[0])?;
+        let (nx, ny) = match shape {
+            None => (2, 2),
+            Some(shape) => (shape[1], shape[0]),
+        };
+        let x = range(xrange[0], xrange[1], nx)?;
+        let y = range(yrange[0], yrange[1], ny)?;
         let z = py.None();
         let result = Py::new(py, Self { inner, x, y, z })?;
 
@@ -398,7 +332,7 @@ impl PyTopographyMap {
                 interpolator.as_ref(),
                 result.as_ref(py),
                 PyArrayFlags::ReadWrite,
-                Some(&shape),
+                Some(&shape.unwrap()),
             )?,
             MapData::Scalar(z) => PyScalar::<Float>::new(py, *z)?.as_ref(),
         };
@@ -602,6 +536,19 @@ impl PyStratifiedGeometry {
         Ok(Self { inner, materials, sectors })
     }
 
+    fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
+        locate::<StratifiedGeometry, StratifiedTracer>(&self.inner, states)
+    }
+
+    fn trace(
+        &self,
+        states: &PyArray<CState>,
+        lengths: Option<ArrayOrFloat>,
+        density: Option<bool>,
+    ) -> Result<PyObject> {
+        trace::<StratifiedGeometry, StratifiedTracer>(&self.inner, states, lengths, density)
+    }
+
     fn z(&self, x: Float, y: Float) -> Vec<Option<Float>> { // XXX Vectorise this.
         self.inner.z(x, y)
     }
@@ -620,6 +567,109 @@ impl<'py> From<MapOrSurface<'py>> for TopographySurface {
             MapOrSurface::Surface(value) => value.inner.clone(),
         }
     }
+}
+
+
+// ===============================================================================================
+// Generic geometry operations.
+// ===============================================================================================
+
+fn locate<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
+    definition: &'a D,
+    states: &PyArray<CState>
+) -> Result<PyObject> {
+    let py = states.py();
+    let sectors = PyArray::<usize>::empty(py, &states.shape())?;
+    let mut tracer = T::new(definition)?;
+    let m = definition.sectors().len();
+    let n = states.size();
+    for i in 0..n {
+        let state: PhotonState = states.get(i)?.into();
+        tracer.reset(state.position, state.direction)?;
+        let sector = tracer.sector().unwrap_or(m);
+        sectors.set(i, sector)?;
+
+        if i % 1000 == 0 { // Check for a Ctrl+C interrupt, catched by Python.
+            ctrlc_catched()?;
+        }
+    }
+    let sectors: &PyAny = sectors;
+    Ok(sectors.into_py(py))
+}
+
+fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
+    definition: &'a D,
+    states: &PyArray<CState>,
+    lengths: Option<ArrayOrFloat>,
+    density: Option<bool>,
+) -> Result<PyObject> {
+    let n = states.size();
+    if let Some(lengths) = lengths.as_ref() {
+        if let ArrayOrFloat::Array(lengths) = &lengths {
+            if lengths.size() != states.size() {
+                value_error!(
+                    "bad lengths (expected a float or a size {} array, found a size {} array)",
+                    states.size(),
+                    lengths.size(),
+                )
+            }
+        }
+    }
+
+    let mut shape = states.shape();
+    let m = definition.sectors().len();
+    shape.push(m);
+    let py = states.py();
+    let result = PyArray::<Float>::empty(py, &shape)?;
+
+    let density = density.unwrap_or(false);
+    let mut tracer = T::new(definition)?;
+    let mut k: usize = 0;
+    for i in 0..n {
+        let state: PhotonState = states.get(i)?.into();
+        let mut grammages: Vec<Float> = vec![0.0; m];
+        tracer.reset(state.position, state.direction)?;
+        let mut length = match lengths.as_ref() {
+            None => Float::INFINITY,
+            Some(lengths) => match &lengths {
+                ArrayOrFloat::Array(lengths) => lengths.get(i)?,
+                ArrayOrFloat::Float(lengths) => *lengths,
+            },
+        };
+        loop {
+            match tracer.sector() {
+                None => break,
+                Some(sector) => {
+                    let step_length = tracer.trace(length)?;
+                    if density {
+                        let model = definition.sectors()[sector].density;
+                        let position = tracer.position();
+                        grammages[sector] += model.column_depth(
+                            position, state.direction, step_length
+                        );
+                    } else {
+                        grammages[sector] += step_length;
+                    }
+                    if lengths.is_some() {
+                        length -= step_length;
+                        if length <= 0.0 { break }
+                    }
+                    tracer.update(step_length, state.direction)?;
+                },
+            }
+            k += 1;
+            if k == 1000 { // Check for a Ctrl+C interrupt, catched by Python.
+                ctrlc_catched()?;
+                k = 0;
+            }
+        }
+        let j0 = i * m;
+        for j in 0..m {
+            result.set(j0 + j, grammages[j])?;
+        }
+    }
+    let result: &PyAny = result;
+    Ok(result.into_py(py))
 }
 
 
