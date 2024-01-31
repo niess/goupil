@@ -277,7 +277,7 @@ impl PyUntypedArray {
         }
     }
 
-    fn offset_of(&self, index: usize) -> usize {
+    fn offset_of(&self, index: usize) -> isize {
         let shape = self.shape_slice();
         let strides = self.strides_slice();
         let n = shape.len();
@@ -285,12 +285,12 @@ impl PyUntypedArray {
             0
         } else {
             let mut remainder = index;
-            let mut offset = 0_usize;
+            let mut offset = 0_isize;
             for i in (0..n).rev() {
                 let m = shape[i] as usize;
                 let j = remainder % m;
                 remainder = (remainder - j) / m;
-                offset += j * (strides[i] as usize);
+                offset += (j as isize) * strides[i];
             }
             offset
         }
