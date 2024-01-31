@@ -6,21 +6,21 @@
 This class acts as a container for simulation materials and handles the
 precomputation of properties, such as cross-sections, that are important for
 Monte Carlo transport. To add new materials to the registry, a
-:doc:`material_definition` must be provided. The relevant physical properties of
-the registered materials are then calculated based on the Monte Carlo settings
-provided in the form of :doc:`transport_settings`. These properties can be
-retrieved as a :doc:`material_record`.
+:doc:`material_definition` or a chemical formula must be provided. The relevant
+physical properties of the registered materials are then calculated based on the
+Monte Carlo settings provided in the form of :doc:`transport_settings`. These
+properties can be retrieved as a :doc:`material_record`.
 
 
 Constructor
 -----------
 
-.. py:class:: MaterialRegistry(*args: MaterialDefinition)
+.. py:class:: MaterialRegistry(*args: MaterialDefinition | str)
 
    To initialise a new registry with some materials, specify their definitions
    as positional arguments. For example
 
-   >>> goupil.MaterialRegistry(H2O, SiO2)
+   >>> goupil.MaterialRegistry("H2O", "SiO2")
    {H20, SiO2}
 
 
@@ -42,10 +42,11 @@ Methods
    >>> registry["H2O"]
    H2O
 
-.. py:method:: MaterialRegistry.add(material: MaterialDefinition)
+.. py:method:: MaterialRegistry.add(material: MaterialDefinition | str)
 
    Registers a material. The material must be an instance of a
-   :doc:`material_definition`. The registry uses the material name as an index.
+   :doc:`material_definition` or a valid chemical formula. The registry uses the
+   material name as an index.
 
    .. note::
 

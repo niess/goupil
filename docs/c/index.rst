@@ -88,4 +88,5 @@ Types
    geometry_tracer
    interface
    material_definition
+   state
    weighted_element

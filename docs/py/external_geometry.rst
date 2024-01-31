@@ -25,10 +25,10 @@ Attributes
 
 .. note::
 
-   Geometry attributes are read-only. However, physical properties can be edited
-   using the :py:meth:`update_material <ExternalGeometry.update_material>`
-   and :py:meth:`update_sector <ExternalGeometry.update_sector>` methods
-   described below.
+   :doc:`external_geometry` attributes are read-only. However, physical
+   properties can be edited using the :py:meth:`update_material
+   <ExternalGeometry.update_material>` and :py:meth:`update_sector
+   <ExternalGeometry.update_sector>` methods described below.
 
 .. py:attribute:: ExternalGeometry.materials
    :type: tuple[MaterialDefinition]

@@ -251,10 +251,11 @@ pub struct PyMaterialRegistry {
 impl PyMaterialRegistry {
     #[new]
     #[pyo3(signature = (*args))]
-    pub fn new(args: Vec<PyRef<PyMaterialDefinition>>) -> Result<Self> {
+    pub fn new(args: Vec<MaterialArg>) -> Result<Self> {
         let mut registry = MaterialRegistry::default();
         for definition in args.iter() {
-            registry.add(&definition.0)?;
+            let definition = definition.unpack()?;
+            registry.add(&definition)?;
         }
         Ok(Self{
             inner: registry,
@@ -298,6 +299,11 @@ impl PyMaterialRegistry {
         }
     }
 
+    fn __repr__(&self) -> String {
+        let items = self.inner.keys().join(", ");
+        format!("{{{}}}", items)
+    }
+
     // Implementation of pickling protocol.
     pub fn __setstate__(&mut self, py: Python, state: &PyBytes) -> Result<()> {
         // Detach pending record(s).
@@ -318,8 +324,9 @@ impl PyMaterialRegistry {
     }
 
     // Direct public interface.
-    fn add(&mut self, definition: &PyMaterialDefinition) -> Result<()> {
-        self.inner.add(&definition.0)?;
+    fn add(&mut self, definition: MaterialArg) -> Result<()> {
+        let definition = definition.unpack()?;
+        self.inner.add(&definition)?;
         Ok(())
     }
 

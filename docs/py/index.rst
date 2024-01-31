@@ -35,6 +35,7 @@ Classes
    random_stream
    rayleigh_process
    simple_geometry
+   stratified_geometry
    transport_engine
    transport_settings
    transport_status
