@@ -462,7 +462,7 @@ impl ComputeZ for PyTopographySurface {
 
 #[pyclass(name = "StratifiedGeometry", module = "goupil")]
 pub struct PyStratifiedGeometry {
-    inner: StratifiedGeometry,
+    pub(crate) inner: StratifiedGeometry,
 
     #[pyo3(get)]
     materials: PyObject,
@@ -867,6 +867,7 @@ enum ComputeZResult {
 pub enum PyGeometryDefinition {
     External(Py<PyExternalGeometry>),
     Simple(Py<PySimpleGeometry>),
+    Stratified(Py<PyStratifiedGeometry>),
 }
 
 impl IntoPy<PyObject> for PyGeometryDefinition {
@@ -874,6 +875,7 @@ impl IntoPy<PyObject> for PyGeometryDefinition {
         match self {
             Self::External(external) => external.into_py(py),
             Self::Simple(simple) => simple.into_py(py),
+            Self::Stratified(stratified) => stratified.into_py(py),
         }
     }
 }

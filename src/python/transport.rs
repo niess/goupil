@@ -8,7 +8,7 @@ use crate::physics::process::{
 };
 use crate::transport::{
     agent::{TransportAgent, TransportBoundary, TransportStatus},
-    geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer},
+    geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer, StratifiedTracer},
     PhotonState,
     TransportMode::{self, Backward, Forward},
     TransportSettings,
@@ -426,6 +426,9 @@ impl PyTransportEngine {
                     PyGeometryDefinition::Simple(simple) => {
                         self.update_with(&simple.borrow(py).0, registry)?
                     },
+                    PyGeometryDefinition::Stratified(stratified) => {
+                        self.update_with(&stratified.borrow(py).inner, registry)?
+                    },
                 }
             }
 
@@ -530,6 +533,11 @@ impl PyTransportEngine {
                 PyGeometryDefinition::Simple(simple) => {
                     self.transport_with::<_, SimpleTracer>(
                         &simple.borrow(py).0, states, sources_energies,
+                    )
+                },
+                PyGeometryDefinition::Stratified(stratified) => {
+                    self.transport_with::<_, StratifiedTracer>(
+                        &stratified.borrow(py).inner, states, sources_energies,
                     )
                 },
             },
