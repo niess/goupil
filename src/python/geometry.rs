@@ -597,7 +597,7 @@ impl ComputeZ for PyStratifiedGeometry {
     }
 
     fn compute_z_size(&self) -> usize {
-        self.inner.sectors().len() + 2
+        self.inner.sectors().len() + 1
     }
 }
 

@@ -42,13 +42,22 @@ pub trait Grid {
 #[derive(Clone, Default, Deserialize, PartialEq, Serialize)]
 pub struct LinearGrid {
     xmin: Float,
+    xmax: Float,
     dx: Float,
     n: usize,
     i: usize,
 }
 
 impl LinearGrid {
-    pub fn get(&self, i: usize) -> Float { self.xmin + (i as Float) * self.dx }
+    pub fn get(&self, i: usize) -> Float {
+        if i == 0 {
+            self.xmin
+        } else if i == self.n - 1 {
+            self.xmax
+        } else {
+            self.xmin + (i as Float) * self.dx
+        }
+    }
 
     pub fn iter(&self) -> Self {
         let mut clone = self.clone();
@@ -59,7 +68,7 @@ impl LinearGrid {
     pub fn new(xmin: Float, xmax: Float, n: usize) -> Self {
         let dx = (xmax - xmin) / (n - 1) as Float;
         let i: usize = 0;
-        Self { xmin, dx, n, i }
+        Self { xmin, xmax, dx, n, i }
     }
 }
 
@@ -81,7 +90,11 @@ impl Grid for LinearGrid {
         if i > self.n - 1 {
             GridCoordinate::Above(self.n)
         } else if i == self.n - 1 {
-            GridCoordinate::Inside(self.n - 2, 1.0)
+            if x == self.xmax {
+                GridCoordinate::Inside(self.n - 2, 1.0)
+            } else {
+                GridCoordinate::Above(self.n)
+            }
         } else {
             let h = tmp - (i as Float);
             GridCoordinate::Inside(i, h)
@@ -177,9 +190,13 @@ impl Grid for LogGrid {
         let n = self.x.len();
         let i = tmp as usize;
         if i > n - 1 {
-            return GridCoordinate::Above(self.x.len());
+            return GridCoordinate::Above(n);
         } else if i == n - 1 {
-            return GridCoordinate::Inside(n - 2, 1.0);
+            if x == self.x[n - 1] {
+                return GridCoordinate::Inside(n - 2, 1.0);
+            } else {
+                return GridCoordinate::Above(n);
+            }
         } else {
             let h = (x - self.x[i]) / (self.x[i + 1] - self.x[i]);
             return GridCoordinate::Inside(i, h);
