@@ -511,7 +511,7 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
             }
             delta
         };
-        let delta_min = delta_min.unwrap_or(1.0);
+        let delta_min = delta_min.unwrap_or(1E+02);
 
         Ok(Self {
             definition,
@@ -597,6 +597,7 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
                     delta = delta_i;
                 }
             }
+            if s0 == 0.0 { s0 = s1 }
             inner_length = s0;
             self.outer_length = s1;
         }
