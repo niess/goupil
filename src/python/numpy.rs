@@ -286,13 +286,12 @@ impl PyUntypedArray {
         } else {
             let mut remainder = index;
             let mut offset = 0_usize;
-            for i in 1..n {
+            for i in (0..n).rev() {
                 let m = shape[i] as usize;
-                let j = remainder / m;
-                remainder = remainder % m;
-                offset += j * (strides[i - 1] as usize);
+                let j = remainder % m;
+                remainder = (remainder - j) / m;
+                offset += j * (strides[i] as usize);
             }
-            offset += remainder * (strides[n - 1] as usize);
             offset
         }
     }
