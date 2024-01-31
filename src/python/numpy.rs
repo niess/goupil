@@ -798,6 +798,29 @@ pub enum ArrayOrFloat<'a> {
     Float(Float),
 }
 
+impl<'a> ArrayOrFloat<'a> {
+    pub fn get(&self, index: usize) -> PyResult<Float> {
+        match self {
+            Self::Array(a) => a.get(index),
+            Self::Float(s) => Ok(*s),
+        }
+    }
+
+    pub fn is_float(&self) -> bool {
+        match self {
+            Self::Array(_) => false,
+            Self::Float(_) => true,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Self::Array(a) => a.size(),
+            Self::Float(_) => 1,
+        }
+    }
+}
+
 #[derive(pyo3::FromPyObject)]
 pub enum ArrayOrFloat3<'a> {
     Array(&'a PyArray<Float>),

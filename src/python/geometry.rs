@@ -357,9 +357,24 @@ impl PyTopographyMap {
         Self::__add__(lhs, -rhs)
     }
 
-    fn __call__(&self, x: Float, y: Float) -> Option<Float> { // XXX vectorise and fill
-        self.inner.z(x, y)
+    fn __call__(
+        &self,
+        py: Python,
+        x: ArrayOrFloat,
+        y: ArrayOrFloat,
+        grid: Option<bool>
+    ) -> Result<PyObject> {
+        self.compute_z_vec(py, x, y, grid)
     }
+}
+
+impl ComputeZ for PyTopographyMap {
+    fn compute_z(&self, x: Float, y: Float) -> ComputeZResult {
+        let z = self.inner.z(x, y);
+        ComputeZResult::One(z)
+    }
+
+    fn compute_z_size(&self) -> usize { 0 }
 }
 
 
@@ -420,9 +435,24 @@ impl PyTopographySurface {
         Self::__add__(lhs, -rhs)
     }
 
-    fn __call__(&self, x: Float, y: Float) -> Option<Float> { // XXX vectorise and fill
-        self.inner.z(x, y)
+    fn __call__(
+        &self,
+        py: Python,
+        x: ArrayOrFloat,
+        y: ArrayOrFloat,
+        grid: Option<bool>
+    ) -> Result<PyObject> {
+        self.compute_z_vec(py, x, y, grid)
     }
+}
+
+impl ComputeZ for PyTopographySurface {
+    fn compute_z(&self, x: Float, y: Float) -> ComputeZResult {
+        let z = self.inner.z(x, y);
+        ComputeZResult::One(z)
+    }
+
+    fn compute_z_size(&self) -> usize { 0 }
 }
 
 
@@ -549,8 +579,25 @@ impl PyStratifiedGeometry {
         trace::<StratifiedGeometry, StratifiedTracer>(&self.inner, states, lengths, density)
     }
 
-    fn z(&self, x: Float, y: Float) -> Vec<Option<Float>> { // XXX Vectorise this.
-        self.inner.z(x, y)
+    fn z(
+        &self,
+        py: Python,
+        x: ArrayOrFloat,
+        y: ArrayOrFloat,
+        grid: Option<bool>
+    ) -> Result<PyObject> {
+        self.compute_z_vec(py, x, y, grid)
+    }
+}
+
+impl ComputeZ for PyStratifiedGeometry {
+    fn compute_z(&self, x: Float, y: Float) -> ComputeZResult {
+        let z = self.inner.z(x, y);
+        ComputeZResult::Many(z)
+    }
+
+    fn compute_z_size(&self) -> usize {
+        self.inner.sectors().len() + 2
     }
 }
 
@@ -670,6 +717,145 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     }
     let result: &PyAny = result;
     Ok(result.into_py(py))
+}
+
+
+// ===============================================================================================
+// Generic z-computation.
+// ===============================================================================================
+
+trait ComputeZ {
+    fn compute_z(&self, x: Float, y: Float) -> ComputeZResult;
+
+    fn compute_z_size(&self) -> usize;
+
+    fn compute_z_vec(
+        &self,
+        py: Python,
+        x: ArrayOrFloat,
+        y: ArrayOrFloat,
+        grid: Option<bool>
+    ) -> Result<PyObject> {
+        let grid = grid.unwrap_or(false);
+        let result: &PyAny = if grid {
+            let nx = x.size();
+            let ny = y.size();
+            if (nx == 0) || (ny == 0) {
+                value_error!(
+                    "bad size (expected {{ny, nx}} > 0, found {{{}, {}}})",
+                    ny,
+                    nx,
+                );
+            }
+            let nz = self.compute_z_size();
+            let shape = match nz {
+                0 => vec![ny, nx],
+                _ => vec![ny, nx, nz],
+            };
+            let result = PyArray::<Float>::empty(py, &shape)?;
+            for i in 0..ny {
+                let yi = y.get(i)?;
+                for j in 0..nx {
+                    let xj = x.get(j)?;
+                    let zij = self.compute_z(xj, yi);
+                    match zij {
+                        ComputeZResult::Many(zij) => {
+                            for k in 0..nz {
+                                let zijk = zij[k].unwrap_or(Float::NAN);
+                                result.set(nz * (i * nx + j) + k, zijk)?;
+                            }
+                        },
+                        ComputeZResult::One(zij) => {
+                            let zij = zij.unwrap_or(Float::NAN);
+                            result.set(i * nx + j, zij)?;
+                        }
+                    }
+                }
+            }
+            let result: &PyAny = result;
+            result
+        } else {
+            if x.is_float() && y.is_float() {
+                let x = match x {
+                    ArrayOrFloat::Float(x) => x,
+                    _ => unreachable!(),
+                };
+                let y = match y {
+                    ArrayOrFloat::Float(y) => y,
+                    _ => unreachable!(),
+                };
+                let z = self.compute_z(x, y);
+                match z {
+                    ComputeZResult::Many(z) => {
+                        let nz = self.compute_z_size();
+                        let result = PyArray::<Float>::empty(py, &[nz])?;
+                        for i in 0..nz {
+                            let zi = z[i].unwrap_or(Float::NAN);
+                            result.set(i, zi)?;
+                        }
+                        let result: &PyAny = result;
+                        result
+                    },
+                    ComputeZResult::One(z) => {
+                        let z = z.unwrap_or(Float::NAN);
+                        let result = PyScalar::<Float>::new(py, z)?;
+                        let result: &PyAny = result;
+                        result
+                    },
+                }
+            } else {
+                let (n, mut shape) = match &x {
+                    ArrayOrFloat::Array(x) => {
+                        if let ArrayOrFloat::Array(y) = &y {
+                            if x.size() != y.size() {
+                                value_error!(
+                                    "bad size (x and y arrays must have the same size)"
+                                )
+                            }
+                        }
+                        (x.size(), x.shape().to_vec())
+                    },
+                    ArrayOrFloat::Float(_) => match &y {
+                        ArrayOrFloat::Array(y) => (y.size(), y.shape().to_vec()),
+                        _ => unreachable!(),
+                    }
+                };
+
+                let nz = self.compute_z_size();
+                if nz > 0 {
+                    shape.push(nz)
+                }
+
+                let result = PyArray::<Float>::empty(py, &shape)?;
+                for i in 0..n {
+                    let xi = x.get(i)?;
+                    let yi = y.get(i)?;
+                    let zi = self.compute_z(xi, yi);
+                    match zi {
+                        ComputeZResult::Many(zi) => {
+                            for j in 0..nz {
+                                let zij = zi[j].unwrap_or(Float::NAN);
+                                result.set(i * nz  + j, zij)?
+                            }
+                        },
+                        ComputeZResult::One(zi) => {
+                            let zi = zi.unwrap_or(Float::NAN);
+                            result.set(i, zi)?
+                        }
+                    }
+                }
+
+                let result: &PyAny = result;
+                result
+            }
+        };
+        Ok(result.into_py(py))
+    }
+}
+
+enum ComputeZResult {
+    Many(Vec<Option<Float>>),
+    One(Option<Float>),
 }
 
 
