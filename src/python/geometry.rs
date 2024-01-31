@@ -12,7 +12,7 @@ use pyo3::types::PyTuple;
 use std::rc::Rc;
 use super::ctrlc_catched;
 use super::macros::value_error;
-use super::materials::PyMaterialDefinition;
+use super::materials::{MaterialArg, PyMaterialDefinition};
 use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags, PyScalar};
 use super::transport::CState;
 
@@ -35,12 +35,12 @@ pub struct PyGeometrySector {
 impl PyGeometrySector {
     #[new]
     fn new(
-        material: PyRef<PyMaterialDefinition>, // XXX Allow for a string?
+        py: Python,
+        material: MaterialArg,
         density: PyObject,
         description: Option<&str>
     ) -> Result<Self> {
-        let py = material.py();
-        let material: PyObject = material.into_py(py);
+        let material: PyObject = material.pack(py)?;
         let _: DensityModel = density.extract(py)?; // type check.
         let description = description.map(|s| s.to_string());
         let result = Self { material, density, description };
@@ -85,10 +85,11 @@ pub struct PySimpleGeometry (pub SimpleGeometry);
 impl PySimpleGeometry {
     #[new]
     fn new(
-        material: PyRef<PyMaterialDefinition>,
+        material: MaterialArg,
         density: DensityModel,
     ) -> Result<Self> {
-        let geometry = SimpleGeometry::new(&material.0, density);
+        let material = material.unpack()?;
+        let geometry = SimpleGeometry::new(&material, density);
         Ok(Self(geometry))
     }
 
@@ -171,17 +172,18 @@ impl PyExternalGeometry {
 
     fn update_material(
         &mut self,
+        py: Python,
         index: usize,
-        material: PyRef<PyMaterialDefinition>
+        material: MaterialArg,
     ) -> Result<()> {
         // Update inner state.
-        self.inner.update_material(index, &material.0)?;
+        let material = material.unpack()?;
+        self.inner.update_material(index, &material)?;
 
         // Update external state.
-        let py = material.py();
         let materials: &PyTuple = self.materials.extract(py)?;
         let mut this: PyRefMut<PyMaterialDefinition> = materials[index].extract()?;
-        this.0 = material.0.clone();
+        this.0 = material.into_owned();
 
         Ok(())
     }
@@ -365,6 +367,12 @@ impl PyTopographyMap {
         grid: Option<bool>
     ) -> Result<PyObject> {
         self.compute_z_vec(py, x, y, grid)
+    }
+
+    #[getter]
+    fn get_box(&self) -> ((Float, Float), (Float, Float)) {
+        let b = self.inner.get_box();
+        ((b.xmin, b.xmax), (b.ymin, b.ymax))
     }
 }
 

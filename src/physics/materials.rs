@@ -20,6 +20,7 @@ use crate::physics::process::rayleigh::{
     },
 };
 use crate::transport::TransportSettings;
+use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::{hash_map::Entry::{Occupied, Vacant}, HashMap},
@@ -59,6 +60,25 @@ pub type WeightedMaterial<'a> = (Float, &'a MaterialDefinition);
 
 // Public interface.
 impl MaterialDefinition {
+    /// Defines a new material from a chemical formula indicating its atomic content, e.g `H2O`.
+    pub fn from_formula(formula: &str) -> Result<Self> {
+        let re = Regex::new(r"([A-Z][a-z]?)([0-9]*)")?;
+        let mut composition = Vec::<(Float, &AtomicElement)>::default();
+        for captures in re.captures_iter(formula) {
+            let symbol = captures.get(1).unwrap().as_str();
+            let element = AtomicElement::from_symbol(symbol)?;
+            let weight = captures.get(2).unwrap().as_str();
+            let weight: Float = if weight.len() == 0 {
+                1.0
+            } else {
+                weight.parse::<Float>()?
+            };
+            composition.push((weight, element));
+        }
+        let definition = MaterialDefinition::from_mole(formula, &composition);
+        Ok(definition)
+    }
+
     /// Defines a new material as a mixture of atomic elements. Note that a *mass* composition is
     /// expected.
     pub fn from_mass(name: &str, composition: &[WeightedElement]) -> Self {

@@ -64,7 +64,7 @@ impl TopographyMap {
 
 // Private interface.
 impl TopographyMap {
-    fn get_box(&self) -> MapBox {
+    pub(crate) fn get_box(&self) -> MapBox {
         let get_bounds = |grid: &LinearGrid| -> (Float, Float) {
             let x0 = grid.get(0);
             let x1 = grid.get(grid.len() - 1);
@@ -81,11 +81,11 @@ impl TopographyMap {
 }
 
 #[derive(Clone, Copy)]
-struct MapBox {
-    xmin: Float,
-    xmax: Float,
-    ymin: Float,
-    ymax: Float,
+pub(crate) struct MapBox {
+    pub(crate) xmin: Float,
+    pub(crate) xmax: Float,
+    pub(crate) ymin: Float,
+    pub(crate) ymax: Float,
 }
 
 impl MapBox {

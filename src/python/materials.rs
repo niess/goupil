@@ -31,7 +31,6 @@ use pyo3::{
     sync::GILOnceCell,
     types::{PyBytes, PyTuple},
 };
-use regex::Regex;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use super::{
@@ -41,6 +40,7 @@ use super::{
     prefix,
     transport::PyTransportSettings,
 };
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 
@@ -99,20 +99,7 @@ impl PyMaterialDefinition {
                 None => match mole_composition {
                     None => {
                         // Try to interpret name as a chemical formula.
-                        let re = Regex::new(r"([A-Z][a-z]?)([0-9]*)")?;
-                        let mut composition = Vec::<(Float, &AtomicElement)>::default();
-                        for captures in re.captures_iter(name) {
-                            let symbol = captures.get(1).unwrap().as_str();
-                            let element = AtomicElement::from_symbol(symbol)?;
-                            let weight = captures.get(2).unwrap().as_str();
-                            let weight: Float = if weight.len() == 0 {
-                                1.0
-                            } else {
-                                weight.parse::<Float>()?
-                            };
-                            composition.push((weight, element));
-                        }
-                        MaterialDefinition::from_mole(name, &composition)
+                        MaterialDefinition::from_formula(name)?
                     },
                     Some(composition) => {
                         let composition: Result<Vec<_>> = composition
@@ -210,6 +197,42 @@ impl PyMaterialDefinition {
         let electrons = self.0.compute_electrons()?;
         let electrons = PyElectronicStructure::new(electrons, false)?;
         Ok(electrons.into_py(py))
+    }
+}
+
+
+// ===============================================================================================
+// Generic representation of a material definition.
+// ===============================================================================================
+
+#[derive(FromPyObject)]
+pub enum MaterialArg<'py> {
+    Definition(PyRef<'py, PyMaterialDefinition>),
+    Formula(&'py str),
+}
+
+impl<'py> MaterialArg<'py> {
+    pub fn pack(self, py: Python) -> Result<PyObject> {
+        let result: PyObject = match self {
+            Self::Definition(definition) => definition.into_py(py),
+            Self::Formula(formula) => {
+                let definition = PyMaterialDefinition::new(Some(formula), None, None)?;
+                let definition = Py::new(py, definition)?;
+                definition.into_py(py)
+            },
+        };
+        Ok(result)
+    }
+
+    pub fn unpack(&self) -> Result<Cow<MaterialDefinition>> {
+        let result = match self {
+            MaterialArg::Definition(definition) => Cow::Borrowed(&definition.0),
+            MaterialArg::Formula(formula) => {
+                let definition = MaterialDefinition::from_formula(formula)?;
+                Cow::Owned(definition)
+            },
+        };
+        Ok(result)
     }
 }
 
