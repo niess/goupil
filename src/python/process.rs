@@ -1,6 +1,5 @@
 use anyhow::Result;
 use crate::numerics::float::{Float, Float3};
-use crate::physics::materials::electronic::ElectronicStructure;
 use crate::physics::process::compton::{
     self,
     ComptonModel,
@@ -11,11 +10,9 @@ use crate::physics::process::compton::{
 };
 use crate::physics::process::rayleigh::{RayleighMode, sample::RayleighSampler};
 use pyo3::prelude::*;
-use pyo3::exceptions::PyTypeError;
 use pyo3::types::PyDict;
-use std::borrow::Cow;
 use super::macros::{key_error, not_implemented_error, value_error};
-use super::materials::{PyMaterialDefinition, PyMaterialRecord};
+use super::materials::{MaterialLike, PyMaterialRecord};
 use super::numpy::{ArrayOrFloat, PyArray};
 use super::rand::PyRandomStream;
 
@@ -191,12 +188,12 @@ impl PyComptonProcess {
 
     fn cross_section(
         &self,
+        py: Python,
         energy: ArrayOrFloat,
-        material: Material,
+        material: MaterialLike,
         energy_min: Option<Float>,
         energy_max: Option<Float>
     ) -> Result<PyObject> {
-        let py = material.py();
         let electrons = material.get_electrons()?;
         let result: PyObject = match energy {
             ArrayOrFloat::Array(energy) => {
@@ -228,11 +225,11 @@ impl PyComptonProcess {
 
     fn dcs(
         &self,
+        py: Python,
         energy_in: Float,
         energy_out: ArrayOrFloat,
-        material: Material
+        material: MaterialLike
     ) -> Result<PyObject> {
-        let py = material.py();
         let electrons = material.get_electrons()?;
         let result: PyObject = match energy_out {
             ArrayOrFloat::Array(energy_out) => {
@@ -342,42 +339,6 @@ impl PyComptonProcess {
     }
 }
 
-// Generic material.
-#[derive(FromPyObject)]
-enum Material<'py> {
-    Definition(PyRef<'py, PyMaterialDefinition>),
-    Record(PyRef<'py, PyMaterialRecord>),
-}
-
-impl<'py> Material<'py> {
-    fn get_electrons(&self) -> Result<Cow<'py, ElectronicStructure>> {
-        let electrons = match self {
-            Material::Definition(material) => {
-                let electrons = material.0.compute_electrons()?;
-                Cow::Owned(electrons)
-            },
-            Material::Record(material) => {
-                let py = material.py();
-                let electrons = material.get(py)?
-                    .electrons()
-                    .ok_or_else(|| PyTypeError::new_err(
-                        "missing electronic structure (expected Some(ElectronicStructure), 
-                            found None)"
-                    ))?;
-                Cow::Borrowed(electrons)
-            },
-        };
-        Ok(electrons)
-    }
-
-    fn py(&self) -> Python<'py> {
-        match self {
-            Material::Definition(material) => material.py(),
-            Material::Record(material) => material.py(),
-        }
-    }
-}
-
 
 // ===============================================================================================
 // Python wrapper for Rayleigh process.
@@ -389,16 +350,13 @@ pub struct PyRayleighProcess ();
 impl PyRayleighProcess {
     #[staticmethod]
     fn cross_section(
+        py: Python,
         energy: ArrayOrFloat,
-        material: PyRef<PyMaterialRecord>,
+        material: MaterialLike,
     ) -> Result<PyObject> {
-        let py = material.py();
-        let material = material.get(py)?;
+        let cross_section = material.rayleigh_cross_section(py)?;
         let compute = |energy: Float| -> Float {
-            match material.rayleigh_cross_section() {
-                None => 0.0,
-                Some(table) => table.interpolate(energy),
-            }
+            cross_section.interpolate(energy)
         };
         let result: PyObject = match energy {
             ArrayOrFloat::Array(energy) => {
@@ -417,25 +375,25 @@ impl PyRayleighProcess {
 
     #[staticmethod]
     fn dcs(
+        py: Python,
         energy: Float,
         cos_theta: ArrayOrFloat,
-        material: PyRef<PyMaterialRecord>
+        material: MaterialLike,
     ) -> Result<PyObject> {
         let sampler = RayleighSampler::new(RayleighMode::FormFactor);
-        let py = material.py();
-        let material = material.get(py)?;
+        let form_factor = material.rayleigh_form_factor(py)?;
         let result: PyObject = match cos_theta {
             ArrayOrFloat::Array(cos_theta) => {
                 let result = PyArray::<Float>::empty(py, &cos_theta.shape())?;
                 let n = cos_theta.size();
                 for i in 0..n {
-                    let v = sampler.dcs(energy, cos_theta.get(i)?, material)?;
+                    let v = sampler.dcs(energy, cos_theta.get(i)?, &form_factor)?;
                     result.set(i, v)?;
                 }
                 result.into_py(py)
             },
             ArrayOrFloat::Float(cos_theta) => {
-                let result = sampler.dcs(energy, cos_theta, material)?;
+                let result = sampler.dcs(energy, cos_theta, &form_factor)?;
                 result.into_py(py)
             },
         };
@@ -444,26 +402,32 @@ impl PyRayleighProcess {
 
     #[staticmethod]
     fn sample(
+        py: Python,
         energy: ArrayOrFloat,
-        material: PyRef<PyMaterialRecord>
+        material: MaterialLike,
+        rng: Option<&PyCell<PyRandomStream>>,
     )
     -> Result<PyObject> {
         let sampler = RayleighSampler::new(RayleighMode::FormFactor);
-        let py = material.py();
-        let mut rng = rand::thread_rng();
-        let material = material.get(py)?;
+        let rng: &PyCell<PyRandomStream> = match rng {
+            None => PyCell::new(py, PyRandomStream::new(None)?)?,
+            Some(rng) => rng,
+        };
+        let mut rng = rng.borrow_mut();
+        let form_factor = material.rayleigh_form_factor(py)?;
         let result: PyObject = match energy {
             ArrayOrFloat::Array(energy) => {
                 let result = PyArray::<Float>::empty(py, &energy.shape())?;
                 let n = energy.size();
                 for i in 0..n {
-                    let v = sampler.sample_angle(&mut rng, energy.get(i)?, material)?;
+                    let v = sampler.sample_angle(
+                        &mut rng.generator, energy.get(i)?, &form_factor)?;
                     result.set(i, v)?;
                 }
                 result.into_py(py)
             },
             ArrayOrFloat::Float(energy) => {
-                let result = sampler.sample_angle(&mut rng, energy, material)?;
+                let result = sampler.sample_angle(&mut rng.generator, energy, &form_factor)?;
                 result.into_py(py)
             },
         };

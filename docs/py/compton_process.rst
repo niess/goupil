@@ -14,8 +14,7 @@ Constructor
    The constructor argument(s) should match one of the attributes described
    below. For instance
 
-   >>> goupil.ComptonProcess(model="Penelope", precision=10.0)
-   ComptonProcess(model="Penelope", precision=10)
+   >>> compton = goupil.ComptonProcess(model="Penelope", precision=10.0)
 
    .. note::
 
@@ -112,15 +111,15 @@ Methods
    Computes the total cross-section for Compton scattering of a photon with a
    specified initial `energy` (in MeV) on an atom of a given `material`. The
    energy can be a :external:py:class:`float` or a
-   :external:py:class:`numpy.ndarray` of floats. The material must be an
-   instance of :doc:`material_definition` or :doc:`material_record`. Optional
-   bounds can be set on the energy of the outgoing photon using the `energy_min`
-   and `energy_max` arguments (in MeV).
+   :external:py:class:`numpy.ndarray` of floats. The `material` must be
+   consistent with a :doc:`material_definition`. Optional bounds can be set on
+   the energy of the outgoing photon using the `energy_min` and `energy_max`
+   arguments (in MeV).
 
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().cross_section(1.0, H2O) # doctest: +SKIP
+   >>> compton.cross_section(1.0, H2O) # doctest: +SKIP
 
 .. py:method:: ComptonProcess.dcs(energy_in, energy_out, material)
 
@@ -128,13 +127,12 @@ Methods
    photon on an atom of a given `material`. The input parameters are the ingoing
    energy (in MeV) and the outgoing energy (in MeV), which can be a single
    :external:py:class:`float` or a :external:py:class:`numpy.ndarray` of floats.
-   The material must be provided as either a :doc:`material_definition` or
-   :doc:`material_record` object.
+   The `material` must be consistent with a :doc:`material_definition`.
 
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().dcs(1.0, 0.8, H2O) # doctest: +SKIP
+   >>> compton.dcs(1.0, 0.8, H2O) # doctest: +SKIP
 
 .. py:method:: ComptonProcess.dcs_support(energy)
 
@@ -146,19 +144,19 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().dcs_support(1.0) # doctest: +SKIP
+   >>> compton.dcs_support(1.0) # doctest: +SKIP
 
 .. py:method:: ComptonProcess.sample(energy, material, rng=None)
 
    This function generates random Compton collisions. The input photon `energy`,
    in MeV, can be a :external:py:class:`float` or a
-   :external:py:class:`numpy.ndarray`. The target `material` must be an instance
-   of :doc:`material_record`. The output is a tuple that contains the outgoing
-   energy in MeV, the cosine of the scattering angle and the generation weight.
-   It is also possible to provide a specific :doc:`random_stream` (`rng`) as an
-   option.
+   :external:py:class:`numpy.ndarray`. The target `material` must be consistent
+   with a :doc:`material_definition`. The output is a tuple that contains the
+   outgoing energy in MeV, the cosine of the scattering angle and the generation
+   weight. It is also possible to provide a specific :doc:`random_stream`
+   (`rng`) as an option.
 
    Examples
    ^^^^^^^^
 
-   >>> goupil.ComptonProcess().sample(1.0, H20) # doctest: +SKIP
+   >>> compton.sample(1.0, H20) # doctest: +SKIP

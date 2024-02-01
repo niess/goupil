@@ -15,11 +15,10 @@ Constructor
 .. py:class:: SimpleGeometry(material, density)
 
    Generates a Monte Carlo geometry consisting of a single sector with the
-   specified *material* and *density*. The argument for the *material* must be a
-   :doc:`material_definition` or a chemical formula (:external:py:class:`str`).
-   The density can be specified as a :external:py:class:`float`, indicating a
-   uniform density value (in g/cm\ :sup:`3`), or as a :doc:`density_gradient`
-   object. For instance,
+   specified *material* and *density*. The argument for the *material* must be
+   consistent with a :doc:`material_definition`. The density can be specified as
+   a :external:py:class:`float`, indicating a uniform density value (in g/cm\
+   :sup:`3`), or as a :doc:`density_gradient` object. For instance,
 
    >>> geometry = goupil.SimpleGeometry("H2O", 1.0)
 
@@ -32,10 +31,13 @@ Attributes
 
    The medium density model. This attribute is mutable. For instance,
 
-   >>> geometry.density = 2.65 # g/cm^3
+   >>> geometry.density = 1.025 # g/cm^3
 
 .. py:attribute:: SimpleGeometry.material
    :type: MaterialDefinition
 
    The material that makes up the propagation medium. This attribute is **not**
    mutable.
+
+   >>> geometry.material
+   H2O

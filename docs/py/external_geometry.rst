@@ -72,8 +72,8 @@ Methods
 .. py:method:: ExternalGeometry.update_material(index, material)
 
    Replaces the material at the specified *index* in the list of geometry
-   :py:attr:`materials <ExternalGeometry.materials>`. The new *material* must be
-   a :doc:`material_definition` object.
+   :py:attr:`materials <ExternalGeometry.materials>`. The *material* argument
+   must be consistent with a :doc:`material_definition`.
 
 .. py:method:: ExternalGeometry.update_sector(index, material=None, density=None)
 

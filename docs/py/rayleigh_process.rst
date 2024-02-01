@@ -4,11 +4,11 @@
 ==================
 
 This class provides access to the implementation of the Rayleigh scattering
-process, as detailed in [Baro95]_. All methods described below are defined at
-the class level.  For instance,
+process, as detailed in [Baro95]_.
 
->>> goupil.RayleighProcess.cross_section(0.1, H2O)
-1.600238e-25
+.. warning::
+
+   All methods described below are defined at the class level.
 
 
 Constructor
@@ -30,7 +30,11 @@ Methods
    Computes the total cross-section for Rayleigh scattering of a photon with a
    specified *energy* (in MeV) on an atom of a given *material*. The *energy*
    can be a :external:py:class:`float` or a :external:py:class:`numpy.ndarray`
-   of floats. The *material* must be an instance of :doc:`material_record`.
+   of floats. The *material* must be consistent with a
+   :doc:`material_definition`. For instance,
+
+   >>> goupil.RayleighProcess.cross_section(0.1, "H2O")
+   1.600238e-25
 
 .. py:method:: RayleighProcess.dcs(energy, cos_theta, material)
 
@@ -38,13 +42,14 @@ Methods
    photon on an atom of a given *material*. The input parameters are the photon
    *energy* (in MeV) and the cosine of the scattering angle (*cos_theta*), which
    can be a single :external:py:class:`float` or a
-   :external:py:class:`numpy.ndarray` of floats. The *material* must be provided
-   as a :doc:`material_record` object.
+   :external:py:class:`numpy.ndarray` of floats. The *material* must be
+   consistent with a :doc:`material_definition`.
 
-.. py:method:: RayleighProcess.sample(energy, material)
+.. py:method:: RayleighProcess.sample(energy, material, rng=None)
 
    This function generates random Rayleigh collisions. The photon *energy*, in
    MeV, can be a :external:py:class:`float` or a
-   :external:py:class:`numpy.ndarray`. The target *material* must be an instance
-   of :doc:`material_record`. The output is the cosine of the scattering
-   angle(s).
+   :external:py:class:`numpy.ndarray`. The target *material* must be consistent
+   with a :doc:`material_definition`. The output is the cosine of the scattering
+   angle(s). It is also possible to provide a specific :doc:`random_stream`
+   (`rng`) as an option.

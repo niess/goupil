@@ -21,7 +21,7 @@ pub(crate) struct RayleighTable {
 // Rayleigh scattering cross-section.
 // ===============================================================================================
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct RayleighCrossSection {
     pub(crate) energies: UnstructuredGrid,
     pub(crate) values: Vec<Float>,
@@ -100,7 +100,7 @@ impl From<Data1D> for RayleighCrossSection {
 // Rayleigh scattering form-factor, and related utilities.
 // ===============================================================================================
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct RayleighFormFactor {
     pub(crate) momenta: UnstructuredGrid,
     pub(crate) values: Vec<Float>,

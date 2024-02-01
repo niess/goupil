@@ -19,7 +19,7 @@ use super::grids::{Grid, GridCoordinate};
 //
 //================================================================================================
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct CubicInterpolator (Vec<Float>);
 
 impl CubicInterpolator {

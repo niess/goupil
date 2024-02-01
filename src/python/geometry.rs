@@ -12,7 +12,7 @@ use pyo3::types::PyTuple;
 use std::rc::Rc;
 use super::ctrlc_catched;
 use super::macros::value_error;
-use super::materials::{MaterialArg, PyMaterialDefinition};
+use super::materials::{MaterialLike, PyMaterialDefinition};
 use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags, PyScalar};
 use super::transport::CState;
 
@@ -36,7 +36,7 @@ impl PyGeometrySector {
     #[new]
     fn new(
         py: Python,
-        material: MaterialArg,
+        material: MaterialLike,
         density: PyObject,
         description: Option<&str>
     ) -> Result<Self> {
@@ -85,7 +85,7 @@ pub struct PySimpleGeometry (pub SimpleGeometry);
 impl PySimpleGeometry {
     #[new]
     fn new(
-        material: MaterialArg,
+        material: MaterialLike,
         density: DensityModel,
     ) -> Result<Self> {
         let material = material.unpack()?;
@@ -174,7 +174,7 @@ impl PyExternalGeometry {
         &mut self,
         py: Python,
         index: usize,
-        material: MaterialArg,
+        material: MaterialLike,
     ) -> Result<()> {
         // Update inner state.
         let material = material.unpack()?;

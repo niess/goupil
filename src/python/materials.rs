@@ -42,6 +42,7 @@ use super::{
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 
 // ===============================================================================================
@@ -202,16 +203,33 @@ impl PyMaterialDefinition {
 
 
 // ===============================================================================================
-// Generic representation of a material definition.
+// Arguments alike material definitions.
 // ===============================================================================================
 
 #[derive(FromPyObject)]
-pub enum MaterialArg<'py> {
+pub enum MaterialLike<'py> {
     Definition(PyRef<'py, PyMaterialDefinition>),
     Formula(&'py str),
+    Record(PyRefMut<'py, PyMaterialRecord>),
 }
 
-impl<'py> MaterialArg<'py> {
+// Public interface.
+impl<'py> MaterialLike<'py> {
+    pub fn get_electrons(&self) -> Result<Cow<'py, ElectronicStructure>> {
+        // Fetch reference to any computed structure.
+        if let Self::Record(record) = self {
+            let py = record.py();
+            if let Some(electrons) = record.get(py)?.electrons() {
+                return Ok(Cow::Borrowed(electrons))
+            }
+        }
+
+        // Build a new instance.
+        let definition = self.unpack()?;
+        let electrons = definition.compute_electrons()?;
+        Ok(Cow::Owned(electrons))
+    }
+
     pub fn pack(self, py: Python) -> Result<PyObject> {
         let result: PyObject = match self {
             Self::Definition(definition) => definition.into_py(py),
@@ -220,19 +238,98 @@ impl<'py> MaterialArg<'py> {
                 let definition = Py::new(py, definition)?;
                 definition.into_py(py)
             },
+            Self::Record(mut record) => record.get_definition(py)?.into_py(py),
         };
         Ok(result)
     }
 
+    pub fn rayleigh_cross_section(&self, py: Python) -> Result<Cow<RayleighCrossSection>> {
+        // Fetch reference to any computed table.
+        if let Self::Record(record) = self {
+            let py = record.py();
+            if let Some(table) = record.get(py)?.rayleigh_cross_section() {
+                return Ok(Cow::Borrowed(table))
+            }
+        }
+
+        // Build a new table.
+        let definition = self.unpack()?;
+        let registry = self.new_registry(py, &definition)?;
+        let mut composition = Vec::<(Float, &RayleighCrossSection)>::default();
+        for (weight, element) in definition.mole_composition().iter() {
+            let cross_section = match registry.scattering_cs.get(element) {
+                None => value_error!(
+                    "missing scattering cross-section for '{}'",
+                    element.symbol,
+                ),
+                Some(table) => table,
+            };
+            composition.push((*weight, cross_section));
+        }
+        let table = RayleighCrossSection::from_others(&composition).unwrap();
+        Ok(Cow::Owned(table))
+    }
+
+    pub fn rayleigh_form_factor(&self, py: Python) -> Result<Cow<RayleighFormFactor>> {
+        // Fetch reference to any computed table.
+        if let Self::Record(record) = self {
+            let py = record.py();
+            if let Some(table) = record.get(py)?.rayleigh_form_factor() {
+                return Ok(Cow::Borrowed(table))
+            }
+        }
+
+        // Build a new table.
+        let definition = self.unpack()?;
+        let registry = self.new_registry(py, &definition)?;
+        let mut composition = Vec::<(Float, &RayleighFormFactor)>::default();
+        for (weight, element) in definition.mole_composition().iter() {
+            let form_factor = match registry.scattering_ff.get(element) {
+                None => value_error!(
+                    "missing scattering form-factor for '{}'",
+                    element.symbol,
+                ),
+                Some(table) => table,
+            };
+            composition.push((*weight, form_factor));
+        }
+        let table = RayleighFormFactor::from_others(&composition).unwrap();
+        Ok(Cow::Owned(table))
+    }
+
     pub fn unpack(&self) -> Result<Cow<MaterialDefinition>> {
         let result = match self {
-            MaterialArg::Definition(definition) => Cow::Borrowed(&definition.0),
-            MaterialArg::Formula(formula) => {
+            Self::Definition(definition) => Cow::Borrowed(&definition.0),
+            Self::Formula(formula) => {
                 let definition = MaterialDefinition::from_formula(formula)?;
                 Cow::Owned(definition)
             },
+            Self::Record(record) => match &record.proxy {
+                RecordProxy::Borrowed { name, registry } => {
+                    let py = record.py();
+                    let registry: PyRef<PyMaterialRegistry> = registry.extract(py)?;
+                    let record = registry.inner.get(name)?;
+                    Cow::Owned(record.definition.clone())
+                },
+                RecordProxy::Owned(record) => Cow::Borrowed(&record.definition),
+            },
         };
         Ok(result)
+    }
+}
+
+// Private interface.
+impl<'py> MaterialLike<'py> {
+    fn new_registry(
+        &self,
+        py: Python,
+        definition: &MaterialDefinition
+    ) -> Result<MaterialRegistry> {
+        let mut registry = MaterialRegistry::default();
+        let path = PyMaterialRegistry::default_elements_path(py)?;
+        registry.load_elements(&path)?;
+        registry.add(&definition)?;
+        Ok(registry)
     }
 }
 
@@ -251,7 +348,7 @@ pub struct PyMaterialRegistry {
 impl PyMaterialRegistry {
     #[new]
     #[pyo3(signature = (*args))]
-    pub fn new(args: Vec<MaterialArg>) -> Result<Self> {
+    pub fn new(args: Vec<MaterialLike>) -> Result<Self> {
         let mut registry = MaterialRegistry::default();
         for definition in args.iter() {
             let definition = definition.unpack()?;
@@ -324,7 +421,7 @@ impl PyMaterialRegistry {
     }
 
     // Direct public interface.
-    fn add(&mut self, definition: MaterialArg) -> Result<()> {
+    fn add(&mut self, definition: MaterialLike) -> Result<()> {
         let definition = definition.unpack()?;
         self.inner.add(&definition)?;
         Ok(())
@@ -461,11 +558,7 @@ impl PyMaterialRegistry {
 
     fn load_elements(&mut self, py: Python, path: Option<String>) -> Result<()> {
         let path = match path {
-            None => {
-                let mut path = prefix(py)?.clone();
-                path.push(Self::ELEMENTS_DATA);
-                path
-            },
+            None => Self::default_elements_path(py)?,
             Some(path) => path.into(),
         };
         self.inner.load_elements(&path)?;
@@ -481,6 +574,12 @@ pub enum PyConstraint {
 
 impl PyMaterialRegistry {
     pub(crate) const ELEMENTS_DATA: &str = "data/elements";
+
+    fn default_elements_path(py: Python) -> Result<PathBuf> {
+        let mut path = prefix(py)?.clone();
+        path.push(Self::ELEMENTS_DATA);
+        Ok(path)
+    }
 
     // Transforms a borrowed material record to an owned one.
     fn into_owned(py: Python, proxy: Py<PyMaterialRecord>, record: MaterialRecord) {

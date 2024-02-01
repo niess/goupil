@@ -27,12 +27,11 @@ impl RayleighSampler {
         &self,
         energy: Float,
         cos_theta: Float,
-        material: &MaterialRecord
+        form_factor: &RayleighFormFactor,
     ) -> Result<Float> {
         let dcs = match self.mode {
             FormFactor => {
                 let q = energy * (2.0 * (1.0 - cos_theta)).sqrt();
-                let form_factor = Self::form_factor(material)?;
                 let r = ELECTRON_RADIUS * form_factor.interpolate(q);
                 PI * r * r * (1.0 + cos_theta * cos_theta)
             },
@@ -54,7 +53,8 @@ impl RayleighSampler {
     ) -> Result<Float3> {
         match self.mode {
             FormFactor => {
-                let cos_theta = self.sample_angle(rng, energy_in, material)?;
+                let form_factor = Self::form_factor(material)?;
+                let cos_theta = self.sample_angle(rng, energy_in, &form_factor)?;
                 let direction_out = if cos_theta == 0.0 {
                     direction_in
                 } else {
@@ -103,12 +103,11 @@ impl RayleighSampler {
         &self,
         rng: &mut R,
         energy: Float,
-        material: &MaterialRecord,
+        form_factor: &RayleighFormFactor,
     ) -> Result<Float> {
         if let RayleighMode::None = self.mode {
             return Ok(0.0);
         }
-        let form_factor = Self::form_factor(material)?;
         let q2max = 4.0 * energy * energy;
         if q2max <= 0.0 {
             return Ok(0.0);
@@ -119,8 +118,7 @@ impl RayleighSampler {
             let enveloppe = form_factor.enveloppe(q2);
             if enveloppe <= 0.0 {
                 bail!(
-                    "bad form factor enveloppe for '{}' (expected a positive value, found {})",
-                    material.definition.name(),
+                    "bad form factor enveloppe (expected a positive value, found {})",
                     enveloppe,
                 )
             }

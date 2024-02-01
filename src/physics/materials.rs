@@ -213,8 +213,8 @@ pub struct MaterialRegistry {
     elements: Vec<&'static AtomicElement>,
     elements_refs: HashMap<&'static AtomicElement, usize>,
     materials: HashMap<String, MaterialRecord>,
-    scattering_cs: HashMap<&'static AtomicElement, RayleighCrossSection>,
-    scattering_ff: HashMap<&'static AtomicElement, RayleighFormFactor>,
+    pub(crate) scattering_cs: HashMap<&'static AtomicElement, RayleighCrossSection>,
+    pub(crate) scattering_ff: HashMap<&'static AtomicElement, RayleighFormFactor>,
 }
 
 // Public interface.
