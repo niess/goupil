@@ -28,6 +28,7 @@ Classes
    electronic_structure
    external_geometry
    form_factor
+   geometry_sector
    inverse_distribution
    material_definition
    material_record
@@ -36,6 +37,8 @@ Classes
    rayleigh_process
    simple_geometry
    stratified_geometry
+   topography_map
+   topography_surface
    transport_engine
    transport_settings
    transport_status

@@ -46,12 +46,9 @@ Attributes
    This attribute lists all geometry materials as a tuple.
 
 .. py:attribute:: StratifiedGeometry.sectors
-   :type: tuple[int, float | DensityGradient, str]
+   :type: tuple[GeometrySector]
 
-   This attribute lists all geometry sectors as a tuple. The description of each
-   sector is presented as a sub-tuple that includes the material index (as an
-   :external:py:class:`int`), the density model, and a brief explanation (as a
-   :external:py:class:`str`).
+   This attribute lists all geometry sectors as a tuple.
 
 
 Methods
