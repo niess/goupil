@@ -16,6 +16,7 @@ Documentation
    :maxdepth: 1
 
    overview
+   geant4
    py/index
    c/index
    references
