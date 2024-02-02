@@ -232,18 +232,65 @@ def test_TopographyMap():
     assert((m0.x == numpy.linspace(-1, 1, 21)).all())
     assert((m0.y == numpy.linspace(-10, 10, 201)).all())
     assert((m0.z == numpy.zeros((201, 21))).all())
+    assert(m0.box == ((-1, 1), (-10, 10)))
 
     z = numpy.random.rand(201, 21)
     m1 = goupil.TopographyMap((-1, 1), (-10, 10), z)
     assert((m1.x == numpy.linspace(-1, 1, 21)).all())
     assert((m1.y == numpy.linspace(-10, 10, 201)).all())
     assert((m1.z == z).all())
+    assert(m0.box == m1.box)
 
     m0.z[:] = z
     assert((m0.z == m1.z).all())
+    
+    m2 = goupil.TopographyMap((-1, 1), (-10, 10), 1.0)
+    assert((m2.x == numpy.linspace(-1, 1, 2)).all())
+    assert((m2.y == numpy.linspace(-10, 10, 2)).all())
+    assert(m2.z == 1.0)
+    assert(m2.box == m1.box)
+    
+    """ TODO implement z setter for scalar case.
+    m2.z = -1.0
+    assert(m2.z == -1.0)
+    """
 
     with pytest.raises(ValueError):
         m0.x[0] = 0.0
 
     with pytest.raises(ValueError):
         m0.y[0] = 0.0
+    
+    # Test interpolation for scalars    
+    m = goupil.TopographyMap((-1, 1), (-2, 2), shape=(3, 3))
+    X, Y = numpy.meshgrid(m.x, m.y)
+    m.z[:] = X - Y
+    assert(m(0, 0) == 0.0)
+    eps = 1E-07
+    assert(abs(m(0.5, -0.3) - 0.8) < eps)
+    assert(abs(m(-0.3, 1.2) + 1.5) < eps)
+    
+    # Test out of range
+    assert(numpy.isnan(m(2.0, 0.5)))
+    assert(numpy.isnan(m(0.0, 2.5)))
+    assert(numpy.isnan(m(1.5, 2.5)))
+    
+    # Test interpolation for arrays
+    x = numpy.linspace(-1, 1, 11)
+    y = 0
+    z = m(x, y)
+    assert(z.shape == x.shape)
+    assert((numpy.abs(z - x) < eps).all())
+    
+    x = numpy.linspace(-1, 1, 11)
+    y = numpy.linspace(-2, 2, 11)
+    z = m(x, y)
+    assert(z.shape == x.shape)
+    assert((numpy.abs(z - x + y) < eps).all())
+    
+    x = numpy.linspace(-1, 1, 11)
+    y = numpy.linspace(-2, 2, 21)
+    Z = m(x, y, grid=True)
+    assert(Z.shape == (21, 11))
+    X, Y = numpy.meshgrid(x, y)
+    assert((numpy.abs(Z - X + Y) < eps).all())
