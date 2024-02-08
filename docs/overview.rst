@@ -12,6 +12,7 @@ of this document for a detailed description of the user interfaces.
    The following instructions assume technical familiarity with Python and prior
    experience in using :external:py:class:`numpy.ndarray`.
 
+
 Installing goupil
 -----------------
 
@@ -22,12 +23,70 @@ it can be installed as:
 
    $ pip3 install goupil
 
-From then, :doc:`goupil <py/index>` module can be imported as
+
+Specifying a geometry
+---------------------
+
+To begin with, we will define a Monte Carlo geometry. For this overview we will
+use a :doc:`py/stratified_geometry` object with two layers: a lower layer of
+limestone and an upper layer filled with air.
+
+.. note::
+
+   Goupil also allows :doc:`py/external_geometry` to be plugged in via its
+   :doc:`c/index`. In particular, Goupil comes with a :doc:`geant4`.
+
+We start by importing the :doc:`goupil <py/index>` module as
 
 >>> import goupil
 
-Defining a geometry
--------------------
+Then, we specify the air composition as
+
+>>> air = goupil.MaterialDefinition(
+...     "Air",
+...     mass_composition = (
+...         (0.76, "N"),
+...         (0.23, "O"),
+...         (0.01, "Ar"),
+...     )
+... )
+
+We consider an exponential :doc:`py/density_gradient` for the air
+density as
+
+>>> density = goupil.DensityGradient(1.205E-03, 1.04E+05)
+
+which would describe the lower part of the Earth's atmosphere (i.e. the
+troposphere).
+
+We also need to define the interface between the lower and upper layers. This is
+done using a Digital Elevation Model (DEM). For this example, we will create a
+flat interface at :math:`z = 0\,\text{m}`, covering :math:`[-1, 1] \times [-1,
+1]\,\text{km}^2` in :math:`(x, y)`. This is done as
+
+>>> interface = goupil.TopographyMap((-1e5, 1e5), (-1e5, 1e5), z=0)
+
+.. note::
+
+   More complex interfaces can be specified. See the :doc:`py/topography_map`
+   and :doc:`py/topography_surface` objects for additional information.
+
+Finally, we define the Monte Carlo geometry as
+
+>>> geometry = goupil.StratifiedGeometry(
+...     goupil.GeometrySector(air, density, "Atmosphere"),
+...     interface,
+...     goupil.GeometrySector("CaCO3", 2.8, "Ground")
+... )
+
+where we specify the composition of the limestone by its chemical formula
+(CaCO3) and assume a uniform density of 2.8 g/cm\ :sup:`3`.
+
+.. note::
+
+   The geometry defined previously lacks upper and lower bounds. Specifically,
+   the Atmosphere sector extends to :math:`z \to +\infty` and the Ground sector
+   extends to :math:`z \to -\infty`.
 
 
 Running a simulation
@@ -56,23 +115,29 @@ transport. This is done as:
 
 >>> engine.mode = "Backward"
 
-.. note::
+.. tip::
 
    See :doc:`py/transport_settings` for a summary of configurable parameters.
 
 
 Then, let us define a set of :python:`100` Monte Carlo states representing
-photons with an energy of :python:`0.5` MeV. This is done with the
+photons with an energy of :python:`0.5` MeV, located at :math:`z =
+100` cm, that is 1 m above the ground. This is done with the
 :doc:`py/states` function as
 
->>> states = goupil.states(100, energy=0.5)
+>>> states = goupil.states(100, energy=0.5, position=(0,0,1e2))
 
 The :doc:`py/states` function returns a `numpy structured array
 <https://numpy.org/doc/stable/user/basics.rec.html>`_ of states, containing the
 photons energies, their locations, etc. Since we perform a backward simulation,
 these states represent expected final states, e.g., at a particular observation
-point. In practice, one would also specify the positions and directions of
-expected photons. However, for now, let us use default values for those.
+point. In practice, it is also necessary to specify the arrival directions of
+these photons. However, for the purposes of this overview, default values will
+be used. That is
+
+>>> states["direction"]
+array([[0., 0., 1.],
+...
 
 Then, let us backward propagate the expected photons through the geometry. This
 is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
@@ -102,7 +167,7 @@ the energy of volume sources.
    The *sources_energies* argument should be omitted if there are no volume
    sources or in the case of a forward Monte Carlo.
 
-.. note::
+.. tip::
 
    In a backward transport, contained surface sources (i.e. not located on an
    outer boundary of the geometry) can be specified as a sector
@@ -122,17 +187,17 @@ that are consistent with a volume source can be selected as follows:
 
 These photons should have an energy of :python:`1.0` MeV, as requested:
 
->>> events[constrained]["energy"]
+>>> states[constrained]["energy"]
 array([1., 1., ...])
 
 The corresponding geometry sectors can be located as:
 
->>> geometry.locate(events[constrained])
-array([1, 1, ...])
+>>> geometry.locate(states[constrained])
+array([0, 0, ...], dtype=uint64)
 
 
-Backward Monte Carlo estimate
------------------------------
+Computing an estimate
+---------------------
 
 An important property that you will use is the transport weight (hereafter noted
 :math:`\omega`) associated with each backward propagated photon. These weights

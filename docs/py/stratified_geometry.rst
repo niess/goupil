@@ -31,6 +31,12 @@ Constructor
    defines a vertical section of water covered by a nitrogen atmosphere and
    bounded below by a sandy soil.
 
+.. note::
+
+   In the previous example, the :python:`soil_surface` may extend above the
+   :python:`water_surface`. This means that lower layers take precedence over
+   higher ones in case of overlaps.
+
 
 Attributes
 ----------
@@ -50,10 +56,10 @@ Attributes
 
    This attribute lists all geometry sectors as a tuple.
 
-   .. warning::
+.. warning::
 
-      Geometry sectors are stored in indexing order. That is,
-      :python:`sectors[0]` corresponds to the bottom layer.
+   Geometry sectors are stored in indexing order. That is, :python:`sectors[0]`
+   corresponds to the bottom layer.
 
 
 Methods

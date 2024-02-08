@@ -84,7 +84,9 @@ div.wy-nav-content a:hover {
 
 /* Admonitions */
 div.admonition.note,
-div.admonition.seealso {
+div.admonition.seealso,
+div.admonition.tip
+{
     background: var(--nord1);
 }
 
@@ -97,6 +99,11 @@ div.admonition.seealso .admonition-title
 
 div.admonition.warning {
     background: var(--nord2);
+}
+
+div.admonition.tip .admonition-title {
+    background: var(--nord2);
+    color: var(--nord14);
 }
 
 div.admonition.warning .admonition-title {
