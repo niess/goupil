@@ -24,29 +24,26 @@ over the grid support by using a bilinear interpolation.
 Constructor
 -----------
 
-.. py:class:: TopographyMap(x, y, z=None, shape=None)
+.. py:class:: TopographyMap(x, y, z=None)
 
    The `x` and `y` arguments specify the support of the grid along :math:`x` and
    :math:`y` coordinates. Without additional arguments, an elevation of
    :python:`0` is considered. For instance,
 
-   >>> zero = goupil.TopographyMap([-1, 1], [-1, 1])
+   >>> zero = goupil.TopographyMap([-1e5, 1e5], [-1e5, 1e5])
 
    represents zero elevation (:math:`f = 0`) over the support
-   :math:`[-1,1]\times[-1,1]` cm\ :sup:`2`. Optionaly, the `shape` of the
-   elevation grid can be specified as a length-2 sequence :math:`(n_y, n_x)`,
-   e.g. as
-
-   >>> dem = goupil.TopographyMap([-1, 1], [-2, 2], shape=(21, 41))
-
-   creates an elevation grid with 41 nodes along the :math:`x`-axis and 21 along
-   the :math:`y`-axis. A `z` argument can also be provided, as a
-   :external:py:class:`float` or :external:py:class:`numpy.ndarray`, in order to
-   initialise the elevation grid.
+   :math:`[-1,1]\times[-1,1]` km\ :sup:`2`. A `z` argument can also be provided,
+   as a :external:py:class:`float` or 2D :external:py:class:`numpy.ndarray`, in
+   order to initialise the elevation grid.
 
 
 Attributes
 ----------
+
+.. note::
+
+   :doc:`topography_map` attributes are read-only.
 
 .. py:attribute:: TopographyMap.x
    :type: numpy.ndarray
@@ -61,12 +58,7 @@ Attributes
 .. py:attribute:: TopographyMap.z
    :type: numpy.ndarray
 
-   The grid of :math:`z_{ij}` values. These values can be modified in-place,
-   e.g. as
-
-   >>> dem.z[0,0] = 1.0 # cm
-
-   However, the grid cannot be reshaped.
+   The grid of :math:`z_{ij}` values.
 
 .. py:attribute:: TopographyMap.box
    :type: tuple

@@ -18,6 +18,8 @@ pub struct TopographyMap {
     x: LinearGrid,
     y: LinearGrid,
     pub(crate) z: MapData,
+    pub(crate) zmin: Float,
+    pub(crate) zmax: Float,
 }
 
 pub(crate) enum MapData {
@@ -28,19 +30,21 @@ pub(crate) enum MapData {
 // Public interface.
 impl TopographyMap {
     pub fn new(xrange: &[Float; 2], yrange: &[Float; 2], shape: Option<&[usize; 2]>) -> Self {
+        let zmin = 0.0;
+        let zmax = 0.0;
         match shape {
             None => {
                 let x = LinearGrid::new(xrange[0], xrange[1], 2);
                 let y = LinearGrid::new(yrange[0], yrange[1], 2);
                 let z = MapData::Scalar(0.0);
-                Self { x, y, z }
+                Self { x, y, z, zmin, zmax }
             },
             Some(shape) => {
                 let [ny, nx] = shape;
                 let x = LinearGrid::new(xrange[0], xrange[1], *nx);
                 let y = LinearGrid::new(yrange[0], yrange[1], *ny);
                 let z = MapData::Interpolator(BilinearInterpolator::new(*ny, *nx));
-                Self { x, y, z }
+                Self { x, y, z, zmin, zmax }
             }
         }
     }
@@ -110,6 +114,13 @@ impl MapBox {
         if other.ymax < self.ymax {
             self.ymax = other.ymax;
         }
+    }
+
+    fn inside(&self, x: Float, y: Float) -> bool {
+        (x >= self.xmin) &&
+        (x <= self.xmax) &&
+        (y >= self.ymin) &&
+        (y <= self.ymax)
     }
 }
 
@@ -302,7 +313,24 @@ impl StratifiedGeometry {
             .iter()
             .map(|m| m.z(x, y))
             .collect();
-        let get_z = |interface: &ResolvedSurface| -> Option<Float> {
+        let get_z = |interface: &ResolvedSurface, i: usize, n: usize| -> Option<Float> {
+            if interface.maps.len() == 0 {
+                return if i == 0 {
+                    if self.size.inside(x, y) {
+                        Some(-Float::INFINITY)
+                    } else {
+                        None
+                    }
+                } else if i == n - 1 {
+                    if self.size.inside(x, y) {
+                        Some(Float::INFINITY)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
             for index in interface.maps.iter() {
                 let value = z_map[*index];
                 if let Some(value) = value {
@@ -312,8 +340,9 @@ impl StratifiedGeometry {
             None
         };
         let mut result = Vec::<Option<Float>>::with_capacity(self.interfaces.len());
-        for interface in self.interfaces.iter() {
-            let zi = get_z(interface);
+        let n = self.interfaces.len();
+        for (i, interface) in self.interfaces.iter().enumerate() {
+            let zi = get_z(interface, i, n);
             result.push(zi);
         }
         result
@@ -382,6 +411,8 @@ pub struct StratifiedTracer<'a> {
     next_delta: Float,
     cache: Vec<CachedValue<'a>>,
     delta_min: Float,
+    zmin: Float,
+    zmax: Float,
 }
 
 struct CachedValue<'a> {
@@ -513,6 +544,20 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
         };
         let delta_min = delta_min.unwrap_or(1E+02);
 
+        let (zmin, zmax) = {
+            let mut zmin = Float::INFINITY;
+            let mut zmax = -Float::INFINITY;
+            for interface in definition.interfaces.iter() {
+                for i in interface.maps.iter() {
+                    let z = definition.maps[*i].zmin + interface.offset;
+                    if z < zmin { zmin = z }
+                    let z = definition.maps[*i].zmax + interface.offset;
+                    if z > zmax { zmax = z }
+                }
+            }
+            (zmin, zmax)
+        };
+
         Ok(Self {
             definition,
             position,
@@ -523,7 +568,9 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
             outer_length,
             next_delta,
             cache,
-            delta_min
+            delta_min,
+            zmin,
+            zmax,
         })
     }
 
@@ -571,6 +618,27 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
             dx.min(dy)
         };
 
+        // Check unbounded cases.
+        if self.current_sector.is_some() {
+            let mut unbounded = false;
+            if self.direction.2 < 0.0 {
+                if self.position.2 < self.zmin {
+                    unbounded = true;
+                }
+            } else if self.direction.2 > 0.0 {
+                if self.position.2 > self.zmax {
+                    unbounded = true;
+                }
+            }
+
+            if unbounded {
+                self.inner_length = side_length;
+                self.outer_length = side_length;
+                self.next_sector = None;
+                return Ok(side_length)
+            }
+        }
+
         // Compute tentative step length.
         let factor = self.direction.2.abs().max(0.4);
         let mut inner_length = (self.next_delta * factor)
@@ -585,7 +653,7 @@ impl<'a> GeometryTracer<'a, StratifiedGeometry> for StratifiedTracer<'a> {
         } else {
             let mut s0 = 0.0;
             let mut s1 = inner_length;
-            while s1 - s0 > 1E-03 {
+            while s1 - s0 > 1E-04 {
                 let si = 0.5 * (s0 + s1);
                 let ri = self.position + si * self.direction;
                 let (sector_i, delta_i) = self.locate(ri);

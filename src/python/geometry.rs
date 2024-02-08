@@ -240,39 +240,21 @@ impl PyTopographyMap {
         xrange: [Float; 2],
         yrange: [Float; 2],
         z: Option<ArrayOrFloat>,
-        shape: Option<[usize; 2]>,
     ) -> Result<Py<Self>> {
-        let shape = match shape {
-            None => match z.as_ref() {
-                None => None,
-                Some(z) => match z {
-                    ArrayOrFloat::Array(z) => {
-                        let shape = z.shape();
-                        if shape.len() != 2 {
-                            value_error!(
-                                "bad shape for z-array (expected a 2D array, found a {}D array)",
-                                shape.len(),
-                            )
-                        }
-                        Some([shape[0], shape[1]])
-                    },
-                    ArrayOrFloat::Float(_) => None,
-                },
-            },
-            Some(shape) => {
-                if let Some(z) = z.as_ref() {
-                    if let ArrayOrFloat::Array(z) = z {
-                        let size = shape[0] * shape[1];
-                        if z.size() != size {
-                            value_error!(
-                                "bad size for z-array (expected {}, found {})",
-                                size,
-                                z.size()
-                            )
-                        }
+        let shape = match z.as_ref() {
+            None => None,
+            Some(z) => match z {
+                ArrayOrFloat::Array(z) => {
+                    let shape = z.shape();
+                    if shape.len() != 2 {
+                        value_error!(
+                            "bad shape for z-array (expected a 2D array, found a {}D array)",
+                            shape.len(),
+                        )
                     }
-                }
-                Some(shape)
+                    Some([shape[0], shape[1]])
+                },
+                ArrayOrFloat::Float(_) => None,
             },
         };
 
@@ -300,18 +282,24 @@ impl PyTopographyMap {
                     for i in 0..shape[0] {
                         for j in 0..shape[1] {
                             let k = i * shape[1] + j;
-                            interpolator[(i, j)] = match z {
+                            let zij = match z {
                                 ArrayOrFloat::Array(z) => z.get(k)?,
                                 ArrayOrFloat::Float(z) => *z,
                             };
+                            interpolator[(i, j)]  = zij;
+                            if zij < map.zmin { map.zmin = zij };
+                            if zij > map.zmax { map.zmax = zij };
                         }
                     }
                 },
                 MapData::Scalar(value) => {
-                    *value = match z {
+                    let z = match z {
                         ArrayOrFloat::Float(z) => *z,
                         _ => unreachable!(),
-                    }
+                    };
+                    *value = z;
+                    map.zmin = z;
+                    map.zmax = z;
                 },
             }
         }
@@ -333,7 +321,7 @@ impl PyTopographyMap {
                 py,
                 interpolator.as_ref(),
                 result.as_ref(py),
-                PyArrayFlags::ReadWrite,
+                PyArrayFlags::ReadOnly,
                 Some(&shape.unwrap()),
             )?,
             MapData::Scalar(z) => PyScalar::<Float>::new(py, *z)?.as_ref(),
