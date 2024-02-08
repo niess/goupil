@@ -254,7 +254,7 @@ impl<'py> MaterialLike<'py> {
 
         // Build a new table.
         let definition = self.unpack()?;
-        let registry = self.new_registry(py, &definition)?;
+        let registry = Self::new_registry(py, &definition)?;
         let mut composition = Vec::<(Float, &RayleighCrossSection)>::default();
         for (weight, element) in definition.mole_composition().iter() {
             let cross_section = match registry.scattering_cs.get(element) {
@@ -281,7 +281,7 @@ impl<'py> MaterialLike<'py> {
 
         // Build a new table.
         let definition = self.unpack()?;
-        let registry = self.new_registry(py, &definition)?;
+        let registry = Self::new_registry(py, &definition)?;
         let mut composition = Vec::<(Float, &RayleighFormFactor)>::default();
         for (weight, element) in definition.mole_composition().iter() {
             let form_factor = match registry.scattering_ff.get(element) {
@@ -320,8 +320,7 @@ impl<'py> MaterialLike<'py> {
 
 // Private interface.
 impl<'py> MaterialLike<'py> {
-    fn new_registry(
-        &self,
+    pub(crate) fn new_registry(
         py: Python,
         definition: &MaterialDefinition
     ) -> Result<MaterialRegistry> {
@@ -646,6 +645,13 @@ impl PyMaterialRecord {
 
 #[pymethods]
 impl PyMaterialRecord {
+    fn __repr__(&self) -> &str {
+        match &self.proxy {
+            RecordProxy::Borrowed {name, ..} => name.as_str(),
+            RecordProxy::Owned(record) => record.definition.name(),
+        }
+    }
+
     #[getter]
     fn get_definition(&mut self, py: Python) -> Result<Py<PyMaterialDefinition>> {
         match &self.definition {

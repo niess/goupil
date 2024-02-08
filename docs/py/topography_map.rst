@@ -85,6 +85,11 @@ Methods
    :python:`True`, then a 2D grid of elevation values is returned over the outer
    product of `x` and `y`. For instance,
 
+   .. doctest::
+      :hide:
+
+      >>> xmin, xmax, ymin, ymax = -1, 1, -1, 1
+
    >>> z = dem(
    ...     numpy.linspace(xmin, xmax, 101),
    ...     numpy.linspace(ymin, ymax, 201),

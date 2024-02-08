@@ -14,7 +14,7 @@ Constructor
    The constructor argument(s) should match one of the attributes described
    below. For instance
 
-   >>> compton = goupil.ComptonProcess(model="Penelope", precision=10.0)
+   >>> compton = goupil.ComptonProcess(model="Klein-Nishina")
 
    .. note::
 
@@ -119,7 +119,8 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> compton.cross_section(1.0, H2O) # doctest: +SKIP
+   >>> compton.cross_section(1.0, "H2O")
+   2.112...e-24
 
 .. py:method:: ComptonProcess.dcs(energy_in, energy_out, material)
 
@@ -132,7 +133,8 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> compton.dcs(1.0, 0.8, H2O) # doctest: +SKIP
+   >>> compton.dcs(1.0, 0.8, "H2O")
+   2.308...e-24
 
 .. py:method:: ComptonProcess.dcs_support(energy)
 
@@ -144,7 +146,8 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> compton.dcs_support(1.0) # doctest: +SKIP
+   >>> compton.dcs_support(1.0)
+   (0.203..., 1.0)
 
 .. py:method:: ComptonProcess.sample(energy, material, rng=None)
 
@@ -159,4 +162,4 @@ Methods
    Examples
    ^^^^^^^^
 
-   >>> compton.sample(1.0, H20) # doctest: +SKIP
+   >>> energy, cos_theta, weight = compton.sample(1.0, "H20")

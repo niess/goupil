@@ -61,8 +61,8 @@ troposphere).
 
 We also need to define the interface between the lower and upper layers. This is
 done using a Digital Elevation Model (DEM). For this example, we will create a
-flat interface at :math:`z = 0\,\text{m}`, covering :math:`[-1, 1] \times [-1,
-1]\,\text{km}^2` in :math:`(x, y)`. This is done as
+flat interface at :math:`z = 0` m, covering :math:`[-1, 1] \times [-1,
+1]` km\ :sup:`2` in :math:`(x, y)`. This is done as
 
 >>> interface = goupil.TopographyMap((-1e5, 1e5), (-1e5, 1e5), z=0)
 

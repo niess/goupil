@@ -31,6 +31,11 @@ Attributes
    the charge numbers of its constituent parts, and for mixtures, it is the
    average charge number of its constituent parts. For instance
 
+   .. doctest::
+      :hide:
+
+      >>> H2O = goupil.MaterialDefinition("H2O")
+
    >>> H2O.electrons().charge
    10.0
 
@@ -41,5 +46,5 @@ Attributes
    electronic shells, i.e. the shell binding *energy*, average *momentum* and
    *occupancy*. For example
 
-   >>> H.electrons().shells["occupancy"]
-   array([1.]
+   >>> H2O.electrons().shells["occupancy"]
+   array([2., 2., 2., 2., 2.])

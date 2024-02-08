@@ -41,11 +41,9 @@ Examples
 
 Instantiate a size 3 array of photons with default values.
 
->>> goupil.states(3)
-array([...], dtype=...)
+>>> states = goupil.states(3)
 
 As before, but with a specified photon energy of :python:`0.5` MeV for all
 states.
 
->>> goupil.states(3, energy=0.5)
-array([...], dtype=...)
+>>> states = goupil.states(3, energy=0.5)

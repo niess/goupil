@@ -34,7 +34,7 @@ Methods
    :doc:`material_definition`. For instance,
 
    >>> goupil.RayleighProcess.cross_section(0.1, "H2O")
-   1.600238e-25
+   1.600...e-25
 
 .. py:method:: RayleighProcess.dcs(energy, cos_theta, material)
 

@@ -17,7 +17,7 @@ Constructor
    Loads a Monte Carlo geometry from a shared library located at the specified
    *path*. For example, on a Linux system,
 
-   >>> geometry = goupil.ExternalGeometry("/path/to/libgeometry.so")
+   >>> geometry = goupil.ExternalGeometry("/path/to/libgeometry.so") # doctest: +SKIP
 
 
 Attributes

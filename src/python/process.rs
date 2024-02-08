@@ -9,11 +9,12 @@ use crate::physics::process::compton::{
     ComptonMethod,
 };
 use crate::physics::process::rayleigh::{RayleighMode, sample::RayleighSampler};
+use crate::transport::TransportSettings;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use super::macros::{key_error, not_implemented_error, value_error};
-use super::materials::{MaterialLike, PyMaterialRecord};
-use super::numpy::{ArrayOrFloat, PyArray};
+use super::materials::MaterialLike;
+use super::numpy::{ArrayOrFloat, PyArray, PyScalar};
 use super::rand::PyRandomStream;
 
 
@@ -217,6 +218,7 @@ impl PyComptonProcess {
                     energy_max,
                     &electrons,
                 )?;
+                let result = PyScalar::<Float>::new(py, result)?;
                 result.into_py(py)
             }
         };
@@ -282,14 +284,28 @@ impl PyComptonProcess {
 
     fn sample(
         &self,
+        py: Python,
         energy: ArrayOrFloat,
-        material: PyRef<PyMaterialRecord>,
+        material: MaterialLike,
         rng: Option<&PyCell<PyRandomStream>>,
     )
     -> Result<PyObject> {
         // Prepare material and generator.
-        let py = material.py();
-        let material = material.get(py)?;
+        // let material = material.get(py)?;
+        let mut registry;
+        let material = match &material {
+            MaterialLike::Record(record) => record.get(py)?,
+            _ => {
+                let definition = material.unpack()?;
+                registry = MaterialLike::new_registry(py, &definition)?;
+                let mut settings = TransportSettings::default();
+                settings.compton_method = self.sampler.method;
+                settings.compton_mode = self.sampler.mode;
+                settings.compton_model = self.sampler.model;
+                registry.compute(&settings, None, None, None)?;
+                registry.get(definition.name())?
+            }
+        };
 
         let rng: &PyCell<PyRandomStream> = match rng {
             None => PyCell::new(py, PyRandomStream::new(None)?)?,

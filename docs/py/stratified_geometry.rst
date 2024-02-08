@@ -20,6 +20,12 @@ Constructor
    The geometry is specified in reading order, with the first element of the
    sequence located on top of the geometry. For instance, the following
 
+   .. doctest::
+      :hide:
+
+      >>> water_surface = goupil.TopographyMap((-1e5, 1e5), (-1e5, 1e5))
+      >>> soil_surface = goupil.TopographyMap((-1e5, 1e5), (-1e5, 1e5), z=-1e2)
+
    >>> geometry = goupil.StratifiedGeometry(
    ...     goupil.GeometrySector("N2", 1.205E-03),
    ...     water_surface,
@@ -86,6 +92,11 @@ Methods
    If the *density* parameter is set to :python:`True`, this function will
    return the column depth (grammage) along rays, in each sector, rather than
    the path length.
+
+.. note::
+
+   The `Turtle <https://niess.github.io/turtle-pages/>`_ algorithm is used to
+   perform ray tracing. For more information, refer to [Niess20]_.
 
 .. py:method:: StratifiedGeometry.z(x, y, grid=None) -> numpy.ndarray
 

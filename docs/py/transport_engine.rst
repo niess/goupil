@@ -17,6 +17,11 @@ Constructor
    to initialise the attributes described below (following lexicographic order
    for positional syntax).
 
+   .. doctest::
+      :hide:
+
+      >>> geometry = goupil.SimpleGeometry("H2O", 1.0)
+
    >>> engine = goupil.TransportEngine(geometry)
 
 
@@ -48,7 +53,7 @@ Attributes
    accessible directly from the engine for convenience, such as
 
    >>> engine.compton_model
-   "Scattering Function"
+   'Scattering Function'
 
 
 Methods

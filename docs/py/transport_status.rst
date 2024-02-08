@@ -68,4 +68,4 @@ Methods
    Returns a string representation of a transport status *code*. For instance,
 
    >>> goupil.TransportStatus.str(5)
-   "Exit"
+   'Exit'

@@ -20,8 +20,7 @@ Constructor
    To initialise a new registry with some `materials`, specify their definitions
    as positional arguments. For example
 
-   >>> goupil.MaterialRegistry("H2O", "SiO2")
-   {H20, SiO2}
+   >>> registry = goupil.MaterialRegistry("H2O", "SiO2")
 
 
 Methods

@@ -95,7 +95,7 @@ The previous geometry library is imported in Python by using an
 Then, the geometry library (let's say :python:`"libgeometry.so"` on Linux) is
 loaded as
 
->>> geometry = goupil.ExternalGeometry("path/to/libgeometry.so")
+>>> geometry = goupil.ExternalGeometry("path/to/libgeometry.so") # doctest: +SKIP
 
 According to Goupil's model, a Monte Carlo geometry is a set of sectors that are
 connected by one or more interface. Each sector is filled with a material that
@@ -105,7 +105,7 @@ Following, an :doc:`py/external_geometry` has two read-only attributes:
 <ExternalGeometry.sectors>`. These attributes list all the materials and sectors
 that are defined by the geometry. For instance, as:
 
->>> geometry.materials
+>>> geometry.materials # doctest: +SKIP
 (G4_AIR, G4_CALCIUM_CARBONATE)
 
 
@@ -118,12 +118,12 @@ the :py:meth:`update_material <ExternalGeometry.update_material>` and
 let us define an exponential :doc:`py/density_gradient` to describe the air
 density in the lower part of the Earth atmosphere (i.e. the troposphere).
 
->>> gradient = goupil.DensityGradient(1.205E-03, 1.04E+05)
+>>> gradient = goupil.DensityGradient(1.205E-03, 1.04E+05) # doctest: +SKIP
 
 Then, the density model of the first sector (index :python:`0`) can be changed
 as:
 
->>> geometry.update_sector(0, density=gradient)
+>>> geometry.update_sector(0, density=gradient) # doctest: +SKIP
 
 .. note::
 
