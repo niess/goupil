@@ -233,6 +233,11 @@ impl PyComptonProcess {
         energy_out: ArrayOrFloat,
         material: MaterialLike
     ) -> Result<PyObject> {
+        if let ComptonModel::Penelope = self.computer.model {
+            not_implemented_error!(
+                "DCS w.r.t. energy is not implemented for Penelope model"
+            );
+        }
         let electrons = material.get_electrons()?;
         let result: PyObject = match energy_out {
             ArrayOrFloat::Array(energy_out) => {
@@ -261,6 +266,11 @@ impl PyComptonProcess {
     }
 
     fn dcs_support(&self, py: Python, energy: ArrayOrFloat) -> Result<PyObject> {
+        if let ComptonModel::Penelope = self.computer.model {
+            not_implemented_error!(
+                "DCS support w.r.t. energy is not implemented for Penelope model"
+            );
+        }
         let result: PyObject = match energy {
             ArrayOrFloat::Array(energy) => {
                 let energy_min = PyArray::<Float>::empty(py, &energy.shape())?;

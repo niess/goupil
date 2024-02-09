@@ -161,6 +161,9 @@ impl ComptonComputer {
             Self::CS_FACTOR * tmp1 / (x0 * x0)
         };
 
+        let (emin, emax) = self.free_dcs_support(energy_in);
+        if (energy_out < emin) || (energy_out > emax) { return 0.0 }
+
         match self.mode {
             Adjoint => {
                 invariant_dcs(energy_out / ELECTRON_MASS, energy_in / ELECTRON_MASS) *

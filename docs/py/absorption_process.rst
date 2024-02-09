@@ -3,8 +3,8 @@
 `AbsorptionProcess`_
 ====================
 
-This class provides access to the implementation of absorption processes, that
-is photoelectric interactions and :math:`e^+ e^-` pair production.
+This class provides access to the implementation of absorption processes, i.e.
+photoelectric interactions and :math:`e^+ e^-` pair production.
 
 .. warning::
 
