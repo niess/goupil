@@ -12,7 +12,7 @@ use serde_derive::{Deserialize, Serialize};
 // Photo-absorption cross-section table, and related utilities.
 // ===============================================================================================
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct AbsorptionCrossSection {
     pub(crate) energies: UnstructuredGrid,
     pub(crate) values: Vec<Float>,

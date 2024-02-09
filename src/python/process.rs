@@ -1,5 +1,6 @@
 use anyhow::Result;
 use crate::numerics::float::{Float, Float3};
+use crate::physics::process::absorption::AbsorptionMode;
 use crate::physics::process::compton::{
     self,
     ComptonModel,
@@ -302,6 +303,8 @@ impl PyComptonProcess {
                 settings.compton_method = self.sampler.method;
                 settings.compton_mode = self.sampler.mode;
                 settings.compton_model = self.sampler.model;
+                settings.absorption = AbsorptionMode::None;
+                settings.rayleigh = RayleighMode::None;
                 registry.compute(&settings, None, None, None)?;
                 registry.get(definition.name())?
             }
@@ -446,6 +449,41 @@ impl PyRayleighProcess {
                 let result = sampler.sample_angle(&mut rng.generator, energy, &form_factor)?;
                 result.into_py(py)
             },
+        };
+        Ok(result)
+    }
+}
+
+
+// ===============================================================================================
+// Python wrapper for absorption process.
+// ===============================================================================================
+#[pyclass(name = "AbsorptionProcess", module = "goupil")]
+pub struct PyAbsorptionProcess ();
+
+#[pymethods]
+impl PyAbsorptionProcess {
+    #[staticmethod]
+    fn cross_section(
+        py: Python,
+        energy: ArrayOrFloat,
+        material: MaterialLike,
+    ) -> Result<PyObject> {
+        let cross_section = material.absorption_cross_section(py)?;
+        let compute = |energy: Float| -> Float {
+            cross_section.interpolate(energy)
+        };
+        let result: PyObject = match energy {
+            ArrayOrFloat::Array(energy) => {
+                let result = PyArray::<Float>::empty(py, &energy.shape())?;
+                let n = energy.size();
+                for i in 0..n {
+                    let v = compute(energy.get(i)?);
+                    result.set(i, v)?;
+                }
+                result.into_py(py)
+            },
+            ArrayOrFloat::Float(energy) => compute(energy).into_py(py),
         };
         Ok(result)
     }

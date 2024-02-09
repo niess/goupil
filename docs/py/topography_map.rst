@@ -81,8 +81,9 @@ Methods
       :hide:
 
       >>> xmin, xmax, ymin, ymax = -1, 1, -1, 1
+      >>> topography = zero
 
-   >>> z = dem(
+   >>> z = topography(
    ...     numpy.linspace(xmin, xmax, 101),
    ...     numpy.linspace(ymin, ymax, 201),
    ...     grid=True

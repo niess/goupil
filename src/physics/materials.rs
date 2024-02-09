@@ -209,7 +209,7 @@ impl Display for MaterialDefinition {
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct MaterialRegistry {
-    absorption: HashMap<&'static AtomicElement, AbsorptionCrossSection>,
+    pub(crate) absorption: HashMap<&'static AtomicElement, AbsorptionCrossSection>,
     elements: Vec<&'static AtomicElement>,
     elements_refs: HashMap<&'static AtomicElement, usize>,
     materials: HashMap<String, MaterialRecord>,

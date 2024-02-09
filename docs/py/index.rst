@@ -20,6 +20,7 @@ Classes
 .. toctree::
    :maxdepth: 1
 
+   absorption_process
    atomic_element
    compton_process
    cross_section

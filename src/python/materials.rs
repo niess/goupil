@@ -243,6 +243,33 @@ impl<'py> MaterialLike<'py> {
         Ok(result)
     }
 
+    pub fn absorption_cross_section(&self, py: Python) -> Result<Cow<AbsorptionCrossSection>> {
+        // Fetch reference to any computed table.
+        if let Self::Record(record) = self {
+            let py = record.py();
+            if let Some(table) = record.get(py)?.absorption_cross_section() {
+                return Ok(Cow::Borrowed(table))
+            }
+        }
+
+        // Build a new table.
+        let definition = self.unpack()?;
+        let registry = Self::new_registry(py, &definition)?;
+        let mut composition = Vec::<(Float, &AbsorptionCrossSection)>::default();
+        for (weight, element) in definition.mole_composition().iter() {
+            let cross_section = match registry.absorption.get(element) {
+                None => value_error!(
+                    "missing scattering cross-section for '{}'",
+                    element.symbol,
+                ),
+                Some(table) => table,
+            };
+            composition.push((*weight, cross_section));
+        }
+        let table = AbsorptionCrossSection::from_others(&composition).unwrap();
+        Ok(Cow::Owned(table))
+    }
+
     pub fn rayleigh_cross_section(&self, py: Python) -> Result<Cow<RayleighCrossSection>> {
         // Fetch reference to any computed table.
         if let Self::Record(record) = self {

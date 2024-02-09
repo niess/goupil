@@ -26,7 +26,7 @@ use self::materials::{
 };
 use self::rand::PyRandomStream;
 use process_path::get_dylib_path;
-use self::process::{PyComptonProcess, PyRayleighProcess};
+use self::process::{PyAbsorptionProcess, PyComptonProcess, PyRayleighProcess};
 use self::transport::{PyTransportEngine, PyTransportSettings, PyTransportStatus};
 use self::transport::{states as states_fun};
 use std::path::PathBuf;
@@ -135,6 +135,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     module.add("PREFIX", prefix(py)?)?;
 
     // Register class object(s).
+    module.add_class::<PyAbsorptionProcess>()?;
     module.add_class::<PyAtomicElement>()?;
     module.add_class::<PyComptonProcess>()?;
     module.add_class::<PyCrossSection>()?;
