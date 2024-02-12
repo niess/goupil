@@ -15,7 +15,7 @@ chemElements = [
     ["Neon", "Ne", 10],
     ["Sodium", "Na", 11],
     ["Magnesium", "Mg", 12],
-    ["Aluminum", "Al", 13],    # Aluminium
+    ["Aluminium", "Al", 13],
     ["Silicon", "Si", 14],
     ["Phosphorus", "P", 15],
     ["Sulfur", "S", 16],
@@ -57,7 +57,7 @@ chemElements = [
     ["Tellurium", "Te", 52],
     ["Iodine", "I", 53],
     ["Xenon", "Xe", 54],
-    ["Caesium", "Cs", 55],   # Cesium
+    ["Caesium", "Cs", 55],
     ["Barium", "Ba", 56],
     ["Lanthanum", "La", 57],
     ["Cerium", "Ce", 58],
@@ -128,11 +128,11 @@ def test_atomic_element():
         # get by sumbol then check by name and atomic number
         el = goupil.AtomicElement(element[1])
         assert(el.name == element[0] and el.Z == element[2])
-        
+
         # get by atomic number then check by name and symbol
         el = goupil.AtomicElement(element[2])
         assert(el.name == element[0] and el.symbol == element[1])
-        
+
         if el.Z < 100:
             e = el.electrons()
             assert(isinstance(e, goupil.ElectronicStructure))
@@ -141,7 +141,7 @@ def test_atomic_element():
             with pytest.raises(RuntimeError) as e:
                 electrons = el.electrons()
             assert str(e.value).startswith("no electronic")
-        
+
         with pytest.raises(AttributeError) as e:
             el.name = "XYZ"
         assert "objects is not writable" in str(e.value)

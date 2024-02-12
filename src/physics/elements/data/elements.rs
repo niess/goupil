@@ -79,7 +79,7 @@ pub static ELEMENTS: [AtomicElement; 118] = [
         A: 24.3056,
     },
     AtomicElement {
-        name: "Aluminum",
+        name: "Aluminium",
         symbol: "Al",
         Z: 13,
         A: 26.98153857,
