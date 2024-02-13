@@ -62,7 +62,11 @@ impl TopographyMap {
             MapData::Interpolator(z) => z.interpolate_raw(i, hi, j, hj),
             MapData::Scalar(z) => *z,
         };
-        Some(zij)
+        if zij.is_nan() {
+            None
+        } else {
+            Some(zij)
+        }
     }
 }
 

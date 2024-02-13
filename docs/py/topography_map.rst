@@ -37,6 +37,10 @@ Constructor
    as a :external:py:class:`float` or 2D :external:py:class:`numpy.ndarray`, in
    order to initialise the elevation grid.
 
+.. note::
+
+   If a grid node has no data, :external:py:data:`numpy.nan` should be used.
+
 
 Attributes
 ----------

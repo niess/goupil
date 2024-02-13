@@ -149,9 +149,13 @@ impl BilinearInterpolator {
 
     pub fn interpolate_raw(&self, i: usize, hi: Float, j: usize, hj: Float) -> Float {
         let f00 = self[(i, j)];
+        if f00.is_nan() { return f00 }
         let f01 = self[(i, j + 1)];
+        if f01.is_nan() { return f01 }
         let f10 = self[(i + 1, j)];
+        if f10.is_nan() { return f10 }
         let f11 = self[(i + 1, j + 1)];
+        if f11.is_nan() { return f11 }
         let ti = 1.0 - hi;
         let tj = 1.0 - hj;
         f00 * ti * tj + f01 * ti * hj + f10 * hi * tj + f11 * hi * hj
