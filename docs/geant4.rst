@@ -118,7 +118,7 @@ the :py:meth:`update_material <ExternalGeometry.update_material>` and
 let us define an exponential :doc:`py/density_gradient` to describe the air
 density in the lower part of the Earth atmosphere (i.e. the troposphere).
 
->>> gradient = goupil.DensityGradient(1.205E-03, 1.04E+05) # doctest: +SKIP
+>>> gradient = goupil.DensityGradient(1.225E-03, 1.04E+06) # doctest: +SKIP
 
 Then, the density model of the first sector (index :python:`0`) can be changed
 as:
