@@ -54,7 +54,7 @@ Then, we specify the air composition as
 We consider an exponential :doc:`py/density_gradient` for the air
 density as
 
->>> density = goupil.DensityGradient(1.205E-03, 1.04E+05)
+>>> density = goupil.DensityGradient(1.225E-03, 1.04E+06)
 
 which would describe the lower part of the Earth's atmosphere (i.e. the
 troposphere).
