@@ -33,13 +33,9 @@ Constructor
 
    Composites, which are mixtures of different materials, may also be defined as
 
-   .. testsetup::
-      >>> SiO2 = goupil.MaterialDefinition("SiO2")
-      >>> H2O = goupil.MaterialDefinition("H2O")
-
    >>> goupil.MaterialDefinition(
    ...     name = "WetSand",
-   ...     mass_composition = ((0.7, SiO2), (0.3, H2O))
+   ...     mass_composition = ((0.7, "SiO2"), (0.3, "H2O"))
    ... )
    ...
    WetSand
@@ -58,6 +54,9 @@ Attributes
    The molar mass of the substance, expressed in grams per mole. For compounds,
    it is the sum of the molar masses of its constituent parts, and for mixtures,
    it is the average molar mass of its constituent parts. For instance
+
+   .. testsetup::
+      >>> H2O = goupil.MaterialDefinition("H2O")
 
    >>> H2O.mass
    18.0167

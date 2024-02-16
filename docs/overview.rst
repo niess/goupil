@@ -142,7 +142,7 @@ array([[0., 0., 1.],
 Then, let us backward propagate the expected photons through the geometry. This
 is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
 
->>> status = engine.transport(states, sources_energies=1.0)
+>>> status = engine.transport(states, source_energies=1.0)
 
 .. warning::
 
@@ -150,7 +150,7 @@ is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
    *states* array in-place. After completion, the *states* array will
    contain the propagated photons instead of the original ones.
 
-The second argument, *sources_energies*, requires further explanation. When
+The second argument, *source_energies*, requires further explanation. When
 running a backward Monte Carlo simulation, information about sources is needed
 to correctly terminate the transport. Goupil considers two types of sources:
 
@@ -164,7 +164,7 @@ the energy of volume sources.
 
 .. note::
 
-   The *sources_energies* argument should be omitted if there are no volume
+   The *source_energies* argument should be omitted if there are no volume
    sources or in the case of a forward Monte Carlo.
 
 .. tip::

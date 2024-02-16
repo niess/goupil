@@ -52,10 +52,26 @@ use std::path::PathBuf;
 #[pyclass(name = "MaterialDefinition", module = "goupil")]
 pub struct PyMaterialDefinition (pub MaterialDefinition);
 
-#[derive(FromPyObject)]
 enum Element<'py> {
     Object(PyRef<'py, PyAtomicElement>),
     Symbol(&'py str),
+}
+
+impl<'py> FromPyObject<'py> for Element<'py> {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
+        let result: PyResult<PyRef<PyAtomicElement>> = ob.extract();
+        if let PyResult::Ok(result) = result {
+            return PyResult::Ok(Self::Object(result));
+        }
+        let result: PyResult<&str> = ob.extract();
+        match result {
+            PyResult::Ok(symbol) => {
+                AtomicElement::from_symbol(symbol)?;
+                PyResult::Ok(Self::Symbol(symbol))
+            },
+            PyResult::Err(err) => PyResult::Err(err),
+        }
+    }
 }
 
 impl<'py> Element<'py> {
@@ -74,9 +90,30 @@ impl<'py> Element<'py> {
 }
 
 #[derive(FromPyObject)]
+enum Material<'py> {
+    Formula(&'py str),
+    Object(PyRef<'py, PyMaterialDefinition>),
+}
+
+impl<'py> Material<'py> {
+    fn get(&self) -> Result<Cow<MaterialDefinition>> {
+        let material = match self {
+            Material::Formula(material) => Cow::Owned(MaterialDefinition::from_formula(material)?),
+            Material::Object(material) => Cow::Borrowed(&material.0),
+        };
+        Ok(material)
+    }
+
+    fn weight(&self, value: Float) -> Result<(Float, Cow<MaterialDefinition>)> {
+        let material = self.get()?;
+        Ok((value, material))
+    }
+}
+
+#[derive(FromPyObject)]
 enum PyMassComposition<'py> {
     Atomic(Vec<(Float, Element<'py>)>),
-    Material(Vec<(Float, PyRef<'py, PyMaterialDefinition>)>),
+    Material(Vec<(Float, Material<'py>)>),
 }
 
 type PyMoleComposition<'py> = Vec<(Float, Element<'py>)>;
@@ -129,11 +166,16 @@ impl PyMaterialDefinition {
                             MaterialDefinition::from_mass(name, &composition)
                         },
                         PyMassComposition::Material(composition) => {
-                            let composition: Vec<_> = composition
+                            let composition: Result<Vec<_>> = composition
                                 .iter()
-                                .map(|(weight, material)| (*weight, &material.0))
+                                .map(|(weight, material)| material.weight(*weight))
                                 .collect();
-                            MaterialDefinition::from_others(name, &composition)
+                            let composition = composition?;
+                            let references: Vec<_> = composition
+                                .iter()
+                                .map(|(weight, material)| (*weight, material.as_ref()))
+                                .collect();
+                            MaterialDefinition::from_others(name, &references)
                         },
                     }
                 },
