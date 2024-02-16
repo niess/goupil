@@ -381,6 +381,8 @@ impl ComputeZ for PyTopographyMap {
 #[pyclass(name = "TopographySurface", module = "goupil")]
 pub struct PyTopographySurface {
     inner: TopographySurface,
+
+    #[pyo3(get)]
     maps: Py<PyTuple>,
 }
 
@@ -413,6 +415,11 @@ impl PyTopographySurface {
         let maps: Py<PyTuple> = args.into_py(py);
         let result = Self { inner, maps };
         Ok(result)
+    }
+
+    #[getter]
+    fn get_offset(&self) -> Float {
+        self.inner.offset
     }
 
     fn __add__(lhs: PyRef<Self>, rhs: Float) -> Self {
