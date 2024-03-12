@@ -19,6 +19,12 @@ Constructor
 
    >>> geometry = goupil.ExternalGeometry("/path/to/libgeometry.so") # doctest: +SKIP
 
+.. warning::
+
+   One must specify an absolute or explicit relative path to the geometry
+   library, unless it is known system wide (e.g. located under
+   :c:`LD_LIBRARY_PATH` on a Linux system).
+
 
 Attributes
 ----------
@@ -30,10 +36,29 @@ Attributes
    <ExternalGeometry.update_material>` and :py:meth:`update_sector
    <ExternalGeometry.update_sector>` methods described below.
 
+.. py:attribute:: ExternalGeometry.lib
+   :type: ~ctypes.CDLL
+
+   This attribute provides a :external:py:mod:`ctypes`  representation of the
+   geometry library.
+
+.. tip::
+
+   The :py:attr:`lib <ExternalGeometry.lib>` attribute grants access to
+   user-defined functions that are embedded in the geometry library. These
+   functions can be used for various purposes, such as initializing Monte Carlo
+   states. This use case is exemplified by `examples/geant4/
+   <https://github.com/niess/goupil/tree/master/examples/geant4>`_\ .
+
 .. py:attribute:: ExternalGeometry.materials
    :type: tuple[MaterialDefinition]
 
    This attribute lists all geometry materials as a tuple.
+
+.. py:attribute:: ExternalGeometry.path
+   :type: str
+
+   This attribute contains the path to the geometry library.
 
 .. py:attribute:: ExternalGeometry.sectors
    :type: tuple[GeometrySector]

@@ -37,6 +37,19 @@ struct goupil_float3 {
 
 
 /* ============================================================================
+ *  Monte Carlo state interface.
+ * ============================================================================
+ */
+struct goupil_state {
+    goupil_float_t energy;
+    struct goupil_float3 position;
+    struct goupil_float3 direction;
+    goupil_float_t length;
+    goupil_float_t weight;
+};
+
+
+/* ============================================================================
  *  Geometry definition interface.
  * ============================================================================
  */

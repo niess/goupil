@@ -119,6 +119,10 @@ impl PySimpleGeometry {
 pub struct PyExternalGeometry {
     pub inner: ExternalGeometry,
 
+    cdll: PyObject,
+    #[pyo3(get)]
+    path: String,
+
     #[pyo3(get)]
     materials: PyObject,
     #[pyo3(get)]
@@ -130,6 +134,7 @@ impl PyExternalGeometry {
     #[new]
     pub fn new(py: Python, path: &str) -> Result<Self> {
         let inner = unsafe { ExternalGeometry::new(path)? };
+        let cdll = py.None();
         let materials: &PyTuple = {
             let mut materials = Vec::<PyObject>::with_capacity(inner.materials.len());
             for material in inner.materials.iter() {
@@ -153,8 +158,22 @@ impl PyExternalGeometry {
             PyTuple::new(py, sectors?).into_py(py)
         };
         let materials: PyObject = materials.into_py(py);
-        let result = Self { inner, materials, sectors };
+        let path = path.to_string();
+        let result = Self { inner, cdll, path, materials, sectors };
         Ok(result)
+    }
+
+    #[getter]
+    fn get_lib(&mut self, py: Python) -> Result<PyObject> {
+        if self.cdll.is_none(py) {
+            let loader = py
+                .import("ctypes")?
+                .getattr("cdll")?
+                .getattr("LoadLibrary")?;
+            let cdll = loader.call1((self.path.as_str(),))?;
+            self.cdll = cdll.into_py(py);
+        }
+        Ok(self.cdll.clone_ref(py))
     }
 
     fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
