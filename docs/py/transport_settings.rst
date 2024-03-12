@@ -103,14 +103,14 @@ Attributes
    :type: str
 
    This flag controls the direction of flow for Monte Carlo transport. Switching
-   this flag between :python:`"Backward"` and :python:`"Forward"` results in a
+   this flag between :python:`"Backwards"` and :python:`"Forward"` results in a
    default set of settings being selected. Use the :py:attr:`compton_mode
    <TransportSettings.compton_mode>` attribute instead if thinner control is
    needed.
 
    .. list-table::
 
-      * - :python:`"Backward"`
+      * - :python:`"Backwards"`
         - Reverse Monte Carlo transport.
 
       * - :python:`"Forward"`
@@ -125,5 +125,5 @@ Attributes
 .. py:attribute:: TransportSettings.volume_sources
    :type: bool
 
-   This flag controls whether the backward Monte Carlo transport considers
+   This flag controls whether the backwards Monte Carlo transport considers
    volume sources with discrete energies or not.

@@ -22,7 +22,7 @@ use super::{
     density::DensityModel,
     geometry::{GeometryDefinition, GeometrySector, GeometryTracer},
     PhotonState,
-    TransportMode::{Backward, Forward},
+    TransportMode::{Backwards, Forward},
     TransportSettings,
 };
 
@@ -129,9 +129,9 @@ where
         // Check configuration.
         compton::validate(settings.compton_model, settings.compton_mode, settings.compton_method)?;
         match settings.mode {
-            Backward => match settings.compton_mode {
+            Backwards => match settings.compton_mode {
                 Direct => bail!(
-                    "bad compton mode for backward transport (expected '{}', '{}' or '{}', \
+                    "bad compton mode for backwards transport (expected '{}', '{}' or '{}', \
                         found '{}')",
                     Adjoint, Inverse, ComptonMode::None,
                     settings.compton_mode,

@@ -33,8 +33,8 @@ limestone and an upper layer filled with air.
 
 .. note::
 
-   Goupil also allows :doc:`py/external_geometry` to be plugged in via its
-   :doc:`c/index`. In particular, Goupil comes with a :doc:`geant4`.
+   Goupil also allows an :doc:`py/external_geometry` to be plugged in via its
+   :doc:`c/index`. In particular, Goupil includes a :doc:`geant4`.
 
 We start by importing the :doc:`goupil <py/index>` module as
 
@@ -51,7 +51,7 @@ Then, we specify the air composition as
 ...     )
 ... )
 
-We consider an exponential :doc:`py/density_gradient` for the air
+Let us consider an exponential :doc:`py/density_gradient` for the air
 density as
 
 >>> density = goupil.DensityGradient(1.225E-03, 1.04E+06)
@@ -109,11 +109,11 @@ specific seed value.
 
    Setting a seed has the effect of reseting the pseudo-random stream.
 
-The transport engine is set to perform a classical (forward) Monte Carlo
-simulation by default. Let us instead configure the engine for backward
+The transport engine is set to perform a conventional (forward) Monte Carlo
+simulation by default. Let us instead configure the engine for backwards
 transport. This is done as:
 
->>> engine.mode = "Backward"
+>>> engine.mode = "Backwards"
 
 .. tip::
 
@@ -129,7 +129,7 @@ photons with an energy of :python:`0.5` MeV, located at :math:`z =
 
 The :doc:`py/states` function returns a `numpy structured array
 <https://numpy.org/doc/stable/user/basics.rec.html>`_ of states, containing the
-photons energies, their locations, etc. Since we perform a backward simulation,
+photons energies, their locations, etc. Since we perform a backwards simulation,
 these states represent expected final states, e.g., at a particular observation
 point. In practice, it is also necessary to specify the arrival directions of
 these photons. However, for the purposes of this overview, default values will
@@ -139,7 +139,7 @@ be used. That is
 array([[0., 0., 1.],
 ...
 
-Then, let us backward propagate the expected photons through the geometry. This
+Then, let us backwards propagate the expected photons through the geometry. This
 is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
 
 >>> status = engine.transport(states, source_energies=1.0)
@@ -147,11 +147,11 @@ is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
 .. warning::
 
    The :py:meth:`transport <TransportEngine.transport>` method modifies the
-   *states* array in-place. After completion, the *states* array will
+   *states* array in-place. Thus, after completion, the *states* array will
    contain the propagated photons instead of the original ones.
 
 The second argument, *source_energies*, requires further explanation. When
-running a backward Monte Carlo simulation, information about sources is needed
+running a backwards Monte Carlo simulation, information about sources is needed
 to correctly terminate the transport. Goupil considers two types of sources:
 
 - Surface sources with a distributed energy spectrum, such as an external flux
@@ -169,7 +169,7 @@ the energy of volume sources.
 
 .. tip::
 
-   In a backward transport, contained surface sources (i.e. not located on an
+   In a backwards transport, contained surface sources (i.e. not located on an
    outer boundary of the geometry) can be specified as a sector
    :py:attr:`boundary <TransportSettings.boundary>` at the level of the
    :doc:`py/transport_engine`.
@@ -180,7 +180,7 @@ Inspecting results
 
 The :py:meth:`transport <TransportEngine.transport>` method returns an array of
 integer codes (:doc:`py/transport_status`) which indicate the termination
-condition for each propagated photon. For instance, backward propagated photons
+condition for each propagated photon. For instance, backwards propagated photons
 that are consistent with a volume source can be selected as follows:
 
 >>> constrained = (status == goupil.TransportStatus.ENERGY_CONSTRAINT)
@@ -200,12 +200,12 @@ Computing an estimate
 ---------------------
 
 An important property that you will use is the transport weight (hereafter noted
-:math:`\omega`) associated with each backward propagated photon. These weights
+:math:`\omega`) associated with each backwards propagated photon. These weights
 are given as:
 
 >>> weights = states["weight"]
 
-A backward Monte Carlo estimate of the gamma-ray flux for the expected
+A backwards Monte Carlo estimate of the gamma-ray flux for the expected
 state :math:`\mathcal{S}_f` is given by
 
 .. math::
@@ -215,7 +215,7 @@ state :math:`\mathcal{S}_f` is given by
         S(\mathcal{S}_i)
    },
 
-where the :math:`\mathcal{S}_i` denote the :math:`N` backward sampled
+where the :math:`\mathcal{S}_i` denote the :math:`N` backwards sampled
 photon states, and where the source term :math:`S` depends on the
 termination condition of each Monte Carlo event, as
 
@@ -257,7 +257,7 @@ can be written as
 where it should be understood that the sum only runs over events with an
 :python:`ENERGY_CONSTRAINT` termination, but the normalisation :math:`N`
 considers all simulated events. The quantity :math:`K` can be interpreted as a
-sensitivity to volume sources. It is estimated as
+sensitivity factor to volume sources. It is estimated as
 
 >>> K = sum(weights[constrained]) / weights.size
 

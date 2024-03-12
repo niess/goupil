@@ -1,12 +1,14 @@
 Goupil
 ======
 
-Goupil is a Monte Carlo transport engine designed for low-energy gamma photons
-(0.1-3 MeV), typically emitted by radio-isotopes like radon-222 descendants. By
-using a backward algorithm and making a few approximations, Goupil can
-significantly accelerate Monte Carlo simulations, resulting in computation time
-savings of up to 5 orders of magnitude in certain cases. For more information,
-or for citing Goupil, please refer to [Niess24]_.
+(**G**\ amma transp\ **O**\ rt **U**\ tility, a\ **P**\ proximate but revert\ **I**\ b\ **L**\ e)
+
+Goupil is a Monte Carlo transport engine designed for low-energy gamma-rays
+(0.1-3 MeV), typically emitted from radioactive isotopes. By using a backwards
+transport algorithm, and making a few approximations, Goupil can significantly
+accelerate Monte Carlo simulations, resulting in computation time savings of up
+to 5 orders of magnitude in the air. For an academic description of Goupil, or
+for citing Goupil, please refer to [Niess24]_.
 
 
 Documentation
