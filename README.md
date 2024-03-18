@@ -1,5 +1,5 @@
 # Goupil <img src="https://github.com/niess/goupil/blob/master/docs/goupil.svg" width="30"> [![Documentation Status][RTD_BADGE]][RTD]
-(_**G**amma transp**O**rt **U**tility, a**P**proximate but revert**I**b**L**e_)
+(_**G**amma transp**O**rt **U**tility, a**P**proximate but revers**I**b**L**e_)
 
 ## Documentation
 

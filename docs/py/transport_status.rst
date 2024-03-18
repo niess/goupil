@@ -37,7 +37,7 @@ Attributes
 .. py:attribute:: TransportStatus.ENERGY_CONSTRAINT
 
    Indicates that the photon reached the energy constraint of a potential volume
-   source, during backwards transport.
+   source, during backward transport.
 
 .. py:attribute:: TransportStatus.ENERGY_MAX
 

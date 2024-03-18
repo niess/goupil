@@ -10,7 +10,7 @@ use crate::transport::{
     agent::{TransportAgent, TransportBoundary, TransportStatus},
     geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer, StratifiedTracer},
     PhotonState,
-    TransportMode::{self, Backwards, Forward},
+    TransportMode::{self, Backward, Forward},
     TransportSettings,
 };
 use pyo3::{
@@ -95,7 +95,7 @@ impl PyTransportSettings {
     fn set_mode(&mut self, value: &str) -> Result<()> {
         self.inner.mode = TransportMode::try_from(value)?;
         match self.inner.mode {
-            Backwards => match self.inner.compton_mode {
+            Backward => match self.inner.compton_mode {
                 Direct => {
                     self.inner.compton_mode = Adjoint;
                 },
@@ -160,13 +160,13 @@ impl PyTransportSettings {
         from_optstr!(ComptonMode, self.inner.compton_mode, value);
         match self.inner.compton_mode {
             Adjoint => {
-                self.inner.mode = Backwards;
+                self.inner.mode = Backward;
             },
             Direct => {
                 self.inner.mode = Forward;
             },
             Inverse => {
-                self.inner.mode = Backwards;
+                self.inner.mode = Backward;
                 self.inner.compton_method = ComptonMethod::InverseTransform;
             },
             ComptonMode::None => (),
@@ -391,23 +391,23 @@ impl PyTransportEngine {
     ) -> Result<()> {
         enum CompileMode {
             All,
-            Backwards,
+            Backward,
             Both,
             Forward,
         }
 
         let mode = match mode {
             None => match &self.settings.borrow(py).inner.mode {
-                TransportMode::Backwards => CompileMode::Backwards,
+                TransportMode::Backward => CompileMode::Backward,
                 TransportMode::Forward => CompileMode::Forward,
             },
             Some(mode) => match mode {
                 "All" => CompileMode::All,
-                "Backwards" => CompileMode::Backwards,
+                "Backward" => CompileMode::Backward,
                 "Both" => CompileMode::Both,
                 "Forward" => CompileMode::Forward,
                 _ => value_error!(
-                    "bad mode (expected 'All', 'Backwards', 'Both' or 'Forward', found '{}')",
+                    "bad mode (expected 'All', 'Backward', 'Both' or 'Forward', found '{}')",
                     mode,
                 ),
             }
@@ -460,9 +460,9 @@ impl PyTransportEngine {
             _ => (),
         }
         match mode {
-            CompileMode::All | CompileMode::Both | CompileMode::Backwards => {
+            CompileMode::All | CompileMode::Both | CompileMode::Backward => {
                 let mut settings = self.settings.borrow(py).inner.clone();
-                settings.mode = Backwards;
+                settings.mode = Backward;
                 match settings.compton_mode {
                     Direct => settings.compton_mode = Adjoint,
                     _ =>(),
@@ -478,7 +478,7 @@ impl PyTransportEngine {
         match mode {
             CompileMode::All => {
                 let mut settings = self.settings.borrow(py).inner.clone();
-                settings.mode = Backwards;
+                settings.mode = Backward;
                 settings.compton_mode = Inverse;
                 settings.compton_method = ComptonMethod::InverseTransform;
                 let args = (Into::<PyTransportSettings>::into(settings),);

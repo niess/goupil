@@ -72,17 +72,17 @@ Methods
       * - :python:`"All"`
         - Compute all possible tables (not recommended for standard usage).
 
-      * - :python:`"Backwards"`
-        - Compute only tables needed for backwards transport.
+      * - :python:`"Backward"`
+        - Compute only tables needed for backward transport.
 
       * - :python:`"Both"`
-        - Compute tables needed for both forward and backwards transport.
+        - Compute tables needed for both forward and backward transport.
 
       * - :python:`"Forward"`
         - Compute only tables needed for forward transport.
 
    If no explicit *mode* is specified, then the engine will follow either the
-   :python:`"Backwards"` or :python:`"Forward"` strategy, depending on the
+   :python:`"Backward"` or :python:`"Forward"` strategy, depending on the
    configured :py:attr:`mode <TransportSettings.mode>`.
 
    The optional argument *atomic_data* can be used to specify non-default atomic
@@ -96,7 +96,7 @@ Methods
    initially generated using the :doc:`states` function. The optional
    *source_energies* argument should be used to specify the energies of volume
    sources, either as a :external:py:class:`float` or a
-   :external:py:class:`numpy.ndarray` of floats, for backwards mode. Upon
+   :external:py:class:`numpy.ndarray` of floats, for backward mode. Upon
    completion, the function returns a :external:py:class:`numpy.ndarray` of
    integers that map the end-condition of each simulated trajectory. Please
    refer to :doc:`transport_status` for the precise definition of these numbers.

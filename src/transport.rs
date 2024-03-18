@@ -42,7 +42,7 @@ pub use self::geometry::{
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 pub struct TransportSettings {
-    // Global mode flag (forward or backwards flow).
+    // Global mode flag (forward or backward flow).
     pub mode: TransportMode,
 
     // Physics and sampling settings.
@@ -85,7 +85,7 @@ impl TransportSettings {
     #[inline]
     pub(crate) fn is_forward(&self) -> bool {
         match self.mode {
-            TransportMode::Backwards => false,
+            TransportMode::Backward => false,
             TransportMode::Forward => true,
         }
     }
@@ -98,13 +98,13 @@ impl TransportSettings {
 
 #[derive(Clone, Copy, Default, Deserialize, PartialEq, Sequence, Serialize)]
 pub enum TransportMode {
-    Backwards,
+    Backward,
     #[default]
     Forward,
 }
 
 impl TransportMode {
-    const BACKWARDS: &str = "Backwards";
+    const BACKWARD: &str = "Backward";
     const FORWARD: &str = "Forward";
 
     fn pretty_variants() -> String {
@@ -127,7 +127,7 @@ impl TryFrom<&str> for TransportMode {
 
     fn try_from(value: &str) -> Result<Self> {
         match value {
-            Self::BACKWARDS => Ok(Self::Backwards),
+            Self::BACKWARD => Ok(Self::Backward),
             Self::FORWARD => Ok(Self::Forward),
             _ => Err(anyhow!(
                 "bad transport mode (expected {}, found '{}')",
@@ -141,7 +141,7 @@ impl TryFrom<&str> for TransportMode {
 impl From<TransportMode> for &str {
     fn from(value: TransportMode) -> Self {
         match value {
-            TransportMode::Backwards => TransportMode::BACKWARDS,
+            TransportMode::Backward => TransportMode::BACKWARD,
             TransportMode::Forward => TransportMode::FORWARD,
         }
     }

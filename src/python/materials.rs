@@ -22,7 +22,7 @@ use crate::physics::process::compton::{
 };
 use crate::physics::process::rayleigh::table::{RayleighCrossSection, RayleighFormFactor};
 use crate::transport::{
-    TransportMode::{self, Backwards, Forward},
+    TransportMode::{self, Backward, Forward},
     TransportSettings,
 };
 use pyo3::{
@@ -542,7 +542,7 @@ impl PyMaterialRegistry {
                 let mode = mode?;
                 config.mode = mode;
                 match mode {
-                    Backwards => config.compton_mode = ComptonMode::Adjoint,
+                    Backward => config.compton_mode = ComptonMode::Adjoint,
                     Forward => config.compton_mode = ComptonMode::Direct,
                 }
                 Some(mode)
@@ -577,19 +577,19 @@ impl PyMaterialRegistry {
 
         match &config.compton_mode {
             Adjoint | Inverse => match mode {
-                None => config.mode = Backwards,
+                None => config.mode = Backward,
                 Some(mode) => if let Forward = mode {
                     value_error!(
                         "bad transport mode for compton mode '{}' (expected '{}', found '{}')",
                         config.compton_mode,
-                        Backwards,
+                        Backward,
                         mode
                     )
                 },
             }
             Direct => match mode {
                 None => config.mode = Forward,
-                Some(mode) => if let Backwards = mode {
+                Some(mode) => if let Backward = mode {
                     value_error!(
                         "bad transport mode for compton mode '{}' (expected '{}', found '{}')",
                         config.compton_mode,

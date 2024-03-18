@@ -4,7 +4,7 @@
 ===============
 
 This class represents a pseudo-random stream, such as the one consumed by the
-Monte Carlo transport. The stream can be shifted forward or backwards using the
+Monte Carlo transport. The stream can be shifted forwards or backwards using the
 :py:attr:`index <RandomStream.index>` attribute. By default, the stream is
 seeded using the system entropy.
 

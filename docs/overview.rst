@@ -110,10 +110,10 @@ specific seed value.
    Setting a seed has the effect of reseting the pseudo-random stream.
 
 The transport engine is set to perform a conventional (forward) Monte Carlo
-simulation by default. Let us instead configure the engine for backwards
+simulation by default. Let us instead configure the engine for backward
 transport. This is done as:
 
->>> engine.mode = "Backwards"
+>>> engine.mode = "Backward"
 
 .. tip::
 
@@ -129,7 +129,7 @@ photons with an energy of :python:`0.5` MeV, located at :math:`z =
 
 The :doc:`py/states` function returns a `numpy structured array
 <https://numpy.org/doc/stable/user/basics.rec.html>`_ of states, containing the
-photons energies, their locations, etc. Since we perform a backwards simulation,
+photons energies, their locations, etc. Since we perform a backward simulation,
 these states represent expected final states, e.g., at a particular observation
 point. In practice, it is also necessary to specify the arrival directions of
 these photons. However, for the purposes of this overview, default values will
@@ -151,7 +151,7 @@ is done with the :py:meth:`transport <TransportEngine.transport>` method, as:
    contain the propagated photons instead of the original ones.
 
 The second argument, *source_energies*, requires further explanation. When
-running a backwards Monte Carlo simulation, information about sources is needed
+running a Monte Carlo simulation backwards, information about sources is needed
 to correctly terminate the transport. Goupil considers two types of sources:
 
 - Surface sources with a distributed energy spectrum, such as an external flux
@@ -169,7 +169,7 @@ the energy of volume sources.
 
 .. tip::
 
-   In a backwards transport, contained surface sources (i.e. not located on an
+   In a backward transport, contained surface sources (i.e. not located on an
    outer boundary of the geometry) can be specified as a sector
    :py:attr:`boundary <TransportSettings.boundary>` at the level of the
    :doc:`py/transport_engine`.
@@ -205,7 +205,7 @@ are given as:
 
 >>> weights = states["weight"]
 
-A backwards Monte Carlo estimate of the gamma-ray flux for the expected
+A backward Monte Carlo estimate of the gamma-ray flux for the expected
 state :math:`\mathcal{S}_f` is given by
 
 .. math::
