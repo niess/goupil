@@ -18,7 +18,9 @@
 
 // Hard coded size parameters.
 static const G4double WORLD_SIZE = 2.0 * CLHEP::km;
-static const G4double DETECTOR_SIZE = 20.0 * CLHEP::m;
+static const G4double DETECTOR_WIDTH = 20.0 * CLHEP::m;
+static const G4double DETECTOR_HEIGHT = 10.0 * CLHEP::m;
+static const G4double DETECTOR_OFFSET = 5.0 * CLHEP::cm;
 
 
 struct DetectorConstruction: public G4VUserDetectorConstruction {
@@ -67,15 +69,16 @@ struct DetectorConstruction: public G4VUserDetectorConstruction {
             std::string name = "Detector";
             auto solid = new G4Box(
                 name,
-                0.5 * DETECTOR_SIZE,
-                0.5 * DETECTOR_SIZE,
-                0.25 * DETECTOR_SIZE
+                0.5 * DETECTOR_WIDTH,
+                0.5 * DETECTOR_WIDTH,
+                0.5 * DETECTOR_HEIGHT
             );
             auto material = manager->FindOrBuildMaterial("G4_AIR");
             auto volume = new G4LogicalVolume(solid, material, name);
             new G4PVPlacement(
                 nullptr,
-                G4ThreeVector(0.0, 0.0, 0.25 * DETECTOR_SIZE),
+                G4ThreeVector(
+                    0.0, 0.0, 0.5 * DETECTOR_HEIGHT + DETECTOR_OFFSET),
                 volume,
                 name,
                 world,
@@ -153,7 +156,7 @@ static double randomiseEnergy() {
     // Index 0 is energy (in MeV) and index 1 is intensity (in percent).
     const int energy = 0, intensity = 1;
     const int n = 11;
-    double source_spectrum[11][2] = {
+    double source_spectrum[n][2] = {
         {0.242,  7.3},
         {0.295, 18.4},
         {0.352, 35.6},
@@ -196,16 +199,17 @@ static void randomiseForward(struct goupil_state * state) {
     state->direction.y = sin_theta * sin(phi);
     state->direction.z = cos_theta;
 
-    // Randomise the source position (over the atmosphere, excluding the
-    // detector volume).
+    // Randomise the source position over the atmosphere, excluding the
+    // detector volume.
     for (;;) {
-        const G4double x = 0.5 * WORLD_SIZE * (1.0 - G4UniformRand());
-        const G4double y = 0.5 * WORLD_SIZE * (1.0 - G4UniformRand());
+        const G4double x = WORLD_SIZE * (G4UniformRand() - 0.5);
+        const G4double y = WORLD_SIZE * (G4UniformRand() - 0.5);
         const G4double z = 0.5 * WORLD_SIZE * G4UniformRand();
 
-        if ((fabs(x) <= 0.5 * DETECTOR_SIZE) ||
-            (fabs(y) <= 0.5 * DETECTOR_SIZE) ||
-            ((z >= 0.0) && (z <= 0.5 * DETECTOR_SIZE))) {
+        const G4double z0 = 0.5 * DETECTOR_HEIGHT + DETECTOR_OFFSET;
+        if ((fabs(x) <= 0.5 * DETECTOR_WIDTH) &&
+            (fabs(y) <= 0.5 * DETECTOR_WIDTH) &&
+            (fabs(z - z0) <= 0.5 * DETECTOR_HEIGHT)) {
             // The tentative point lies inside the detector volume. Let us
             // generate another one.
             continue;
