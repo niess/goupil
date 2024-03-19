@@ -214,6 +214,13 @@ where
                 energy_in,
                 properties.material
             )?;
+            interaction_length = if compton_cross_section <= 0.0 {
+                None
+            } else {
+                let lambda = properties.material.definition.mass() /
+                    (compton_cross_section * AVOGADRO_NUMBER);
+                Some(lambda)
+            };
             let rayleigh_cross_section = rayleigh_sampler.transport_cross_section(
                 energy_in,
                 properties.material
@@ -223,12 +230,10 @@ where
                 compton_cross_section +
                 rayleigh_cross_section;
             let column_depth = if cross_section <= 0.0 {
-                interaction_length = None;
                 Float::INFINITY
             } else {
                 let lambda = properties.material.definition.mass() /
                     (cross_section * AVOGADRO_NUMBER);
-                interaction_length = Some(lambda);
                 -lambda * self.rng.uniform01().ln()
             };
 

@@ -396,6 +396,8 @@ impl PyTransportEngine {
             Forward,
         }
 
+        // XXX Set min / max energies if not already defined?
+
         let mode = match mode {
             None => match &self.settings.borrow(py).inner.mode {
                 TransportMode::Backward => CompileMode::Backward,

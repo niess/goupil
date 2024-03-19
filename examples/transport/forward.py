@@ -71,9 +71,11 @@ states["energy"] = numpy.random.choice(
     p = source_spectrum[:,1]
 )
 
-# Randomise the source depth.
+# Randomise the source position.
 MAX_DEPTH = 1.0E+02 # cm
-states["position"][:,1] = -MAX_DEPTH * engine.random.uniform01(N)
+states["position"][:,0] = HALF_WIDTH * (2.0 * engine.random.uniform01(N) - 1.0)
+states["position"][:,1] = HALF_WIDTH * (2.0 * engine.random.uniform01(N) - 1.0)
+states["position"][:,2] = -MAX_DEPTH * engine.random.uniform01(N)
 
 # Randomise the emission direction (uniformly over the entire solid angle).
 cos_theta = 2.0 * engine.random.uniform01(N) - 1.0
@@ -90,10 +92,11 @@ status = engine.transport(states)
 # Select upgoing events that exit through the collection surface with an energy
 # greater than 10 keV.
 
+ENERGY_MIN = 1E-02 # MeV
 selection = (status == goupil.TransportStatus.EXIT) & \
             (states["position"][:,2] >= COLLECTION_HEIGHT) & \
             (states["direction"][:,2] > 0.0) & \
-            (states["energy"] >= 1E-02)
+            (states["energy"] >= ENERGY_MIN)
 collected = states[selection]
 
 # Print statistics.

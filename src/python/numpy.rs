@@ -602,7 +602,7 @@ where
     fn try_from(ob: &'a PyUntypedArray) -> Result<&'a PyArray<T>, Self::Error> {
         let dtype = T::dtype(ob.py())?;
         let descr = unsafe { &*ob.0.get() }.descr;
-        if descr as * const ffi::PyObject == dtype.as_ptr() {
+        if descr as * const ffi::PyObject == dtype.as_ptr() { // XXX this is fragile (e.g. pickle)
             Ok(unsafe { &*(ob as *const PyUntypedArray as *const PyArray<T>) })
         } else {
             Err(PyTypeError::new_err(format!(
