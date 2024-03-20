@@ -29,11 +29,11 @@ rock = goupil.MaterialDefinition(
 )
 rock_density = 2.9 # g/cm^3
 
-# Create a stratified geometry covering a 2x2 km^2 area. Rocks and air are
+# Create a stratified geometry covering a 20x20 km^2 area. Rocks and air are
 # separated by a plane topography surface at z = 0. In addition, we bound the
 # geometry above with a plane collection surface.
 
-HALF_WIDTH, COLLECTION_HEIGHT = 1E+05, 1E+03 # cm
+HALF_WIDTH, COLLECTION_HEIGHT = 1E+06, 1E+03 # cm
 topography_surface = goupil.TopographyMap(
     (-HALF_WIDTH, HALF_WIDTH),
     (-HALF_WIDTH, HALF_WIDTH),
@@ -71,10 +71,8 @@ states["energy"] = numpy.random.choice(
     p = source_spectrum[:,1]
 )
 
-# Randomise the source position.
+# Randomise the source depth.
 MAX_DEPTH = 1.0E+02 # cm
-states["position"][:,0] = HALF_WIDTH * (2.0 * engine.random.uniform01(N) - 1.0)
-states["position"][:,1] = HALF_WIDTH * (2.0 * engine.random.uniform01(N) - 1.0)
 states["position"][:,2] = -MAX_DEPTH * engine.random.uniform01(N)
 
 # Randomise the emission direction (uniformly over the entire solid angle).
@@ -99,8 +97,28 @@ selection = (status == goupil.TransportStatus.EXIT) & \
             (states["energy"] >= ENERGY_MIN)
 collected = states[selection]
 
-# Print statistics.
-m = collected.size
-efficiency = 100.0 * m / N
-sigma = 100.0 * numpy.sqrt(m * (1.0 - m / N)) / N
-print(f"efficiency = {efficiency:.2f} +- {sigma:.2f} %")
+# Compute the rate of events crossing the collection surface, assuming a volume
+# activity of 1 Bq / cm^2 sr is assumed.
+
+volume_activity = 1.0 # Bq / (cm^3 sr)
+source_volume = (2.0 * HALF_WIDTH)**2 * MAX_DEPTH
+solid_angle = 4.0 * numpy.pi
+total_activity = volume_activity * source_volume * solid_angle
+
+collection_area = (2.0 * HALF_WIDTH)**2
+
+p = collected.size / N
+rate = p * total_activity / collection_area
+
+# Print results.
+#
+# Note that in the forward case, the rates of collected events is directly
+# proportional to the Monte Carlo efficiency.
+
+efficiency = 100.0 * p
+sigma = numpy.sqrt(p * (1.0 - p) / N)
+sigma_efficiency = 100.0 * sigma
+sigma_rate = total_activity / collection_area * sigma
+
+print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Bq / cm^2")
+print(f"efficiency = {efficiency:.2f} +- {sigma_efficiency:.2f} %")

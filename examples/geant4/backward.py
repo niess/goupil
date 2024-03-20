@@ -27,14 +27,15 @@ detector_index = sector_names.index("Detector")
 engine.boundary = detector_index
 
 # Initialise the Monte Carlo states and source energies.
-states = goupil.states(1000000)
-source_energies = numpy.empty(states.size)
+N = 1000000
+states = goupil.states(N)
+source_energies = numpy.empty(N)
 
 alpha = 0.5 # This factor, which must be in [0,1], controls the fraction of
             # photo-peaks events that are simulated.
 geometry.lib.initialise_states_backward(
     alpha,
-    states.size,
+    N,
     states.ctypes.data,
     source_energies.ctypes.data,
 )
@@ -55,13 +56,11 @@ source_volume = 0.5 * WORLD_SIZE**3 - DETECTOR_WIDTH**2 * DETECTOR_HEIGHT
 source_density = 1.0 / (4.0 * numpy.pi * source_volume) # A normalised source
                                                         # intensity is assumed.
 
-n = states.size
-rates = collected["weight"] * source_density / n
+rates = collected["weight"] * source_density / N
 mu = sum(rates)
-sigma = sum(rates**2 - (mu / n)**2)**0.5
+sigma = sum(rates**2 - (mu / N)**2)**0.5
 print(f"rate = {mu:.1E} +- {sigma:.1E}")
 
-m = collected.size
-efficiency = m / n
-sigma = ((1.0 - m / n) / n)**0.5
+efficiency = collected.size / N
+sigma = (efficiency * (1.0 - efficiency) / N)**0.5
 print(f"efficiency = {efficiency:.1E} +- {sigma:.1E}")

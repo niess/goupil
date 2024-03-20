@@ -22,8 +22,9 @@ detector_index = sector_names.index("Detector")
 engine.boundary = detector_index
 
 # Initialise the Monte Carlo states.
-states = goupil.states(1000000)
-geometry.lib.initialise_states_forward(states.size, states.ctypes.data)
+N = 1000000
+states = goupil.states(N)
+geometry.lib.initialise_states_forward(N, states.ctypes.data)
 
 # Run the simulation.
 status = engine.transport(states)
@@ -33,7 +34,6 @@ collected = states[status == goupil.TransportStatus.BOUNDARY]
 
 # Print the Monte Carlo statistics. Note that in this case the Monte Carlo
 # efficiency equals the normalised rate of collected events.
-m, n = collected.size, states.size
-efficiency = m / n
-sigma = ((1.0 - m / n) / n)**0.5
+efficiency = collected.size / N
+sigma = (efficiency * (1.0 - efficiency) / N)**0.5
 print(f"efficiency / rate = {efficiency:.1E} +- {sigma:.1E}")

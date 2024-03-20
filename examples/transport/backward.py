@@ -29,11 +29,12 @@ rock = goupil.MaterialDefinition(
 )
 rock_density = 2.9 # g/cm^3
 
-# Create a stratified geometry covering a 2x2 km^2 area. Rocks and air are
+# Create a stratified geometry covering a 20x20 km^2 area. Rocks and air are
 # separated by a plane topography surface at z = 0. In addition, we bound the
-# geometry above with a plane collection surface.
+# geometry above with a plane collection surface. Note that the latter is not
+# required for a backward simulation (see below).
 
-HALF_WIDTH, COLLECTION_HEIGHT = 1E+05, 1E+03 # cm
+HALF_WIDTH, COLLECTION_HEIGHT = 1E+06, 1E+03 # cm
 topography_surface = goupil.TopographyMap(
     (-HALF_WIDTH, HALF_WIDTH),
     (-HALF_WIDTH, HALF_WIDTH),
@@ -45,7 +46,9 @@ collection_surface = goupil.TopographyMap(
     z = COLLECTION_HEIGHT
 )
 geometry = goupil.StratifiedGeometry(
-    collection_surface,
+    collection_surface, # <== Comment this line in order to include photons that
+                        #     would go past the collection height, before being
+                        #     collected, and then turn back.
     goupil.GeometrySector(air, air_density, "Atmosphere"),
     topography_surface,
     goupil.GeometrySector(rock, rock_density, "Ground")
@@ -84,12 +87,11 @@ energies = ENERGY_MIN * numpy.exp(lne * engine.random.uniform01(lne.size))
 states["energy"][background] = energies
 states["weight"][background] = lne * energies / (1.0 - ALPHA)
 
-# Randomise the arrival position.
+# Set the arrival position.
 epsilon = 1E-04 # cm, for numerical safety.
-states["position"][:,0] = HALF_WIDTH * (2.0 * engine.random.uniform01(N) - 1.0)
-states["position"][:,1] = HALF_WIDTH * (2.0 * engine.random.uniform01(N) - 1.0)
+states["position"][:,0] = 0.0
+states["position"][:,1] = 0.0
 states["position"][:,2] = COLLECTION_HEIGHT - epsilon
-states["weight"] *= (2.0 * HALF_WIDTH)**2
 
 # Randomise the arrival direction (upgoing).
 #
@@ -128,17 +130,19 @@ selection = (status == goupil.TransportStatus.ENERGY_CONSTRAINT) & \
             (states["position"][:,2] >= -MAX_DEPTH)
 collected = states[selection]
 
-# Print statistics.
-source_volume = (2.0 * HALF_WIDTH)**2 * MAX_DEPTH
-source_density = 1.0 / (4.0 * numpy.pi * source_volume) # A normalised source
-                                                        # intensity is assumed.
+# Compute the rate of events crossing the collection surface, assuming a volume
+# activity of 1 Bq / cm^2 sr is assumed.
 
-rates = collected["weight"] * source_density / N
-mu = 100.0 * sum(rates)
-sigma = 100.0 * sum(rates**2 - (sum(rates) / N)**2)**0.5
-print(f"rate = {mu:.2f} +- {sigma:.2f} %")
+volume_activity = 1.0 # Bq / (cm^3 sr)
 
-m = collected.size
-efficiency = 100.0 * m / N
-sigma = 100.0 * numpy.sqrt(m * (1.0 - m / N)) / N
-print(f"efficiency = {efficiency:.2f} +- {sigma:.2f} %")
+rates = collected["weight"] * volume_activity / N
+rate = sum(rates)
+sigma_rate = ((sum(rates**2) - rate**2 / N))**0.5
+
+# Print results.
+p = collected.size / N
+efficiency = 100.0 * p
+sigma_efficiency = 100.0 * numpy.sqrt(p * (1.0 - p) / N)
+
+print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Bq / cm^2")
+print(f"efficiency = {efficiency:.2f} +- {sigma_efficiency:.2f} %")
