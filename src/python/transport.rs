@@ -15,6 +15,8 @@ use crate::transport::{
 };
 use pyo3::{
     prelude::*,
+    gc::PyVisit,
+    PyTraverseError,
     types::{PyBytes, PyDict, PyString},
 };
 use rmp_serde::{Deserializer, Serializer};
@@ -317,6 +319,13 @@ impl PyTransportEngine {
             Some(settings) => settings.into(),
         };
         Ok(Self { geometry, random, registry, settings, compiled: false })
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.random)?;
+        visit.call(&self.registry)?;
+        visit.call(&self.settings)?;
+        Ok(())
     }
 
     fn __getattr__(&self, py: Python, name: &PyString) -> Result<PyObject> {

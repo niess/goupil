@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use crate::numerics::{
     float::Float,
     grids::Grid,
@@ -28,7 +28,8 @@ use crate::transport::{
 use pyo3::{
     prelude::*,
     exceptions::PyKeyError,
-    sync::GILOnceCell,
+    gc::PyVisit,
+    PyTraverseError,
     types::{PyBytes, PyTuple},
 };
 use rmp_serde::{Deserializer, Serializer};
@@ -428,6 +429,18 @@ impl PyMaterialRegistry {
         })
     }
 
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        for record in self.proxies.values() {
+            visit.call(record)?
+        }
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        self.proxies.clear();
+    }
+
     // Implementation of mapping protocol.
     fn __delitem__(&mut self, py: Python, key: &str) -> Result<()> {
         let record = self.inner.remove(key)
@@ -714,6 +727,26 @@ impl PyMaterialRecord {
 
 #[pymethods]
 impl PyMaterialRecord {
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if let Some(definition) = self.definition.as_ref() {
+            visit.call(definition)?
+        }
+        if let Some(electrons) = self.electrons.as_ref() {
+            visit.call(electrons)?
+        }
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        if self.definition.is_some() {
+            self.definition = None;
+        }
+        if self.electrons.is_some() {
+            self.electrons = None;
+        }
+    }
+
     fn __repr__(&self) -> &str {
         match &self.proxy {
             RecordProxy::Borrowed {name, ..} => name.as_str(),
@@ -835,7 +868,7 @@ impl PyMaterialRecord {
 pub struct PyElectronicStructure {
     electrons: ElectronicStructure,
     writable: bool,
-    shells: GILOnceCell<PyObject>,
+    shells: Option<PyObject>,
 }
 
 impl PyElectronicStructure {
@@ -843,13 +876,27 @@ impl PyElectronicStructure {
         Ok(Self {
             electrons,
             writable,
-            shells: GILOnceCell::new(),
+            shells: None,
         })
     }
 }
 
 #[pymethods]
 impl PyElectronicStructure {
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if let Some(shells) = self.shells.as_ref() {
+            visit.call(shells)?;
+        }
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        if self.shells.is_some() {
+            self.shells = None;
+        }
+    }
+
     #[getter]
     fn get_charge(&self) -> Float {
         self.electrons.charge()
@@ -857,8 +904,8 @@ impl PyElectronicStructure {
 
     #[getter]
     fn get_shells(slf: &PyCell<Self>, py: Python) -> Result<PyObject> {
-        let obj = slf.borrow();
-        let shells = obj.shells.get_or_try_init(py, || {
+        let mut obj = slf.borrow_mut();
+        if obj.shells.is_none() {
             let flags = if obj.writable {
                 PyArrayFlags::ReadWrite
             } else {
@@ -871,9 +918,13 @@ impl PyElectronicStructure {
                 flags,
                 None,
             )?;
-            Ok::<Py<PyAny>, Error>(shells.into())
-        })?;
-        Ok(shells.clone_ref(py))
+            obj.shells = Some(shells.into_py(py));
+        }
+        let shells = obj.shells
+            .as_ref()
+            .unwrap()
+            .clone_ref(py);
+        Ok(shells)
     }
 
     fn __eq__(&self, other: &Self) -> bool {
@@ -1005,6 +1056,14 @@ impl PyCrossSection {
 
 #[pymethods]
 impl PyCrossSection {
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.energies)?;
+        visit.call(&self.material)?;
+        visit.call(&self.values)?;
+        Ok(())
+    }
+
     #[getter]
     fn get_process(&self) -> String {
         self.process.into()
@@ -1107,6 +1166,15 @@ impl PyDistributionFunction {
 
 #[pymethods]
 impl PyDistributionFunction {
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.energies_in)?;
+        visit.call(&self.material)?;
+        visit.call(&self.values)?;
+        visit.call(&self.x)?;
+        Ok(())
+    }
+
     #[getter]
     fn get_process(&self) -> String {
         Process::Compton(self.model, self.mode).into()
@@ -1213,6 +1281,16 @@ impl PyInverseDistribution {
 
 #[pymethods]
 impl PyInverseDistribution {
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.cdf)?;
+        visit.call(&self.energies)?;
+        visit.call(&self.material)?;
+        visit.call(&self.values)?;
+        visit.call(&self.weights)?;
+        Ok(())
+    }
+
     #[getter]
     fn get_process(&self) -> String {
         Process::Compton(self.model, self.mode).into()
@@ -1306,6 +1384,14 @@ impl PyFormFactor {
 
 #[pymethods]
 impl PyFormFactor {
+    // Implementation of GC protocol.
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.material)?;
+        visit.call(&self.momenta)?;
+        visit.call(&self.values)?;
+        Ok(())
+    }
+
     #[getter]
     fn get_process(&self) -> String {
         "Rayleigh".to_string()

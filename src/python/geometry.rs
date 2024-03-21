@@ -8,6 +8,8 @@ use crate::transport::{
     PhotonState,
 };
 use pyo3::prelude::*;
+use pyo3::gc::PyVisit;
+use pyo3::PyTraverseError;
 use pyo3::types::PyTuple;
 use std::rc::Rc;
 use super::ctrlc_catched;
@@ -45,6 +47,12 @@ impl PyGeometrySector {
         let description = description.map(|s| s.to_string());
         let result = Self { material, density, description };
         Ok(result)
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.material)?;
+        visit.call(&self.density)?;
+        Ok(())
     }
 
     fn __repr__(&self, py: Python) -> Result<String> {
@@ -161,6 +169,13 @@ impl PyExternalGeometry {
         let path = path.to_string();
         let result = Self { inner, cdll, path, materials, sectors };
         Ok(result)
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.cdll)?;
+        visit.call(&self.materials)?;
+        visit.call(&self.sectors)?;
+        Ok(())
     }
 
     #[getter]
@@ -351,6 +366,13 @@ impl PyTopographyMap {
         Ok(result)
     }
 
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.x)?;
+        visit.call(&self.y)?;
+        visit.call(&self.z)?;
+        Ok(())
+    }
+
     fn __add__(lhs: PyRef<Self>, rhs: Float) -> PyTopographySurface {
         let py = lhs.py();
         let map: PyObject = lhs.into_py(py);
@@ -434,6 +456,11 @@ impl PyTopographySurface {
         let maps: Py<PyTuple> = args.into_py(py);
         let result = Self { inner, maps };
         Ok(result)
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.maps)?;
+        Ok(())
     }
 
     #[getter]
@@ -586,6 +613,12 @@ impl PyStratifiedGeometry {
 
         // Wrap geometry and return.
         Ok(Self { inner, materials, sectors })
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.materials)?;
+        visit.call(&self.sectors)?;
+        Ok(())
     }
 
     fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {

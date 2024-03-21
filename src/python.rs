@@ -112,7 +112,6 @@ mod macros {
 // Implement from Python for Float3.
 //================================================================================================
 
-// XXX Use this trait everywhere.
 impl<'py> FromPyObject<'py> for Float3 {
     fn extract(ob: &'py PyAny) -> PyResult<Self> {
         let v: [Float; 3] = ob.extract()?;

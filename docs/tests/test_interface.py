@@ -207,6 +207,14 @@ def test_MaterialRecord():
     assert(table.process == "Rayleigh")
     assert(table.material is record)
 
+    # Check detachment.
+    del registry
+    assert(record.definition == H2O)
+
+    d = record.definition
+    del record
+    assert(d == H2O)
+
 
 def test_StratifiedGeometry():
     """Test usage of a StratifiedGeometry."""
