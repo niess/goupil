@@ -396,8 +396,6 @@ impl PyTransportEngine {
             Forward,
         }
 
-        // XXX Set min / max energies if not already defined?
-
         let mode = match mode {
             None => match &self.settings.borrow(py).inner.mode {
                 TransportMode::Backward => CompileMode::Backward,
@@ -590,7 +588,11 @@ impl PyTransportEngine {
             }
         }
 
-        // XXX Use table energy limits if no explicit bound was specified (?)
+        // Use registry energy limits if no explicit bound was specified.
+        if settings.energy_min.is_none() {
+            settings.energy_min = Some(registry.energy_min);
+            settings.energy_max = Some(registry.energy_max);
+        }
 
         // Get a transport agent.
         let rng: &mut PyRandomStream = &mut self.random.borrow_mut(py);

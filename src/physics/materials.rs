@@ -215,6 +215,8 @@ pub struct MaterialRegistry {
     materials: HashMap<String, MaterialRecord>,
     pub(crate) scattering_cs: HashMap<&'static AtomicElement, RayleighCrossSection>,
     pub(crate) scattering_ff: HashMap<&'static AtomicElement, RayleighFormFactor>,
+    pub(crate) energy_min: Float,
+    pub(crate) energy_max: Float,
 }
 
 // Public interface.
@@ -476,6 +478,10 @@ impl MaterialRegistry {
             }
             material_record.electrons = Some(electrons);
         }
+
+        self.energy_min = energy_min;
+        self.energy_max = energy_max;
+
         Ok(())
     }
 
