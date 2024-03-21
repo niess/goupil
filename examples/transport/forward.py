@@ -1,9 +1,27 @@
 #! /usr/bin/env python3
+"""
+This example illustrates the use of Goupil to solve a transport problem using
+the conventional (forward) Monte Carlo technique. The problem involves
+calculating the rate of gamma photons collected by a horizontal surface located
+100m above a flat ground. It is assumed that radioactive sources are uniformly
+distributed throughout the ground volume.
+"""
+
 import goupil
 import numpy
 
 
-# Define the air material.
+"""
+================================================================================
+
+  1. Defining the Monte Carlo geometry
+
+================================================================================
+
+To begin, we define the geometry of the Monte Carlo simulation. Firstly, we
+define the material that makes up the upper air volume.
+"""
+
 air = goupil.MaterialDefinition(
     "Air",
     mass_composition = (
@@ -12,12 +30,23 @@ air = goupil.MaterialDefinition(
         (0.01, "Ar"),
     )
 )
+
+"""
+The air density is modelled by a vertical gradient, decreasing exponentially
+with altitude. This is a suitable approximation for the lower layer of the
+atmosphere, i.e. the troposphere.
+"""
+
 air_density = goupil.DensityGradient(
     1.225E-03, # g/cm^3
     1.04E+06   # cm
 )
 
-# Define the rocks material.
+"""
+Secondly, we define the composition of the rocks that make up the lower volume
+of the Monte Carlo geometry. In this case, a uniform density is assumed.
+"""
+
 rock = goupil.MaterialDefinition(
     "Rock",
     mass_composition = (
@@ -29,9 +58,12 @@ rock = goupil.MaterialDefinition(
 )
 rock_density = 2.9 # g/cm^3
 
-# Create a stratified geometry covering a 20x20 km^2 area. Rocks and air are
-# separated by a plane topography surface at z = 0. In addition, we bound the
-# geometry above with a plane collection surface.
+"""
+Finally, a vertically stratified Monte Carlo geometry is created with a 20x20
+km^2 horizontal base. The rocks and air volumes are separated by a plane
+topography surface at z = 0. Additionally, the geometry is bounded above by a
+plane that will act as a collection surface for gamma-rays.
+"""
 
 HALF_WIDTH, COLLECTION_HEIGHT = 1E+06, 1E+03 # cm
 topography_surface = goupil.TopographyMap(
@@ -51,19 +83,60 @@ geometry = goupil.StratifiedGeometry(
     goupil.GeometrySector(rock, rock_density, "Ground")
 )
 
-# Create a transport engine (configured in forward mode, by default).
+
+"""
+================================================================================
+
+  2. Preparing the transport engine
+
+================================================================================
+
+The Monte Carlo simulation is performed by a transport engine. Let us create
+this engine and initialise it according to the previous Monte Carlo geometry.
+This is done as follows.
+"""
+
 engine = goupil.TransportEngine(geometry)
 
-# Create an array of Monte Carlo states.
+"""
+Note that the transport engine is configured for forward Monte Carlo by default.
+So we do not need to adjust it further. Note also that the engine provides a
+random stream which we will use below to initialise Monte Carlo states.
+"""
+
+
+"""
+================================================================================
+
+  3. Initialising the Monte Carlo states
+
+================================================================================
+
+The second preparatory step is to initialise the Monte Carlo states
+(representing gamma-rays) according to the distribution of radioactive sources.
+First, we create an empty container of states, as:
+"""
+
 N = 1000000
 states = goupil.states(N)
 
-# Randomise initial energies using the main emission lines of Pb-214 decay.
+"""
+For this problem we consider a single radioactive isotope, Pb-214, with its
+three main gamma emission lines. The corresponding spectrum is
+"""
+
 source_spectrum = numpy.array((
-    (0.242, 0.12),
+    (0.242, 0.12), # (energy in MeV, normalised intensity)
     (0.295, 0.30),
     (0.352, 0.58),
 ))
+
+"""
+Let us randomise the initial energies of the gamma-rays according to the latter
+spectrum. This is done using the `random_choice` function from the numpy
+package.
+"""
+
 states["energy"] = numpy.random.choice(
     source_spectrum[:,0],
     N,
@@ -71,11 +144,24 @@ states["energy"] = numpy.random.choice(
     p = source_spectrum[:,1]
 )
 
-# Randomise the source depth.
+"""
+In principle, the source positions should be randomized throughout the entire
+ground volume and counted at (0, 0, h), where h represents the collection
+height. However, due to the problem's horizontal symmetry, it is equivalent to
+emit photons from (0, 0, z0), where z0 < 0, and count them over the entire
+collection surface. This property is exploited to enhance the efficiency of the
+Monte Carlo. Therefore, sources are only generated along a vertical column
+centered on the origin, horizontally.
+"""
+
 MAX_DEPTH = 1.0E+02 # cm
 states["position"][:,2] = -MAX_DEPTH * engine.random.uniform01(N)
 
-# Randomise the emission direction (uniformly over the entire solid angle).
+"""
+Gamma-rays are assumed to be emitted isotropically. Thus, their initial
+directions are generated uniformly over the entire solid angle.
+"""
+
 cos_theta = 2.0 * engine.random.uniform01(N) - 1.0
 sin_theta = numpy.sqrt(1.0 - cos_theta**2)
 phi = 2.0 * numpy.pi * engine.random.uniform01(N)
@@ -84,11 +170,33 @@ states["direction"][:,0] = numpy.cos(phi) * sin_theta
 states["direction"][:,1] = numpy.sin(phi) * sin_theta
 states["direction"][:,2] = cos_theta
 
-# Run the Monte Carlo transport.
+
+"""
+================================================================================
+
+  4. Running the Monte Carlo simulation
+
+================================================================================
+
+The Monte Carlo simulation is carried out by transporting the emitted gamma-rays
+through the geometry. This is achieved simply as follows:
+"""
+
 status = engine.transport(states)
 
-# Select upgoing events that exit through the collection surface with an energy
-# greater than 10 keV.
+
+"""
+================================================================================
+
+  5. Analysing results
+
+================================================================================
+
+The previous transport routines returned an array of status flags indicating the
+stop condition for each Monte Carlo state. To estimate the rate of gamma-rays at
+point (0,0,h), we select up-going photons that exit through the collection
+surface with an energy higher than 10 keV.
+"""
 
 ENERGY_MIN = 1E-02 # MeV
 selection = (status == goupil.TransportStatus.EXIT) & \
@@ -97,28 +205,45 @@ selection = (status == goupil.TransportStatus.EXIT) & \
             (states["energy"] >= ENERGY_MIN)
 collected = states[selection]
 
-# Compute the rate of events crossing the collection surface, assuming a volume
-# activity of 1 Bq / cm^2 sr is assumed.
+"""
+The number of collected photons provides a Monte Carlo estimate of the rate of
+gamma-rays. To compute this rate, we need to determine the total activity of
+sources represented by our Monte Carlo simulation. Assuming a unit volume
+activity, the total activity is obtained by integrating over the source volume
+and solid angle.
+"""
 
 volume_activity = 1.0 # Bq / (cm^3 sr)
 source_volume = (2.0 * HALF_WIDTH)**2 * MAX_DEPTH
 solid_angle = 4.0 * numpy.pi
 total_activity = volume_activity * source_volume * solid_angle
 
+"""
+The activity registered on the collection surface is a fraction k/N of the total
+source activity, where k is the number of collected photons. The rate of gamma
+rays is then calculated by dividing the number of collected photons by the
+collection area. Therefore, we define a rate factor
+"""
+
 collection_area = (2.0 * HALF_WIDTH)**2
+K = total_activity / collection_area
+
+"""
+from which we obtain the rate of collected photons
+"""
 
 p = collected.size / N
-rate = p * total_activity / collection_area
+rate = p * K
 
-# Print results.
-#
-# Note that in the forward case, the rates of collected events is directly
-# proportional to the Monte Carlo efficiency.
+"""
+Finally, let us print out these results. Note that in the forward case, the
+rates of collected events and the Monte Carlo efficiency are proportional.
+"""
 
 efficiency = 100.0 * p
 sigma = numpy.sqrt(p * (1.0 - p) / N)
 sigma_efficiency = 100.0 * sigma
-sigma_rate = total_activity / collection_area * sigma
+sigma_rate = K * sigma
 
 print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Bq / cm^2")
 print(f"efficiency = {efficiency:.2f} +- {sigma_efficiency:.2f} %")
