@@ -11,7 +11,7 @@ use pyo3::type_object::PyTypeInfo;
 use pyo3::types::{PyAny, PyCapsule, PyModule};
 // Standard library.
 use std::cell::UnsafeCell;
-use std::ffi::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_uchar, c_void};
 use std::marker::PhantomData;
 use std::ops::Deref;
 // Local Python interface.
@@ -46,6 +46,7 @@ struct ArrayInterface {
     type_ndarray: PyObject,
     // Functions.
     empty: *const PyArray_Empty,
+    equiv_types: *const PyArray_EquivTypes,
     new_from_descriptor: *const PyArray_NewFromDescriptor,
     scalar: *const PyArray_Scalar,
     scalar_as_ctype: *const PyArray_ScalarAsCtype,
@@ -63,6 +64,12 @@ type PyArray_Empty = extern "C" fn(
     dtype: *mut ffi::PyObject,
     fortran: c_int,
 ) -> *mut ffi::PyObject;
+
+#[allow(non_camel_case_types)]
+type PyArray_EquivTypes = extern "C" fn(
+    type1: *mut ffi::PyObject,
+    type2: *mut ffi::PyObject,
+) -> c_uchar;
 
 #[allow(non_camel_case_types)]
 type PyArray_NewFromDescriptor = extern "C" fn(
@@ -188,6 +195,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
         type_ndarray: object(2),
         // Functions.
         empty:               function(184) as *const PyArray_Empty,
+        equiv_types:         function(182) as *const PyArray_EquivTypes,
         new_from_descriptor: function( 94) as *const PyArray_NewFromDescriptor,
         scalar:              function(60)  as *const PyArray_Scalar,
         scalar_as_ctype:     function(62)  as *const PyArray_ScalarAsCtype,
@@ -602,7 +610,13 @@ where
     fn try_from(ob: &'a PyUntypedArray) -> Result<&'a PyArray<T>, Self::Error> {
         let dtype = T::dtype(ob.py())?;
         let descr = unsafe { &*ob.0.get() }.descr;
-        if descr as * const ffi::PyObject == dtype.as_ptr() { // XXX this is fragile (e.g. pickle)
+        let mut same = descr as * const ffi::PyObject == dtype.as_ptr();
+        if !same {
+            let api = api(ob.py());
+            let equiv_types = unsafe { *api.equiv_types };
+            same = equiv_types(descr as * mut ffi::PyObject, dtype.as_ptr()) != 0;
+        }
+        if same {
             Ok(unsafe { &*(ob as *const PyUntypedArray as *const PyArray<T>) })
         } else {
             Err(PyTypeError::new_err(format!(
