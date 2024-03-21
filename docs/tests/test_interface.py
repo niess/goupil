@@ -208,6 +208,19 @@ def test_MaterialRecord():
     assert(table.material is record)
 
 
+def test_StratifiedGeometry():
+    """Test usage of a StratifiedGeometry."""
+
+    # Same material case.
+    material, density = "H2O", 1.0
+    interface = goupil.TopographyMap((-1E+05, 1E+05), (-1E+05, 1E+05), 0.0)
+    geometry = goupil.StratifiedGeometry(
+        goupil.GeometrySector(material, density, "Top"),
+        interface,
+        goupil.GeometrySector(material, density, "Bottom")
+    )
+
+
 def test_TransportEngine():
     """Test usage of a TransportEngine."""
 

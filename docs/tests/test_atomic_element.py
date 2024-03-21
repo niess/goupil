@@ -125,7 +125,7 @@ chemElements = [
 
 def test_atomic_element():
     for element in chemElements:
-        # get by sumbol then check by name and atomic number
+        # get by symbol then check by name and atomic number
         el = goupil.AtomicElement(element[1])
         assert(el.name == element[0] and el.Z == element[2])
 

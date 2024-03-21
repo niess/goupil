@@ -358,7 +358,7 @@ impl StratifiedGeometry {
     fn find_material(&self, material: &MaterialDefinition) -> Result<Option<usize>> {
         for (i, mi) in self.materials.iter().enumerate() {
             if material.name() == mi.name() {
-                if material != mi {
+                if material == mi {
                     return Ok(Some(i))
                 } else {
                     bail!(
