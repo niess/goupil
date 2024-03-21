@@ -7,7 +7,7 @@ name = "goupil"
 authors = [
     {name = "Valentin Niess", email = "valentin.niess@gmail.com"}
 ]
-description = "A backward accelerator for gamma rays transport."
+description = "A Monte Carlo engine for the backward transport of low energy gamma-rays."
 readme = "README.md"
 license = {text = "LGPLv3"}
 keywords = ["gamma rays", "Monte Carlo", "backward"]

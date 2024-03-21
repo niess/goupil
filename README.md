@@ -15,8 +15,10 @@ Documentation for Goupil can be found online at [Read the Docs][RTD].
 
 The Goupil library is  under the **GNU LGPLv3** license (see the provided
 [COPYING](COPYING) and [COPYING.LESSER](COPYING.LESSER) files), except for
-[interfaces](src/interfaces) which are MIT-licensed.
+[examples][EXAMPLES] and [interfaces][INTERFACES] which are MIT-licensed.
 
 
+[EXAMPLES]: https://github.com/niess/goupil/tree/master/examples
+[INTERFACES]: https://github.com/niess/goupil/tree/master/src/interfaces
 [RTD]: https://goupil.readthedocs.io/en/latest/
 [RTD_BADGE]: https://readthedocs.org/projects/goupil/badge/?version=latest
