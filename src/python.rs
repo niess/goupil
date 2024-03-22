@@ -1,10 +1,10 @@
 use anyhow::Result;
-use crate::numerics::{Float, Float3};
+use crate::numerics::{Float, Float3, Float3x3};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyKeyboardInterrupt;
 use pyo3::ffi;
 use pyo3::once_cell::GILOnceCell;
-use self::boundary::PySphereShape;
+use self::boundary::{PyBoxShape, PySphereShape};
 use self::density::PyDensityGradient;
 use self::elements::{elements as elements_fun, PyAtomicElement};
 use self::geometry::{
@@ -111,12 +111,19 @@ mod macros {
 
 
 //================================================================================================
-// Implement from Python for Float3.
+// Implement from Python for Float3 and Float3x3.
 //================================================================================================
 
 impl<'py> FromPyObject<'py> for Float3 {
     fn extract(ob: &'py PyAny) -> PyResult<Self> {
         let v: [Float; 3] = ob.extract()?;
+        Ok(v.into())
+    }
+}
+
+impl<'py> FromPyObject<'py> for Float3x3 {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
+        let v: [[Float; 3]; 3] = ob.extract()?;
         Ok(v.into())
     }
 }
@@ -138,6 +145,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     // Register class object(s).
     module.add_class::<PyAbsorptionProcess>()?;
     module.add_class::<PyAtomicElement>()?;
+    module.add_class::<PyBoxShape>()?;
     module.add_class::<PyComptonProcess>()?;
     module.add_class::<PyCrossSection>()?;
     module.add_class::<PyDensityGradient>()?;

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 
 
 //================================================================================================
@@ -199,6 +199,90 @@ impl Serialize for Float3 {
         S: Serializer,
     {
         let a: [Float; 3] = [self.0, self.1, self.2];
+        Serialize::serialize(&a, serializer)
+    }
+}
+
+//================================================================================================
+// Matrix floating point type.
+//================================================================================================
+#[derive(Copy, Clone, Default, PartialEq)]
+pub struct Float3x3 ([Float; 9]);
+
+impl From<[Float; 9]> for Float3x3 {
+    fn from(a: [Float; 9]) -> Self {
+        Self(a)
+    }
+}
+
+impl From<[[Float; 3]; 3]> for Float3x3 {
+    fn from(a: [[Float; 3]; 3]) -> Self {
+        let a = [
+            a[0][0], a[0][1], a[0][2],
+            a[1][0], a[1][1], a[1][2],
+            a[2][0], a[2][1], a[2][2],
+        ];
+        Self(a)
+    }
+}
+
+impl From<Float3x3> for [Float; 9] {
+    fn from(m: Float3x3) -> Self {
+        m.0
+    }
+}
+
+impl AsRef<[Float]> for Float3x3 {
+    fn as_ref(&self) -> &[Float] {
+        &self.0
+    }
+}
+
+impl Index<(usize, usize)> for Float3x3 {
+    type Output = Float;
+
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
+        let k = index.0 * 3 + index.1;
+        &self.0[k]
+    }
+}
+
+impl Mul<Float3> for &Float3x3 {
+    type Output = Float3;
+    fn mul (self, rhs: Float3) -> Self::Output {
+        let x = self.0[0] * rhs.0 + self.0[1] * rhs.1 + self.0[2] * rhs.2;
+        let y = self.0[3] * rhs.0 + self.0[4] * rhs.1 + self.0[5] * rhs.2;
+        let z = self.0[6] * rhs.0 + self.0[7] * rhs.1 + self.0[8] * rhs.2;
+        Float3::new(x, y, z)
+    }
+}
+
+impl Mul<&Float3x3> for Float3 {
+    type Output = Float3;
+    fn mul (self, rhs: &Float3x3) -> Self::Output {
+        let x = self.0 * rhs.0[0] + self.1 * rhs.0[3] + self.2 * rhs.0[6];
+        let y = self.0 * rhs.0[1] + self.1 * rhs.0[4] + self.2 * rhs.0[7];
+        let z = self.0 * rhs.0[2] + self.1 * rhs.0[5] + self.2 * rhs.0[8];
+        Self::new(x, y, z)
+    }
+}
+
+impl<'de> Deserialize<'de> for Float3x3 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let a: [Float; 9] = Deserialize::deserialize(deserializer)?;
+        Ok(a.into())
+    }
+}
+
+impl Serialize for Float3x3 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let a: &[Float] = self.as_ref();
         Serialize::serialize(&a, serializer)
     }
 }

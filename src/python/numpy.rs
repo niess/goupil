@@ -1,4 +1,4 @@
-use crate::numerics::float::{Float, Float3};
+use crate::numerics::float::{Float, Float3, Float3x3};
 use crate::physics::materials::electronic::ElectronicShell;
 // PyO3 interface.
 use pyo3::conversion::{FromPyObject, IntoPy, ToPyObject};
@@ -862,6 +862,24 @@ impl IntoPy<PyObject> for Float3 {
         result.readonly();
         result.into_py(py)
     }
+}
+
+impl IntoPy<PyObject> for Float3x3 {
+    fn into_py(self, py: Python) -> PyObject {
+        let result = PyArray::<Float>::empty(py, &[3, 3]).unwrap();
+        let data: &[Float] = self.as_ref();
+        for i in 0..9 {
+            result.set(i, data[i]).unwrap();
+        }
+        result.readonly();
+        result.into_py(py)
+    }
+}
+
+#[derive(pyo3::FromPyObject)]
+pub enum FloatOrFloat3 {
+    Float(Float),
+    Float3(Float3),
 }
 
 #[derive(pyo3::FromPyObject)]

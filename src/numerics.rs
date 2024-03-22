@@ -12,7 +12,7 @@ pub(crate) mod table;
 
 pub mod consts;
 
-pub use self::float::{Float, Float3};
+pub use self::float::{Float, Float3, Float3x3};
 pub use self::rand::FloatRng;
 
 

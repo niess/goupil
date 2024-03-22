@@ -21,8 +21,10 @@ pub use self::agent::{
     TransportStatus
 };
 pub use self::boundary::{
-    TransportBoundary,
+    BoxShape,
+    GeometryShape,
     SphereShape,
+    TransportBoundary,
 };
 pub use self::density::DensityModel;
 pub use self::geometry::{

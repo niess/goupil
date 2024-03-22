@@ -312,6 +312,29 @@ def test_TopographyMap():
     assert((numpy.abs(Z - X + Y) < eps).all())
 
 
+def test_BoxShape():
+    """Test usage of a BoxShape."""
+
+    # Test defaults.
+    b = goupil.BoxShape()
+    assert((b.size == 1.0).all())
+    assert((b.center == 0.0).all())
+    assert(b.rotation is None)
+
+    # Test rotation interface.
+    b = goupil.BoxShape(
+        rotation = numpy.eye(3)
+    )
+    assert((b.rotation == numpy.eye(3)).all())
+
+    # Test basic operations.
+    s = goupil.states(1)
+    assert(b.inside(s).all())
+
+    s["position"] = (0, 0, 1.0)
+    assert(numpy.isnan(b.distance(s)).all())
+
+
 def test_SphereShape():
     """Test usage of a SphereShape."""
 

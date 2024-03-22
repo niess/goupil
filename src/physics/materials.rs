@@ -677,14 +677,6 @@ impl MaterialRecord {
     /// `mode`, pre-computed material tables might be required (see e.g. the registry
     /// [`compute`](MaterialRegistry::compute) method).
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use goupil::physics::{ComptonModel, ElectronicStructure, Material, ComptonMode};
-    /// # let material = Material::new("material", 1.0, ElectronicStructure::default());
-    /// #
-    /// let weight = material.weight(ComptonModel::KleinNishina, ComptonMode::Adjoint, 0.5, 1.0);
-    /// ```
     pub fn compton_weight(
         &self,
         model: ComptonModel,
