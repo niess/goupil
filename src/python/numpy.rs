@@ -38,6 +38,7 @@ struct ArrayInterface {
     #[allow(dead_code)]
     capsule: PyObject,
     // Type objects.
+    dtype_bool: PyObject,
     dtype_float: PyObject,
     dtype_int32: PyObject,
     dtype_shell: PyObject,
@@ -134,6 +135,10 @@ pub fn initialise(py: Python) -> PyResult<()> {
     // Cache used dtypes, generated from numpy Python interface.
     let dtype = numpy.getattr("dtype")?;
 
+    let dtype_bool: PyObject = dtype
+        .call1(("b",))?
+        .into_py(py);
+
     let dtype_float: PyObject = dtype
         .call1((FLOAT_FORMAT,))?
         .into_py(py);
@@ -187,6 +192,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
     let api = ArrayInterface {
         capsule: capsule.into(),
         // Type objects.
+        dtype_bool,
         dtype_float,
         dtype_int32,
         dtype_shell,
@@ -648,6 +654,13 @@ where
 
 pub trait Dtype {
     fn dtype(py: Python) -> PyResult<PyObject>;
+}
+
+impl Dtype for bool {
+    #[inline]
+    fn dtype(py: Python) -> PyResult<PyObject> {
+        Ok(api(py).dtype_bool.clone_ref(py))
+    }
 }
 
 impl Dtype for Float {

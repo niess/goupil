@@ -7,7 +7,8 @@ use crate::physics::process::{
     rayleigh::RayleighMode,
 };
 use crate::transport::{
-    agent::{TransportAgent, TransportBoundary, TransportStatus},
+    agent::{TransportAgent, TransportStatus},
+    boundary::TransportBoundary,
     geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer, StratifiedTracer},
     PhotonState,
     TransportMode::{self, Backward, Forward},
@@ -22,6 +23,7 @@ use pyo3::{
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use super::{
+    boundary::PyTransportBoundary,
     ctrlc_catched,
     geometry::{PyExternalGeometry, PyGeometryDefinition},
     macros::{type_error, value_error},
@@ -125,18 +127,15 @@ impl PyTransportSettings {
     }
 
     #[getter]
-    fn get_boundary(&self) -> Option<usize> {
-        match self.inner.boundary {
-            TransportBoundary::None => None,
-            TransportBoundary::Sector(index) => Some(index),
-        }
+    fn get_boundary(&self) -> TransportBoundary {
+        self.inner.boundary
     }
 
     #[setter]
-    fn set_boundary(&mut self, value: Option<usize>) -> Result<()> {
+    fn set_boundary(&mut self, value: Option<PyTransportBoundary>) -> Result<()> {
         match value {
             None => self.inner.boundary = TransportBoundary::None,
-            Some(index) => self.inner.boundary = TransportBoundary::Sector(index),
+            Some(boundary) => self.inner.boundary = boundary.into(),
         };
         Ok(())
     }

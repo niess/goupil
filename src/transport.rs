@@ -7,6 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
 pub(crate) mod agent;
+pub(crate) mod boundary;
 pub(crate) mod density;
 pub(crate) mod geometry;
 
@@ -17,8 +18,11 @@ pub(crate) mod geometry;
 
 pub use self::agent::{
     TransportAgent,
-    TransportBoundary,
     TransportStatus
+};
+pub use self::boundary::{
+    TransportBoundary,
+    SphereShape,
 };
 pub use self::density::DensityModel;
 pub use self::geometry::{

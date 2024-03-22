@@ -277,7 +277,7 @@ def test_TopographyMap():
     with pytest.raises(ValueError):
         m0.z[:] = 0.0
 
-    # Test interpolation for scalars    
+    # Test interpolation for scalars.
     m = goupil.TopographyMap((-1, 1), (-2, 2), numpy.zeros((3, 3)))
     X, Y = numpy.meshgrid(m.x, m.y)
     m = goupil.TopographyMap((-1, 1), (-2, 2), X - Y)
@@ -291,7 +291,7 @@ def test_TopographyMap():
     assert(numpy.isnan(m(0.0, 2.5)))
     assert(numpy.isnan(m(1.5, 2.5)))
 
-    # Test interpolation for arrays
+    # Test interpolation for arrays.
     x = numpy.linspace(-1, 1, 11)
     y = 0
     z = m(x, y)
@@ -310,3 +310,26 @@ def test_TopographyMap():
     assert(Z.shape == (21, 11))
     X, Y = numpy.meshgrid(x, y)
     assert((numpy.abs(Z - X + Y) < eps).all())
+
+
+def test_SphereShape():
+    """Test usage of a SphereShape."""
+
+    # Test defaults.
+    s = goupil.SphereShape()
+    assert(s.radius == 1.0)
+    assert(sum(s.center**2) == 0.0)
+
+    # Check that center is read-only.
+    assert(isinstance(s.center, numpy.ndarray))
+    assert(not s.center.flags.writeable)
+
+    # Check usage as a boundary.
+    engine = goupil.TransportEngine()
+    engine.boundary = s
+    assert(engine.boundary == s)
+
+    # Check geometry methods.
+    states = goupil.states(1)
+    assert(s.inside(states).all())
+    assert((s.distance(states) == 1.0).all())

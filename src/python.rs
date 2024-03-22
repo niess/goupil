@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyKeyboardInterrupt;
 use pyo3::ffi;
 use pyo3::once_cell::GILOnceCell;
+use self::boundary::PySphereShape;
 use self::density::PyDensityGradient;
 use self::elements::{elements as elements_fun, PyAtomicElement};
 use self::geometry::{
@@ -31,6 +32,7 @@ use self::transport::{PyTransportEngine, PyTransportSettings, PyTransportStatus}
 use self::transport::{states as states_fun};
 use std::path::PathBuf;
 
+mod boundary;
 mod density;
 mod elements;
 mod geometry;
@@ -152,6 +154,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<PyStratifiedGeometry>()?;
     module.add_class::<PyRandomStream>()?;
     module.add_class::<PyRayleighProcess>()?;
+    module.add_class::<PySphereShape>()?;
     module.add_class::<PyTopographyMap>()?;
     module.add_class::<PyTopographySurface>()?;
     module.add_class::<PyTransportEngine>()?;

@@ -1,3 +1,4 @@
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
@@ -179,6 +180,26 @@ impl From<[Float; 3]> for Float3 {
 impl From<Float3> for [Float; 3] {
     fn from(array: Float3) -> Self {
         [array.0, array.1, array.2]
+    }
+}
+
+impl<'de> Deserialize<'de> for Float3 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let a: [Float; 3] = Deserialize::deserialize(deserializer)?;
+        Ok(a.into())
+    }
+}
+
+impl Serialize for Float3 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let a: [Float; 3] = [self.0, self.1, self.2];
+        Serialize::serialize(&a, serializer)
     }
 }
 

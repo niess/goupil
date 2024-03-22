@@ -16,9 +16,9 @@ use crate::physics::{
         rayleigh::sample::RayleighSampler,
     },
 };
-use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use super::{
+    boundary::TransportBoundary,
     density::DensityModel,
     geometry::{GeometryDefinition, GeometrySector, GeometryTracer},
     PhotonState,
@@ -189,10 +189,8 @@ where
         let mut properties = match self.tracer.sector() {
             None => return Ok(TransportStatus::Exit),
             Some(index) => {
-                if let TransportBoundary::Sector(sector) = settings.boundary {
-                    if index == sector {
-                        return Ok(TransportStatus::Boundary)
-                    }
+                if settings.boundary.inside(state.position, index) {
+                    return Ok(TransportStatus::Boundary)
                 }
                 LocalProperties::new(self.geometry, index, &self.records)?
             },
@@ -237,7 +235,7 @@ where
                 -lambda * self.rng.uniform01().ln()
             };
 
-            // Apply boundary weight in reverse mode (flux end-condition).
+            // Check for initial energy constraint.
             if status.is_first() {
                 status = SteppingStatus::Next;
                 if !settings.is_forward() {
@@ -269,9 +267,14 @@ where
                 )
             }
 
+            // Compute the boundary step length.
+            let boundary_length = settings.boundary.distance(state.position, direction);
+
             // Compute the effective step length.
             let length = {
-                let length = physical_length.min(geometry_length);
+                let length = physical_length
+                    .min(geometry_length)
+                    .min(boundary_length);
                 match settings.length_max {
                     None => length,
                     Some(length_max) => {
@@ -374,6 +377,9 @@ where
             // local geometry.
             if status.is_stop() {
                 break
+            } else if length == boundary_length {
+                status = SteppingStatus::Stop(TransportStatus::Boundary);
+                break
             } else if length == geometry_length {
                 match self.tracer.sector() {
                     None => {
@@ -405,7 +411,7 @@ where
                         state.weight = 0.0;
                     },
                     TransportStatus::EnergyConstraint => {
-                        // Patch boundary weight in reverse mode (flux end-condition).
+                        // Apply volume weight in reverse mode.
                         if let Some(lambda) = interaction_length {
                             let density_value = Self::get_density(
                                 properties.density,
@@ -672,16 +678,4 @@ impl SteppingStatus {
             }
         }
     }
-}
-
-
-// ===============================================================================================
-// External boundaries.
-// ===============================================================================================
-
-#[derive(Clone, Copy, Default, Deserialize, Serialize)]
-pub enum TransportBoundary {
-    #[default]
-    None,
-    Sector(usize),
 }
