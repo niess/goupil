@@ -266,11 +266,11 @@ pub struct PyTransportEngine {
     #[pyo3(get)]
     geometry: Option<PyGeometryDefinition>,
     #[pyo3(get)]
-    random: Py<PyRandomStream>,
+    pub(crate) random: Py<PyRandomStream>,
     #[pyo3(get)]
     registry: Py<PyMaterialRegistry>,
     #[pyo3(get)]
-    settings: Py<PyTransportSettings>,
+    pub(crate) settings: Py<PyTransportSettings>,
 
     compiled: bool,
 }
