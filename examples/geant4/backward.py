@@ -16,15 +16,22 @@ geometry.lib.initialise_states_backward.argtypes = [
 ]
 geometry.lib.initialise_states_backward.restype = None
 
+# Set a vertical density gradient for the atmosphere.
+geometry.update_sector(
+    sector = "Atmosphere",
+    density = goupil.DensityGradient(
+        1.225E-03, # g/cm^3
+        1.04E+06   # cm
+    ),
+)
+
 # Create a Monte Carlo transport engine, and configure it for backward
 # transport.
 engine = goupil.TransportEngine(geometry)
 engine.mode = "Backward"
 
-# Locate the detector sector, and set it as a transport boundary.
-sector_names = [sector.description for sector in geometry.sectors]
-detector_index = sector_names.index("Detector")
-engine.boundary = detector_index
+# Set the detector volume as a transport boundary.
+engine.boundary = "Detector"
 
 # Initialise the Monte Carlo states and source energies.
 N = 1000000
@@ -45,7 +52,7 @@ status = engine.transport(states, source_energies)
 
 # Select events consistent with a volume source located in the air.
 sector = geometry.locate(states)
-air_index = sector_names.index("Atmosphere")
+air_index = geometry.sector_index("Atmosphere")
 selection = (status == goupil.TransportStatus.ENERGY_CONSTRAINT) & \
             (sector == air_index)
 collected = states[selection]

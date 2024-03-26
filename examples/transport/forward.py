@@ -245,5 +245,5 @@ sigma = numpy.sqrt(p * (1.0 - p) / N)
 sigma_efficiency = 100.0 * sigma
 sigma_rate = K * sigma
 
-print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Bq / cm^2")
+print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Hz / cm^2")
 print(f"efficiency = {efficiency:.2f} +- {sigma_efficiency:.2f} %")

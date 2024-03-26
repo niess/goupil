@@ -249,8 +249,7 @@ within a depth of 1m.
 
 MAX_DEPTH = 1.0E+02 # cm
 sector = geometry.locate(states)
-sector_names = [sector.description for sector in geometry.sectors]
-ground_index = sector_names.index("Ground")
+ground_index = geometry.sector_index("Ground")
 selection = (status == goupil.TransportStatus.ENERGY_CONSTRAINT) & \
             (sector == ground_index) & \
             (states["position"][:,2] >= -MAX_DEPTH)
@@ -278,5 +277,5 @@ p = collected.size / N
 efficiency = 100.0 * p
 sigma_efficiency = 100.0 * numpy.sqrt(p * (1.0 - p) / N)
 
-print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Bq / cm^2")
+print(f"rate = {rate:.2E} +- {sigma_rate:.2E} Hz / cm^2")
 print(f"efficiency = {efficiency:.2f} +- {sigma_efficiency:.2f} %")

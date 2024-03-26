@@ -333,6 +333,28 @@ impl PyTransportEngine {
 
     fn __setattr__(&mut self, py: Python, name: &str, value: PyObject) -> Result<()> {
         match name {
+            "boundary" => {
+                let boundary: TransportBoundary = if value.is_none(py) {
+                    TransportBoundary::None
+                } else {
+                    let value: BoundaryArg = value.extract(py)?;
+                    match value {
+                        BoundaryArg::Description(description) => {
+                            let index = match &self.geometry {
+                                None => value_error!(
+                                    "could not find any sector for '{}'",
+                                    description
+                                ),
+                                Some(geometry) => geometry.sector_index(py, description)?,
+                            };
+                            TransportBoundary::Sector(index)
+                        },
+                        BoundaryArg::Explicit(boundary) => boundary.into(),
+                    }
+                };
+                let settings = &mut self.settings.borrow_mut(py).inner;
+                settings.boundary = boundary;
+            },
             "geometry" => {
                 if value.is_none(py) {
                     self.geometry = None;
@@ -629,6 +651,12 @@ impl PyTransportEngine {
         let status: &PyAny = status;
         Ok(status.into())
     }
+}
+
+#[derive(FromPyObject)]
+enum BoundaryArg<'p> {
+    Description(&'p str),
+    Explicit(PyTransportBoundary<'p>),
 }
 
 

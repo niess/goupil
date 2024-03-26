@@ -191,8 +191,16 @@ impl PyExternalGeometry {
         Ok(self.cdll.clone_ref(py))
     }
 
+    fn material_index(&self, name: &str) -> Result<usize> {
+        self.inner.find_material(name)
+    }
+
     fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
         locate::<ExternalGeometry, ExternalTracer>(&self.inner, states)
+    }
+
+    fn sector_index(&self, description: &str) -> Result<usize> {
+        self.inner.find_sector(description)
     }
 
     fn trace(
@@ -207,10 +215,11 @@ impl PyExternalGeometry {
     fn update_material(
         &mut self,
         py: Python,
-        index: usize,
+        sector: IndexArg,
         material: MaterialLike,
     ) -> Result<()> {
         // Update inner state.
+        let index = sector.sector_index(&self.inner)?;
         let material = material.unpack()?;
         self.inner.update_material(index, &material)?;
 
@@ -225,11 +234,16 @@ impl PyExternalGeometry {
     fn update_sector(
         &mut self,
         py: Python,
-        index: usize,
-        material: Option<usize>,
+        sector: IndexArg,
+        material: Option<IndexArg>,
         density: Option<DensityModel>,
     ) -> Result<()> {
         // Update inner state.
+        let index = sector.sector_index(&self.inner)?;
+        let material = match material {
+            None => None,
+            Some(material) => Some(material.material_index(&self.inner)?),
+        };
         self.inner.update_sector(index, material, density.as_ref())?;
 
         // Update external state.
@@ -621,8 +635,16 @@ impl PyStratifiedGeometry {
         Ok(())
     }
 
+    fn material_index(&self, name: &str) -> Result<usize> {
+        self.inner.find_material(name)
+    }
+
     fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
         locate::<StratifiedGeometry, StratifiedTracer>(&self.inner, states)
+    }
+
+    fn sector_index(&self, description: &str) -> Result<usize> {
+        self.inner.find_sector(description)
     }
 
     fn trace(
@@ -932,5 +954,101 @@ impl IntoPy<PyObject> for PyGeometryDefinition {
             Self::Simple(simple) => simple.into_py(py),
             Self::Stratified(stratified) => stratified.into_py(py),
         }
+    }
+}
+
+impl PyGeometryDefinition {
+    pub(crate) fn sector_index(&self, py: Python, description: &str) -> Result<usize> {
+        match self {
+            Self::External(external) => {
+                let external = &external.borrow(py).inner;
+                external.find_sector(description)
+            },
+            Self::Simple(simple) => {
+                let simple = &simple.borrow(py).0;
+                simple.find_sector(description)
+            },
+            Self::Stratified(stratified) => {
+                let stratified = &stratified.borrow(py).inner;
+                stratified.find_sector(description)
+            },
+        }
+    }
+}
+
+
+// ===============================================================================================
+// Generic geometry indexing.
+// ===============================================================================================
+
+trait GeometryIndexing: GeometryDefinition {
+    fn find_material(&self, name: &str) -> Result<usize> {
+        let mut index: Option<usize> = None;
+        for (i, material) in self.materials().iter().enumerate() {
+            if material.name() == name {
+                if index.is_some() {
+                    value_error!("multiple matches for material '{}'", name)
+                } else {
+                    index = Some(i);
+                }
+            }
+        }
+        match index {
+            None => value_error!(
+                "could not find any material for '{}'",
+                name
+            ),
+            Some(index) => Ok(index),
+        }
+    }
+
+    fn find_sector(&self, description: &str) -> Result<usize> {
+        let mut index: Option<usize> = None;
+        for (i, sector) in self.sectors().iter().enumerate() {
+            if let Some(d) = &sector.description {
+                if d == description {
+                    if index.is_some() {
+                        value_error!("multiple matches for sector '{}'", description)
+                    } else {
+                        index = Some(i);
+                    }
+                }
+            }
+        }
+        match index {
+            None => value_error!(
+                "could not find any sector for '{}'",
+                description
+            ),
+            Some(index) => Ok(index),
+        }
+    }
+}
+
+impl GeometryIndexing for ExternalGeometry {}
+impl GeometryIndexing for SimpleGeometry {}
+impl GeometryIndexing for StratifiedGeometry {}
+
+#[derive(FromPyObject)]
+enum IndexArg<'a> {
+    Index(usize),
+    Description(&'a str)
+}
+
+impl<'a> IndexArg<'a> {
+    fn material_index<G: GeometryIndexing>(&self, geometry: &G) -> Result<usize> {
+        let index  = match self {
+            Self::Index(index) => *index,
+            Self::Description(description) => geometry.find_material(description)?,
+        };
+        Ok(index)
+    }
+
+    fn sector_index<G: GeometryIndexing>(&self, geometry: &G) -> Result<usize> {
+        let index  = match self {
+            Self::Index(index) => *index,
+            Self::Description(description) => geometry.find_sector(description)?,
+        };
+        Ok(index)
     }
 }
