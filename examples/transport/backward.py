@@ -61,32 +61,16 @@ rock_density = 2.9 # g/cm^3
 """
 Finally, a vertically stratified Monte Carlo geometry is created with a 20x20
 km^2 horizontal base. The rocks and air volumes are separated by a plane
-topography surface at z = 0. Additionally, the geometry is bounded above by a
-plane representing the collection surface for gamma-rays.
-
-Let us point out that the collection surface is not necessary for a backward
-simulation. This boundary prevents the simulation of photons that would pass the
-collection surface, turn back, and finally be collected as up-going. To maintain
-consistency with the forward Monte Carlo simulation, these events are not
-included. However, if you wish to simulate them, simply remove the collection
-surface boundary.
+topography surface at z = 0.
 """
 
-HALF_WIDTH, COLLECTION_HEIGHT = 1E+06, 1E+03 # cm
+WORLD_WIDTH = 2E+06 # cm
 topography_surface = goupil.TopographyMap(
-    (-HALF_WIDTH, HALF_WIDTH),
-    (-HALF_WIDTH, HALF_WIDTH),
+    (-0.5 * WORLD_WIDTH, 0.5 * WORLD_WIDTH),
+    (-0.5 * WORLD_WIDTH, 0.5 * WORLD_WIDTH),
     z = 0 # cm
 )
-collection_surface = goupil.TopographyMap(
-    (-HALF_WIDTH, HALF_WIDTH),
-    (-HALF_WIDTH, HALF_WIDTH),
-    z = COLLECTION_HEIGHT
-)
 geometry = goupil.StratifiedGeometry(
-    collection_surface, # <== Comment this line in order to include photons that
-                        #     would go past the collection height, turn back,
-                        #     and finally be collected as up-going.
     goupil.GeometrySector(air, air_density, "Atmosphere"),
     topography_surface,
     goupil.GeometrySector(rock, rock_density, "Ground")
@@ -134,23 +118,9 @@ For this problem we consider a single radioactive isotope, Pb-214, with its
 three main gamma emission lines. The corresponding spectrum is
 """
 
-source_spectrum = numpy.array((
-    (0.242, 0.12),
-    (0.295, 0.30),
-    (0.352, 0.58),
-))
-
-"""
-Let us randomise the source energies of the gamma-rays according to the latter
-spectrum. This is done using the `random_choice` function from the numpy
-package.
-"""
-
-source_energies = numpy.random.choice(
-    source_spectrum[:,0],
-    N,
-    replace = True,
-    p = source_spectrum[:,1]
+spectrum = goupil.DiscreteSpectrum(
+    energies = (0.242, 0.295, 0.352), # MeV
+    intensities = (7.3, 18.4, 35.6)
 )
 
 """
@@ -160,25 +130,17 @@ them accordingly by the inverse of their PDF.
 
 There are two cases to consider: photo-peaks events, where the final energy
 corresponds to the source one, and background events. The set of Monte Carlo
-states is randomly split into these two cases with a probability alpha. Setting
-the energy of photo-peaks is straightforward, as follows
+states is randomly split into these two cases according to an a priori fraction
+of background events. The DiscreteSpectrum object let us automate these steps,
+as
 """
 
-ALPHA = 0.5 # Fraction of photo-peaks events.
-photopeaks = engine.random.uniform01(N) < ALPHA
-states["energy"][photopeaks] = source_energies[photopeaks]
-states["weight"][photopeaks] = 1.0 / ALPHA # i.e., 1 / PDF
+source_energies = spectrum.sample(states, engine)
 
 """
-For background events, we use a log-uniform prior to set the final energy.
+Note that in addition to randomising the final energies, the *sample* function
+returns the corresponding source energies.
 """
-
-background = ~photopeaks
-ENERGY_MIN = 1E-02 # MeV
-lne = numpy.log(source_energies[background] / ENERGY_MIN)
-energies = ENERGY_MIN * numpy.exp(lne * engine.random.uniform01(lne.size))
-states["energy"][background] = energies
-states["weight"][background] = lne * energies / (1.0 - ALPHA) # i.e., 1 / PDF
 
 """
 Arrival positions are constant and thus easily set. To avoid numerical problems,
@@ -186,6 +148,8 @@ a small offset is applied with respect to the nominal position, which would be
 on the collection surface.
 """
 
+
+COLLECTION_HEIGHT = 1E+03  # cm
 epsilon = 1E-04 # cm, for numerical safety.
 states["position"][:,0] = 0.0
 states["position"][:,1] = 0.0
@@ -223,6 +187,26 @@ states["weight"] *= numpy.pi # Note that the angular weight includes a surface
 
 ================================================================================
 
+As in the forward case, let us define a boundary plane corresponding to the
+gamma-rays collector, as
+"""
+
+COLLECTION_THICKNESS = 0.1  # cm
+engine.boundary = goupil.BoxShape(
+    size = (WORLD_WIDTH, WORLD_WIDTH, COLLECTION_THICKNESS), # cm
+    center = (0.0, 0.0, COLLECTION_HEIGHT + 0.5 * COLLECTION_THICKNESS) # cm
+)
+
+"""
+Let us point out that this boundary is not necessary for a backward simulation.
+Adding a boundary prevents the simulation of photons that would pass the
+collection surface, turn back, and finally be collected as up-going. To maintain
+consistency with the forward Monte Carlo simulation, these events are not
+included. However, if you wish to simulate them, simply remove the above
+boundary.
+"""
+
+"""
 The backward Monte Carlo simulation involves transporting gamma-rays through the
 geometry to a potential source. Therefore, we need to specify the anticipated
 source energies that establish the stopping criteria for each event.

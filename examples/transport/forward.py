@@ -61,23 +61,16 @@ rock_density = 2.9 # g/cm^3
 """
 Finally, a vertically stratified Monte Carlo geometry is created with a 20x20
 km^2 horizontal base. The rocks and air volumes are separated by a plane
-topography surface at z = 0. Additionally, the geometry is bounded above by a
-plane that will act as a collection surface for gamma-rays.
+topography surface at z = 0.
 """
 
-HALF_WIDTH, COLLECTION_HEIGHT = 1E+06, 1E+03 # cm
+WORLD_WIDTH = 2E+06 # cm
 topography_surface = goupil.TopographyMap(
-    (-HALF_WIDTH, HALF_WIDTH),
-    (-HALF_WIDTH, HALF_WIDTH),
+    (-0.5 * WORLD_WIDTH, 0.5 * WORLD_WIDTH),
+    (-0.5 * WORLD_WIDTH, 0.5 * WORLD_WIDTH),
     z = 0 # cm
 )
-collection_surface = goupil.TopographyMap(
-    (-HALF_WIDTH, HALF_WIDTH),
-    (-HALF_WIDTH, HALF_WIDTH),
-    z = COLLECTION_HEIGHT
-)
 geometry = goupil.StratifiedGeometry(
-    collection_surface,
     goupil.GeometrySector(air, air_density, "Atmosphere"),
     topography_surface,
     goupil.GeometrySector(rock, rock_density, "Ground")
@@ -125,24 +118,17 @@ For this problem we consider a single radioactive isotope, Pb-214, with its
 three main gamma emission lines. The corresponding spectrum is
 """
 
-source_spectrum = numpy.array((
-    (0.242, 0.12), # (energy in MeV, normalised intensity)
-    (0.295, 0.30),
-    (0.352, 0.58),
-))
+spectrum = goupil.DiscreteSpectrum(
+    energies = (0.242, 0.295, 0.352), # MeV
+    intensities = (7.3, 18.4, 35.6)
+)
 
 """
 Let us randomise the initial energies of the gamma-rays according to the latter
-spectrum. This is done using the `random_choice` function from the numpy
-package.
+spectrum. This is done as follows
 """
 
-states["energy"] = numpy.random.choice(
-    source_spectrum[:,0],
-    N,
-    replace = True,
-    p = source_spectrum[:,1]
-)
+spectrum.sample(states, engine)
 
 """
 In principle, the source positions should be randomized throughout the entire
@@ -179,7 +165,18 @@ states["direction"][:,2] = cos_theta
 ================================================================================
 
 The Monte Carlo simulation is carried out by transporting the emitted gamma-rays
-through the geometry. This is achieved simply as follows:
+through the geometry. But, first we need to define a boundary plane for
+collecting gamma rays. This is done with a 1mm thin box, as follows:
+"""
+
+COLLECTION_HEIGHT, COLLECTION_THICKNESS = 1E+03, 0.1  # cm
+engine.boundary = goupil.BoxShape(
+    size = (WORLD_WIDTH, WORLD_WIDTH, COLLECTION_THICKNESS), # cm
+    center = (0.0, 0.0, COLLECTION_HEIGHT + 0.5 * COLLECTION_THICKNESS) # cm
+)
+
+"""
+Then, the Monte Carlo runs as
 """
 
 status = engine.transport(states)
@@ -194,13 +191,12 @@ status = engine.transport(states)
 
 The previous transport routines returned an array of status flags indicating the
 stop condition for each Monte Carlo state. To estimate the rate of gamma-rays at
-point (0,0,h), we select up-going photons that exit through the collection
+point (0,0,h), we select up-going photons that entered the collection
 surface with an energy higher than 10 keV.
 """
 
 ENERGY_MIN = 1E-02 # MeV
-selection = (status == goupil.TransportStatus.EXIT) & \
-            (states["position"][:,2] >= COLLECTION_HEIGHT) & \
+selection = (status == goupil.TransportStatus.BOUNDARY) & \
             (states["direction"][:,2] > 0.0) & \
             (states["energy"] >= ENERGY_MIN)
 collected = states[selection]
@@ -214,7 +210,7 @@ and solid angle.
 """
 
 volume_activity = 1.0 # Bq / (cm^3 sr)
-source_volume = (2.0 * HALF_WIDTH)**2 * MAX_DEPTH
+source_volume = WORLD_WIDTH**2 * MAX_DEPTH
 solid_angle = 4.0 * numpy.pi
 total_activity = volume_activity * source_volume * solid_angle
 
@@ -225,7 +221,7 @@ rays is then calculated by dividing the number of collected photons by the
 collection area. Therefore, we define a rate factor
 """
 
-collection_area = (2.0 * HALF_WIDTH)**2
+collection_area = WORLD_WIDTH**2
 K = total_activity / collection_area
 
 """
