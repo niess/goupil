@@ -90,7 +90,7 @@ impl Grid for LinearGrid {
         if i > self.n - 1 {
             GridCoordinate::Above(self.n)
         } else if i == self.n - 1 {
-            if x == self.xmax {
+            if x <= self.xmax {
                 GridCoordinate::Inside(self.n - 2, 1.0)
             } else {
                 GridCoordinate::Above(self.n)
@@ -192,7 +192,7 @@ impl Grid for LogGrid {
         if i > n - 1 {
             return GridCoordinate::Above(n);
         } else if i == n - 1 {
-            if x == self.x[n - 1] {
+            if x <= self.x[n - 1] {
                 return GridCoordinate::Inside(n - 2, 1.0);
             } else {
                 return GridCoordinate::Above(n);

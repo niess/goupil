@@ -463,8 +463,9 @@ impl ResolvedSurface {
 impl<'a> StratifiedTracer<'a> {
     fn locate(&mut self, r: Float3) -> (Option<usize>, Float) {
         let size = &self.definition.size;
-        if (r.0 < size.xmin) || (r.0 > size.xmax) ||
-           (r.1 < size.ymin) || (r.1 > size.ymax) {
+        let eps = 10.0 * Float::EPSILON;
+        if (r.0 <= size.xmin + eps) || (r.0 >= size.xmax - eps) ||
+           (r.1 <= size.ymin + eps) || (r.1 >= size.ymax - eps) {
                return (None, Float::INFINITY)
         }
 
@@ -493,7 +494,7 @@ impl<'a> StratifiedTracer<'a> {
                     if i == n - 1 {
                         return (Some(i - 1), bound(delta))
                     } else {
-                        unreachable!();
+                        unreachable!("zi = {:?}, i = {}, r = {:}", zi, i, r);
                     }
                 },
                 Some(zi) => {
