@@ -28,6 +28,7 @@ use self::materials::{
 use self::rand::PyRandomStream;
 use process_path::get_dylib_path;
 use self::process::{PyAbsorptionProcess, PyComptonProcess, PyRayleighProcess};
+use self::spectrum::PyDiscreteSpectrum;
 use self::transport::{PyTransportEngine, PyTransportSettings, PyTransportStatus};
 use self::transport::{states as states_fun};
 use std::path::PathBuf;
@@ -40,6 +41,7 @@ mod materials;
 mod numpy;
 mod rand;
 mod process;
+mod spectrum;
 mod transport;
 
 
@@ -149,6 +151,7 @@ fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<PyComptonProcess>()?;
     module.add_class::<PyCrossSection>()?;
     module.add_class::<PyDensityGradient>()?;
+    module.add_class::<PyDiscreteSpectrum>()?;
     module.add_class::<PyDistributionFunction>()?;
     module.add_class::<PyElectronicStructure>()?;
     module.add_class::<PyExternalGeometry>()?;
