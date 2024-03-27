@@ -39,8 +39,19 @@ status = engine.transport(states)
 # Select collected events.
 collected = states[status == goupil.TransportStatus.BOUNDARY]
 
-# Print the Monte Carlo statistics. Note that in this case the Monte Carlo
-# efficiency equals the normalised rate of collected events.
+# Print the Monte Carlo statistics. Note that in this case the collection rate
+# and Monte Carlo efficiency are proportional.
+
+source_density = 1E-05 # Bq/cm^3
+WORLD_SIZE, DETECTOR_SIZE = 2E+05, 2E+03 # cm
+source_volume = 0.5 * (WORLD_SIZE**3 - DETECTOR_SIZE**3)
+total_activity = source_density * source_volume
+
 efficiency = collected.size / N
-sigma = (efficiency * (1.0 - efficiency) / N)**0.5
-print(f"efficiency / rate = {efficiency:.1E} +- {sigma:.1E}")
+sigma_efficiency = (efficiency * (1.0 - efficiency) / N)**0.5
+
+rate = efficiency * total_activity * 1E-06 # MHz
+sigma_rate = sigma_efficiency * total_activity * 1E-06 # MHz
+
+print(f"rate = {rate:.2E} +- {sigma_rate:.2E} MHz")
+print(f"efficiency = {efficiency:.1E} +- {sigma_efficiency:.1E}")

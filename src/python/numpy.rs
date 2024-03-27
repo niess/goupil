@@ -136,7 +136,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
     let dtype = numpy.getattr("dtype")?;
 
     let dtype_bool: PyObject = dtype
-        .call1(("b",))?
+        .call1(("bool",))?
         .into_py(py);
 
     let dtype_float: PyObject = dtype

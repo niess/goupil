@@ -8,7 +8,8 @@ states. These functions are accessed from Python by using the [ctypes][CTYPES]
 module.
 
 _Note that this example uses the [Geant4 adapter][G4_GOUPIL] distributed with
-Goupil._
+Goupil. An alternative implementation of this problem (not requiring Geant4) can
+be found under [examples/benchmark](../benchmark)._
 
 
 ## Usage

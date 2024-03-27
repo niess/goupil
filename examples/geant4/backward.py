@@ -58,16 +58,14 @@ selection = (status == goupil.TransportStatus.ENERGY_CONSTRAINT) & \
 collected = states[selection]
 
 # Print the Monte Carlo statistics.
-WORLD_SIZE, DETECTOR_WIDTH, DETECTOR_HEIGHT = 2E+05, 2E+03, 1E+03
-source_volume = 0.5 * WORLD_SIZE**3 - DETECTOR_WIDTH**2 * DETECTOR_HEIGHT
-source_density = 1.0 / (4.0 * numpy.pi * source_volume) # A normalised source
-                                                        # intensity is assumed.
+source_density = 1E-05 / (4.0 * numpy.pi) # Bq / cm3 / sr
 
 rates = collected["weight"] * source_density / N
-mu = sum(rates)
-sigma = sum(rates**2 - (mu / N)**2)**0.5
-print(f"rate = {mu:.1E} +- {sigma:.1E}")
+rate = sum(rates) * 1E-06 # MHz
+sigma_rate = sum(rates**2 - (rate / N)**2)**0.5 * 1E-06 # MHz
 
 efficiency = collected.size / N
-sigma = (efficiency * (1.0 - efficiency) / N)**0.5
-print(f"efficiency = {efficiency:.1E} +- {sigma:.1E}")
+sigma_efficiency = (efficiency * (1.0 - efficiency) / N)**0.5
+
+print(f"rate = {rate:.2E} +- {sigma_rate:.2E}")
+print(f"efficiency = {efficiency:.1E} +- {sigma_efficiency:.1E}")

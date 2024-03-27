@@ -96,10 +96,8 @@ engine.mode = "Backward"
 Note that the transport engine is configured for forward Monte Carlo by default.
 So we needed to adjust its mode of operation. Note also that the engine provides
 a random stream which we will use below to initialise Monte Carlo states.
-"""
 
 
-"""
 ================================================================================
 
   3. Initialising the Monte Carlo states
@@ -241,8 +239,8 @@ collected = states[selection]
 
 """
 Then, the collected rate is simply obtained by multiplying the Monte Carlo
-weights of the selected events with the corresponding volume activities of
-sources, and summing them up. Thus
+weights of the selected events with the corresponding activities of
+sources, per unit of volume and solid angle, and summing them up. Thus
 """
 
 volume_activity = 1.0 # Bq / (cm^3 sr)
