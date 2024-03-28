@@ -27,11 +27,11 @@ Constructor
       >>> soil_surface = goupil.TopographyMap((-1e5, 1e5), (-1e5, 1e5), z=-1e2)
 
    >>> geometry = goupil.StratifiedGeometry(
-   ...     goupil.GeometrySector("N2", 1.205E-03),
+   ...     goupil.GeometrySector("N2", 1.205E-03, "Atmosphere"),
    ...     water_surface,
-   ...     goupil.GeometrySector("H2O", 1.0),
+   ...     goupil.GeometrySector("H2O", 1.0, "Water"),
    ...     soil_surface,
-   ...     goupil.GeometrySector("SiO2", 2.0)
+   ...     goupil.GeometrySector("SiO2", 2.0, "Soil")
    ... )
 
    defines a vertical section of water covered by a nitrogen atmosphere and
@@ -77,6 +77,24 @@ Methods
    be a structured :external:py:class:`numpy.ndarray` as returned by the
    :py:func:`states <states>` function. The function returns a
    :external:py:class:`numpy.ndarray` of sector indices.
+
+.. py:method:: StratifiedGeometry.material_index(name) -> int
+
+   Returns the index of a material in the list of geometry :py:attr:`materials
+   <StratifiedGeometry.materials>` based on its :py:attr:`name
+   <MaterialDefinition.name>`. For instance
+
+   >>> geometry.material_index("SiO2")
+   0
+
+.. py:method:: StratifiedGeometry.sector_index(description) -> int
+
+   Returns the index of a sector in the list of geometry :py:attr:`sectors
+   <StratifiedGeometry.sectors>` based on its :py:attr:`description
+   <GeometrySector.description>`. For instance
+
+   >>> geometry.sector_index("Atmosphere")
+   2
 
 .. py:method:: StratifiedGeometry.trace(states, lengths=None, density=None) -> numpy.ndarray
 

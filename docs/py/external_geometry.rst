@@ -76,6 +76,24 @@ Methods
    :py:func:`states <states>` function. The function returns a
    :external:py:class:`numpy.ndarray` of sector indices.
 
+.. py:method:: ExternalGeometry.material_index(name) -> int
+
+   Returns the index of a material in the list of geometry :py:attr:`materials
+   <ExternalGeometry.materials>` based on its :py:attr:`name
+   <MaterialDefinition.name>`. For instance
+
+   >>> geometry.material_index("CaCO3") # doctest: +SKIP
+   1
+
+.. py:method:: ExternalGeometry.sector_index(description) -> int
+
+   Returns the index of a sector in the list of geometry :py:attr:`sectors
+   <ExternalGeometry.sectors>` based on its :py:attr:`description
+   <GeometrySector.description>`. For instance
+
+   >>> geometry.sector_index("Atmosphere") # doctest: +SKIP
+   0
+
 .. py:method:: ExternalGeometry.trace(states, lengths=None, density=None) -> numpy.ndarray
 
    Casts rays through the geometry, starting from the specified *states*. The
@@ -91,14 +109,23 @@ Methods
    return the column depth (grammage) along rays, in each sector, rather than
    the path length.
 
-.. py:method:: ExternalGeometry.update_material(index, material)
+.. py:method:: ExternalGeometry.update_material(material, definition)
 
-   Replaces the material at the specified *index* in the list of geometry
-   :py:attr:`materials <ExternalGeometry.materials>`. The *material* argument
-   must be consistent with a :doc:`material_definition`.
+   Replaces the *material* at the specified :external:py:class:`int` index in
+   the list of geometry :py:attr:`materials <ExternalGeometry.materials>`.
+   Alternatively, the *material* argument could be a :external:py:class:`str`
+   indicating the :py:attr:`name <MaterialDefinition.name>` of the material to
+   be replaced. The *definition* argument should be in line with a
+   :doc:`material_definition`. For instance
 
-.. py:method:: ExternalGeometry.update_sector(index, material=None, density=None)
+   >>> geometry.update_material("CaCO3", "SiO2") # doctest: +SKIP
 
-   Alters the *material* or *density* model of a sector, identified by its
-   *index* in the list of geometry :py:attr:`sectors
-   <ExternalGeometry.sectors>`.
+
+.. py:method:: ExternalGeometry.update_sector(sector, material=None, density=None)
+
+   Alters the *material* or *density* model of a *sector*, identified by its
+   :external:py:class:`int` index in the list of geometry :py:attr:`sectors
+   <ExternalGeometry.sectors>`. Alternatively, the *sector* argument could be
+   a :external:py:class:`str` describing the sector to be altered. For instance
+
+   >>> geometry.update_sector("Atmosphere", density=1.205E-03) # doctest: +SKIP

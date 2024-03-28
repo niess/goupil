@@ -60,6 +60,15 @@ Attributes
    :doc:`external_geometry`. The Monte Carlo transport stops whenever a
    trajectory enters the corresponding sector.
 
+.. tip::
+
+   When setting the :py:attr:`boundary <TransportSettings.boundary>` attribute
+   from a :doc:`transport_engine`, a :py:attr:`description
+   <GeometrySector.description>` string can be provided instead of the sector
+   index. For instance
+
+   >>> engine.boundary = "Detector" # doctest: +SKIP
+
 .. py:attribute:: TransportSettings.compton_method
    :type: str
 

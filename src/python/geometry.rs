@@ -215,12 +215,12 @@ impl PyExternalGeometry {
     fn update_material(
         &mut self,
         py: Python,
-        sector: IndexArg,
-        material: MaterialLike,
+        material: IndexArg,
+        definition: MaterialLike,
     ) -> Result<()> {
         // Update inner state.
-        let index = sector.sector_index(&self.inner)?;
-        let material = material.unpack()?;
+        let index = material.sector_index(&self.inner)?;
+        let material = definition.unpack()?;
         self.inner.update_material(index, &material)?;
 
         // Update external state.
