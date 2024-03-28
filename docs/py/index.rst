@@ -26,6 +26,7 @@ Classes
    compton_process
    cross_section
    density_gradient
+   discrete_spectrum
    distribution_function
    electronic_structure
    external_geometry
