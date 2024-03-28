@@ -181,7 +181,7 @@ Arrival positions and directions are randomised over the outer surface of the
 collector, using priors. This can be done as
 """
 
-collector.randomise(states, engine)
+collector.sample(states, engine)
 
 
 """

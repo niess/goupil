@@ -22,6 +22,7 @@ Classes
 
    absorption_process
    atomic_element
+   box_shape
    compton_process
    cross_section
    density_gradient
@@ -37,6 +38,7 @@ Classes
    random_stream
    rayleigh_process
    simple_geometry
+   sphere_shape
    stratified_geometry
    topography_map
    topography_surface

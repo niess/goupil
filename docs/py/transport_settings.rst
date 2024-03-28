@@ -53,19 +53,23 @@ Attributes
         - Absorption is not considered.
 
 .. py:attribute:: TransportSettings.boundary
-   :type: int | None
+   :type: BoxShape | int | None | SphereShape
 
    This attribute represents an inner geometry boundary for Monte Carlo
-   transport, which is specified as a sector index, for example, in an
-   :doc:`external_geometry`. The Monte Carlo transport stops whenever a
-   trajectory enters the corresponding sector.
+   transport. It can be defined as an integer :doc:`sector <geometry_sector>`
+   index, for example, in an :doc:`external_geometry`. The Monte Carlo transport
+   stops whenever a trajectory enters the corresponding sector.
+
+   Alternatively, a boundary can be defined as a :doc:`box <box_shape>` or
+   :doc:`sphere <sphere_shape>` shape, which may  or may not overlap with the
+   Monte Carlo geometry.
 
 .. tip::
 
    When setting the :py:attr:`boundary <TransportSettings.boundary>` attribute
    from a :doc:`transport_engine`, a :py:attr:`description
-   <GeometrySector.description>` string can be provided instead of the sector
-   index. For instance
+   <GeometrySector.description>` string can be provided instead of an integer
+   sector index. For instance
 
    >>> engine.boundary = "Detector" # doctest: +SKIP
 

@@ -334,16 +334,21 @@ def test_BoxShape():
     s["position"] = (0, 0, 1.0)
     assert(numpy.isnan(b.distance(s)).all())
 
+    # Test reverse flag.
+    s["position"] = (0, 0, 1.0)
+    assert(b.distance(s, reverse=True) == 0.5)
+    assert((s[0]["direction"] == (0.0, 0.0, 1.0)).all())
+
     # Test generator.
     b = goupil.BoxShape(center=(0.0, 0.0, 1.0))
     s = goupil.states(100)
-    b.randomise(s)
+    b.sample(s)
     assert(b.inside(s).all())
     sel = s["position"][:,0] == -0.5 + 1E-04
     assert((s["direction"][sel,0] > 0.0).all())
     sel = s["position"][:,0] == 0.5 - 1E-04
     assert((s["direction"][sel,0] < 0.0).all())
-    b.randomise(s, side="Outside", direction="Outgoing")
+    b.sample(s, side="Outside", direction="Outgoing")
     assert(not b.inside(s).any())
     sel = s["position"][:,0] == -0.5 - 1E-04
     assert((s["direction"][sel,0] < 0.0).all())

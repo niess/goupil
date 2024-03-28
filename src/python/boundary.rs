@@ -78,10 +78,6 @@ impl PyBoxShape {
         Self(shape)
     }
 
-    fn __eq__(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-
     #[getter]
     fn get_center(&self) -> Float3 {
         self.0.center
@@ -97,15 +93,42 @@ impl PyBoxShape {
         self.0.size
     }
 
-    fn distance(&self, states: &PyArray<CState>) -> Result<PyObject> {
-        self.0.distance_v(states)
+    fn __eq__(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
+    fn __repr__(&self) -> String {
+        match &self.0.rotation {
+            None => if self.0.center.norm2() == 0.0 {
+                format!(
+                    "BoxShape({})",
+                    self.0.size
+                )
+            } else {
+                format!(
+                    "BoxShape({}, center={})",
+                    self.0.size,
+                    self.0.center,
+                )
+            },
+            Some(rotation) => format!(
+                "BoxShape({}, center={}, rotation={})",
+                    self.0.size,
+                    self.0.center,
+                    rotation,
+            ),
+        }
+    }
+
+    fn distance(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
+        self.0.distance_v(states, reverse)
     }
 
     fn inside(&self, states: &PyArray<CState>) -> Result<PyObject> {
         self.0.inside_v(states)
     }
 
-    fn randomise(
+    fn sample(
         &self,
         states: &PyArray<CState>,
         engine: Option<&PyTransportEngine>,
@@ -238,10 +261,6 @@ impl PySphereShape {
         Self(shape)
     }
 
-    fn __eq__(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-
     #[getter]
     fn get_center(&self) -> Float3 {
         self.0.center
@@ -252,15 +271,34 @@ impl PySphereShape {
         self.0.radius
     }
 
-    fn distance(&self, states: &PyArray<CState>) -> Result<PyObject> {
-        self.0.distance_v(states)
+    fn __eq__(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
+    fn __repr__(&self) -> String {
+        if self.0.center.norm2() == 0.0 {
+            format!(
+                "SphereShape({})",
+                self.0.radius
+            )
+        } else {
+            format!(
+                "SphereShape({}, center={})",
+                self.0.radius,
+                self.0.center,
+            )
+        }
+    }
+
+    fn distance(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
+        self.0.distance_v(states, reverse)
     }
 
     fn inside(&self, states: &PyArray<CState>) -> Result<PyObject> {
         self.0.inside_v(states)
     }
 
-    fn randomise(
+    fn sample(
         &self,
         states: &PyArray<CState>,
         engine: Option<&PyTransportEngine>,
@@ -331,12 +369,16 @@ impl VectorisedOperations for SphereShape {}
 // ===============================================================================================
 
 trait VectorisedOperations: GeometryShape {
-    fn distance_v(&self, states: &PyArray<CState>) -> Result<PyObject> {
+    fn distance_v(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
+        let reverse = reverse.unwrap_or(false);
         let py = states.py();
         let result = PyArray::<Float>::empty(py, &states.shape())?;
         let n = states.size();
         for i in 0..n {
-            let state: PhotonState = states.get(i)?.into();
+            let mut state: PhotonState = states.get(i)?.into();
+            if reverse {
+                state.direction = -state.direction;
+            }
             let distance = self
                 .distance(state.position, state.direction)
                 .unwrap_or(Float::NAN);

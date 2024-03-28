@@ -238,6 +238,12 @@ impl AsRef<[Float]> for Float3x3 {
     }
 }
 
+impl fmt::Display for Float3x3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, ..., {})", self.0[0], self.0[8])
+    }
+}
+
 impl Index<(usize, usize)> for Float3x3 {
     type Output = Float;
 
