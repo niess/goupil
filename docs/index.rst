@@ -22,6 +22,7 @@ Documentation
    py/index
    c/index
    references
+   Source code <https://github.com/niess/goupil>
 
 
 System of units
