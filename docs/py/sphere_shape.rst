@@ -24,7 +24,7 @@ Constructor
    >>> shape = goupil.SphereShape(
    ...     1e2, # cm
    ...     center = (0.0, 0.0, 5.0) # cm
-   ...)
+   ... )
 
 Attributes
 ----------

@@ -62,8 +62,8 @@ pub struct PyBoxShape(BoxShape);
 impl PyBoxShape {
     #[new]
     fn new(
-        center: Option<Float3>,
         size: Option<FloatOrFloat3>,
+        center: Option<Float3>,
         rotation: Option<Float3x3>
     ) -> Self {
         let center = center.unwrap_or(Float3::zero());
@@ -254,7 +254,7 @@ pub struct PySphereShape(SphereShape);
 #[pymethods]
 impl PySphereShape {
     #[new]
-    fn new(center: Option<Float3>, radius: Option<Float>) -> Self {
+    fn new(radius: Option<Float>, center: Option<Float3>) -> Self {
         let center = center.unwrap_or(Float3::zero());
         let radius = radius.unwrap_or(1.0);
         let shape = SphereShape { center, radius };
