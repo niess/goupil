@@ -321,7 +321,7 @@ impl Generate for SphereShape {
         state: &mut PhotonState
     ) {
         // Generate position.
-        let cos_theta = rng.uniform01();
+        let cos_theta = 2.0 * rng.uniform01() - 1.0;
         let sin_theta = {
             let s2 = 1.0 - cos_theta * cos_theta;
             if s2 > 0.0 { s2.sqrt() } else { 0.0 }
