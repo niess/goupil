@@ -9,6 +9,11 @@
 // C++ standard library.
 #include <unordered_map>
 
+// Entry point for Goupil.
+#ifndef G4GOUPIL_INITIALISE
+#define G4GOUPIL_INITIALISE goupil_initialise
+#endif
+
 
 // ============================================================================
 //
@@ -90,7 +95,7 @@ static struct goupil_geometry_tracer * new_geometry_tracer(
 }
 
 
-struct goupil_interface goupil_initialise(void) {
+extern "C" struct goupil_interface G4GOUPIL_INITIALISE (void) {
     struct goupil_interface interface;
     interface.new_geometry_definition = &new_geometry_definition;
     interface.new_geometry_tracer = &new_geometry_tracer;
