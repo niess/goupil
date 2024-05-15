@@ -49,7 +49,7 @@ impl PyRandomStream {
         match index {
             None => self.initialise(Some(self.seed))?,
             Some(index) => {
-                let delta: Index = index - self.index;
+                let delta: Index = index.wrapping_sub(self.index);
                 self.generator.advance(delta);
                 self.index = index;
             },
