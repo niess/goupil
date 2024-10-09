@@ -2,7 +2,7 @@
 project = 'Goupil'
 copyright = 'Université Clermont Auvergne, CNRS/IN2P3, LPC'
 author = 'Valentin Niess'
-release = '1.1.0'
+release = '1.1.1'
 
 highlight_language = 'python3'
 
