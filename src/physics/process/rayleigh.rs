@@ -12,7 +12,6 @@ pub(crate) mod table;
 // Public API.
 // ===============================================================================================
 
-pub use self::sample::RayleighSampler;
 pub use self::table::RayleighCrossSection;
 pub use self::table::RayleighFormFactor;
 

@@ -15,7 +15,6 @@ pub(crate) mod table;
 
 pub use self::sample::ComptonSampler;
 pub use self::table::{
-    ComptonTable,
     ComptonCrossSection,
     ComptonCDF,
     ComptonInverseCDF,

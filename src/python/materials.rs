@@ -647,12 +647,6 @@ impl PyMaterialRegistry {
     }
 }
 
-#[derive(Clone, FromPyObject)]
-pub enum PyConstraint {
-    Bool(bool),
-    Float(Float),
-}
-
 impl PyMaterialRegistry {
     pub(crate) const ELEMENTS_DATA: &str = "data/elements";
 
