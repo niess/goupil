@@ -50,7 +50,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macOS-11]
+        os: [ubuntu-22.04, macOS-12]
     if: ${{ inputs.wheel }}
     steps:
       - uses: actions/checkout@v4
