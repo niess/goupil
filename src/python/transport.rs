@@ -284,6 +284,7 @@ enum GeometryArg {
 #[pymethods]
 impl PyTransportEngine {
     #[new]
+    #[pyo3(signature = (geometry=None, *, random=None, registry=None, settings=None))]
     fn new(
         py: Python,
         geometry: Option<GeometryArg>,
@@ -327,7 +328,7 @@ impl PyTransportEngine {
         Ok(())
     }
 
-    fn __getattr__(&self, py: Python, name: &PyString) -> Result<PyObject> {
+    fn __getattr__(&self, py: Python, name: &Bound<PyString>) -> Result<PyObject> {
         Ok(self.settings.getattr(py, name)?)
     }
 
@@ -345,7 +346,7 @@ impl PyTransportEngine {
                                     "could not find any sector for '{}'",
                                     description
                                 ),
-                                Some(geometry) => geometry.sector_index(py, description)?,
+                                Some(geometry) => geometry.sector_index(py, description.as_str())?,
                             };
                             TransportBoundary::Sector(index)
                         },
@@ -372,7 +373,8 @@ impl PyTransportEngine {
     }
 
     // Implementation of pickling protocol.
-    pub fn __setstate__(&mut self, py: Python, state: &PyBytes) -> Result<()> {
+    pub fn __setstate__(&mut self, state: &Bound<PyBytes>) -> Result<()> {
+        let py = state.py();
         let mut deserializer = Deserializer::new(state.as_bytes());
 
         let mut random = self.random.borrow_mut(py);
@@ -393,7 +395,7 @@ impl PyTransportEngine {
         Ok(())
     }
 
-    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<&'py PyBytes> {
+    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyBytes>> {
         let mut buffer = Vec::new();
         let mut serializer = Serializer::new(&mut buffer);
 
@@ -408,16 +410,16 @@ impl PyTransportEngine {
 
         self.compiled.serialize(&mut serializer)?;
 
-        Ok(PyBytes::new(py, &buffer))
+        Ok(PyBytes::new_bound(py, &buffer))
     }
 
-    #[pyo3(signature = (mode=None, atomic_data=None, **kwargs))]
+    #[pyo3(signature = (mode=None, *, atomic_data=None, **kwargs))]
     fn compile(
         &mut self,
         py: Python,
         mode: Option<&str>,
         atomic_data: Option<&str>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<PyDict>>,
     ) -> Result<()> {
         enum CompileMode {
             All,
@@ -485,7 +487,7 @@ impl PyTransportEngine {
                     _ =>(),
                 }
                 let args = (Into::<PyTransportSettings>::into(settings),);
-                self.registry.call_method(py, "compute", args, kwargs)?;
+                self.registry.call_method_bound(py, "compute", args, kwargs)?;
             },
             _ => (),
         }
@@ -501,7 +503,7 @@ impl PyTransportEngine {
                     settings.compton_method = ComptonMethod::InverseTransform;
                 }
                 let args = (Into::<PyTransportSettings>::into(settings),);
-                self.registry.call_method(py, "compute", args, kwargs)?;
+                self.registry.call_method_bound(py, "compute", args, kwargs)?;
             },
             _ => (),
         }
@@ -512,7 +514,7 @@ impl PyTransportEngine {
                 settings.compton_mode = Inverse;
                 settings.compton_method = ComptonMethod::InverseTransform;
                 let args = (Into::<PyTransportSettings>::into(settings),);
-                self.registry.call_method(py, "compute", args, kwargs)?;
+                self.registry.call_method_bound(py, "compute", args, kwargs)?;
             },
             _ => (),
         }
@@ -523,6 +525,7 @@ impl PyTransportEngine {
         Ok(())
     }
 
+    #[pyo3(signature = (states, /, *, source_energies=None))]
     fn transport(
         &mut self,
         states: &PyArray<CState>,
@@ -654,9 +657,9 @@ impl PyTransportEngine {
 }
 
 #[derive(FromPyObject)]
-enum BoundaryArg<'p> {
-    Description(&'p str),
-    Explicit(PyTransportBoundary<'p>),
+enum BoundaryArg<'py> {
+    Description(String),
+    Explicit(PyTransportBoundary<'py>),
 }
 
 
@@ -704,7 +707,11 @@ impl From<PhotonState> for CState {
 
 #[pyfunction]
 #[pyo3(signature=(shape=None, **kwargs))]
-pub fn states(py: Python, shape: Option<ShapeArg>, kwargs: Option<&PyDict>) -> Result<PyObject> {
+pub fn states(
+    py: Python,
+    shape: Option<ShapeArg>,
+    kwargs: Option<&Bound<PyDict>>
+    ) -> Result<PyObject> {
     let shape: Vec<usize> = match shape {
         None => vec![0],
         Some(shape) => shape.into(),
@@ -716,8 +723,8 @@ pub fn states(py: Python, shape: Option<ShapeArg>, kwargs: Option<&PyDict>) -> R
     if let Some(kwargs) = kwargs {
         for (key, value) in kwargs.iter() {
             {
-                let key: &str = key.extract()?;
-                match key {
+                let key: String = key.extract()?;
+                match key.as_str() {
                     "direction" => { has_direction = true; },
                     "energy" => { has_energy = true; },
                     "weight" => { has_weight = true; },
@@ -797,6 +804,6 @@ impl PyTransportStatus {
     fn into_i32(py: Python, status: TransportStatus) -> Result<PyObject> {
         let value: i32 = status.into();
         let scalar = PyScalar::new(py, value)?;
-        Ok(scalar.into())
+        Ok(scalar.into_py(py))
     }
 }

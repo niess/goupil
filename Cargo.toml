@@ -17,7 +17,7 @@ serde = "1"
 serde_derive = "1"
 
 getrandom = { version = "0.2", optional = true }
-pyo3 = { version = "0.20", features = ["abi3", "anyhow", "extension-module"], optional = true }
+pyo3 = { version = "0.21", features = ["abi3", "anyhow", "extension-module"], optional = true }
 rand_pcg = { version = "0.3", features = ["serde1"], optional = true }
 
 [features]

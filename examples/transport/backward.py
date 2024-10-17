@@ -133,7 +133,7 @@ of background events. The DiscreteSpectrum object let us automate these steps,
 as
 """
 
-source_energies = spectrum.sample(states, engine)
+source_energies = spectrum.sample(states, engine=engine)
 
 """
 Note that in addition to randomising the final energies, the *sample* function
@@ -212,7 +212,7 @@ source energies that establish the stopping criteria for each event.
 
 status = engine.transport(
     states,
-    source_energies
+    source_energies = source_energies
 )
 
 

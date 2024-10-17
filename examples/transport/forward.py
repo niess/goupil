@@ -128,7 +128,7 @@ Let us randomise the initial energies of the gamma-rays according to the latter
 spectrum. This is done as follows
 """
 
-spectrum.sample(states, engine)
+spectrum.sample(states, engine=engine)
 
 """
 In principle, the source positions should be randomized throughout the entire

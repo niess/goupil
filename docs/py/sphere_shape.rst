@@ -44,7 +44,7 @@ Attributes
 Methods
 -------
 
-.. py:method:: SphereShape.distance(states, reverse=None) -> numpy.ndarray
+.. py:method:: SphereShape.distance(states, /, *, reverse=None) -> numpy.ndarray
 
    Returns a :external:py:class:`numpy.ndarray` of floats that indicate the
    distance of Monte Carlo *states* to the sphere surface, along their
@@ -53,19 +53,19 @@ Methods
    By default, Monte Carlo states are assumed to propagate forwards. To trace
    states backwards instead, set the reverse flag to :python:`False`.
 
-.. py:method:: SphereShape.inside(states) -> numpy.ndarray
+.. py:method:: SphereShape.inside(states, /) -> numpy.ndarray
 
    Returns a :external:py:class:`numpy.ndarray` of booleans that indicate
    whether the provided Monte Carlo *states* are inside the sphere or not.
 
-.. py:method:: SphereShape.sample(states, engine=None, side=None, direction=None, weight=None)
+.. py:method:: SphereShape.sample(states, /, *, engine=None, side=None, direction=None, weight=None)
 
    Samples Monte Carlo states over the sphere surface. The *weight* boolean flag
    indicates wether the Monte Carlo states should be weighted by the inverse of
    the sampling PDF or not.
 
    The *side* arguments refers to the surface side on which positions are
-   sampled, within a numerical epsilon. Possible values are are
+   sampled, within a numerical epsilon. Possible values are
    :python:`"Inside"` or :python:`"Outside"`.
 
    The *direction* arguments indicates the orientation of the sampled Monte

@@ -36,6 +36,7 @@ pub struct PyGeometrySector {
 #[pymethods]
 impl PyGeometrySector {
     #[new]
+    #[pyo3(signature = (material, density, description=None, /))]
     fn new(
         py: Python,
         material: MaterialLike,
@@ -57,13 +58,13 @@ impl PyGeometrySector {
 
     fn __repr__(&self, py: Python) -> Result<String> {
         let material = self.material
-            .as_ref(py)
+            .bind(py)
             .repr()?
-            .to_str()?;
+            .str()?;
         let density = self.density
-            .as_ref(py)
+            .bind(py)
             .repr()?
-            .to_str()?;
+            .str()?;
         let result = match self.description.as_ref() {
             None => format!(
                 "GeometrySector({}, {})",
@@ -143,29 +144,29 @@ impl PyExternalGeometry {
     pub fn new(py: Python, path: &str) -> Result<Self> {
         let inner = unsafe { ExternalGeometry::new(path)? };
         let cdll = py.None();
-        let materials: &PyTuple = {
+        let materials: Bound<PyTuple> = {
             let mut materials = Vec::<PyObject>::with_capacity(inner.materials.len());
             for material in inner.materials.iter() {
                 let material = PyMaterialDefinition(material.clone());
                 materials.push(material.into_py(py));
             }
-            PyTuple::new(py, materials)
+            PyTuple::new_bound(py, materials)
         };
         let sectors: PyObject = {
             let sectors: std::result::Result<Vec<_>, _> = inner
                 .sectors
                 .iter()
                 .map(|sector| Py::new(py, PyGeometrySector {
-                    material: (&materials[sector.material]).into_py(py),
+                    material: materials.get_item(sector.material)?.unbind(),
                     density: sector.density.into_py(py),
                     description: sector.description
                         .as_ref()
                         .map(|description| description.to_string()),
                 }))
                 .collect();
-            PyTuple::new(py, sectors?).into_py(py)
+            PyTuple::new_bound(py, sectors?).into_any().unbind()
         };
-        let materials: PyObject = materials.into_py(py);
+        let materials = materials.into_any().unbind();
         let path = path.to_string();
         let result = Self { inner, cdll, path, materials, sectors };
         Ok(result)
@@ -182,7 +183,7 @@ impl PyExternalGeometry {
     fn get_lib(&mut self, py: Python) -> Result<PyObject> {
         if self.cdll.is_none(py) {
             let loader = py
-                .import("ctypes")?
+                .import_bound("ctypes")?
                 .getattr("cdll")?
                 .getattr("LoadLibrary")?;
             let cdll = loader.call1((self.path.as_str(),))?;
@@ -203,6 +204,7 @@ impl PyExternalGeometry {
         self.inner.find_sector(description)
     }
 
+    #[pyo3(signature = (states, /, *, lengths=None, density=None))]
     fn trace(
         &self,
         states: &PyArray<CState>,
@@ -231,6 +233,7 @@ impl PyExternalGeometry {
         Ok(())
     }
 
+    #[pyo3(signature = (sector, *, material=None, density=None))]
     fn update_sector(
         &mut self,
         py: Python,
@@ -283,6 +286,7 @@ unsafe impl Send for PyTopographyMap {}
 #[pymethods]
 impl PyTopographyMap {
     #[new]
+    #[pyo3(signature = (xrange, yrange, /, z=None))]
     fn new(
         py: Python,
         xrange: [Float; 2],
@@ -361,14 +365,14 @@ impl PyTopographyMap {
         let x = range(xrange[0], xrange[1], nx)?;
         let y = range(yrange[0], yrange[1], ny)?;
         let z = py.None();
-        let result = Py::new(py, Self { inner, x, y, z })?;
+        let result = Bound::new(py, Self { inner, x, y, z })?;
 
         // Create view of z-data, linked to Py-object.
-        let z: &PyAny = match &result.borrow(py).inner.z {
+        let z: &PyAny = match &result.borrow().inner.z {
             MapData::Interpolator(interpolator) => PyArray::from_data(
                 py,
                 interpolator.as_ref(),
-                result.as_ref(py),
+                result.as_ref(),
                 PyArrayFlags::ReadOnly,
                 Some(&shape.unwrap()),
             )?,
@@ -376,8 +380,8 @@ impl PyTopographyMap {
         };
 
         let z: PyObject = z.into();
-        result.borrow_mut(py).z = z;
-        Ok(result)
+        result.borrow_mut().z = z;
+        Ok(result.unbind())
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -391,7 +395,7 @@ impl PyTopographyMap {
         let py = lhs.py();
         let map: PyObject = lhs.into_py(py);
         let maps: Py<PyTuple> = (map,).into_py(py);
-        PyTopographySurface::new(maps.as_ref(py), Some(rhs)).unwrap()
+        PyTopographySurface::new(maps.bind(py), Some(rhs)).unwrap()
     }
 
     fn __radd__(rhs: PyRef<Self>, lhs: Float) -> PyTopographySurface {
@@ -402,6 +406,7 @@ impl PyTopographyMap {
         Self::__add__(lhs, -rhs)
     }
 
+    #[pyo3(signature = (x, y, /, *, grid=None))]
     fn __call__(
         &self,
         py: Python,
@@ -447,7 +452,7 @@ unsafe impl Send for PyTopographySurface {}
 impl PyTopographySurface {
     #[new]
     #[pyo3(signature = (*args, offset=None))]
-    fn new(args: &PyTuple, offset: Option<Float>) -> Result<Self> {
+    fn new(args: &Bound<PyTuple>, offset: Option<Float>) -> Result<Self> {
         let py = args.py();
         let maps: PyResult<Vec<_>> = args
             .iter()
@@ -498,6 +503,7 @@ impl PyTopographySurface {
         Self::__add__(lhs, -rhs)
     }
 
+    #[pyo3(signature = (x, y, /, *, grid=None))]
     fn __call__(
         &self,
         py: Python,
@@ -539,8 +545,9 @@ unsafe impl Send for PyStratifiedGeometry {}
 impl PyStratifiedGeometry {
     #[new]
     #[pyo3(signature = (*args))]
-    pub fn new(args: &PyTuple) -> Result<Self> {
+    pub fn new(args: &Bound<PyTuple>) -> Result<Self> {
         let py = args.py();
+        let args: &PyTuple = args.extract()?;
 
         let n = args.len();
         if n == 0 {
@@ -601,29 +608,29 @@ impl PyStratifiedGeometry {
         let inner = inner; // Lock mutability at this point.
 
         // Export materials and sectors.
-        let materials: &PyTuple = {
+        let materials: Bound<PyTuple> = {
             let mut materials = Vec::<PyObject>::with_capacity(inner.materials.len());
             for material in inner.materials.iter() {
                 let material = PyMaterialDefinition(material.clone());
                 materials.push(material.into_py(py));
             }
-            PyTuple::new(py, materials)
+            PyTuple::new_bound(py, materials)
         };
         let sectors: PyObject = {
             let sectors: std::result::Result<Vec<_>, _> = inner
                 .sectors
                 .iter()
                 .map(|sector| Py::new(py, PyGeometrySector {
-                    material: (&materials[sector.material]).into_py(py),
+                    material: materials.get_item(sector.material)?.unbind(),
                     density: sector.density.into_py(py),
                     description: sector.description
                         .as_ref()
                         .map(|description| description.to_string()),
                 }))
                 .collect();
-            PyTuple::new(py, sectors?).into_py(py)
+            PyTuple::new_bound(py, sectors?).into_any().unbind()
         };
-        let materials: PyObject = materials.into_py(py);
+        let materials: PyObject = materials.into_any().unbind();
 
         // Wrap geometry and return.
         Ok(Self { inner, materials, sectors })
@@ -647,6 +654,7 @@ impl PyStratifiedGeometry {
         self.inner.find_sector(description)
     }
 
+    #[pyo3(signature = (states, /, *, lengths=None, density=None))]
     fn trace(
         &self,
         states: &PyArray<CState>,
@@ -656,6 +664,7 @@ impl PyStratifiedGeometry {
         trace::<StratifiedGeometry, StratifiedTracer>(&self.inner, states, lengths, density)
     }
 
+    #[pyo3(signature = (x, y, /, *, grid=None))]
     fn z(
         &self,
         py: Python,
@@ -1030,12 +1039,12 @@ impl GeometryIndexing for SimpleGeometry {}
 impl GeometryIndexing for StratifiedGeometry {}
 
 #[derive(FromPyObject)]
-enum IndexArg<'a> {
+enum IndexArg {
     Index(usize),
-    Description(&'a str)
+    Description(String)
 }
 
-impl<'a> IndexArg<'a> {
+impl IndexArg {
     fn material_index<G: GeometryIndexing>(&self, geometry: &G) -> Result<usize> {
         let index  = match self {
             Self::Index(index) => *index,

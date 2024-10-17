@@ -19,6 +19,7 @@ impl PyDensityGradient {
     const DEFAULT_ORIGIN: Float3 = Float3(0.0, 0.0, 0.0);
 
     #[new]
+    #[pyo3(signature = (density, scale, /, *, direction=None, origin=None))]
     fn new(
         density: Float,
         scale: Float,
@@ -117,8 +118,8 @@ pub(crate) enum DensityArg<'py> {
     Uniform(Float),
 }
 
-impl<'source> FromPyObject<'source> for DensityModel {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for DensityModel {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let density: DensityArg = ob.extract()?;
         let density = match density {
             DensityArg::Gradient(gradient) => gradient.0.clone(),

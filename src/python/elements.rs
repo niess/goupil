@@ -21,6 +21,7 @@ pub struct PyAtomicElement (pub(crate) &'static AtomicElement);
 impl PyAtomicElement {
     #[allow(non_snake_case)]
     #[new]
+    #[pyo3(signature = (arg=None, /))]
     fn new(arg: Option<AtomArg>) -> Result<Self> {
         let element = match arg.as_ref() {
             None => AtomicElement::none(),
@@ -54,13 +55,13 @@ impl PyAtomicElement {
         self.0.Z
     }
 
-    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<&'py PyBytes> {
+    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyBytes>> {
         let mut buffer = Vec::new();
         self.0.serialize(&mut Serializer::new(&mut buffer))?;
-        Ok(PyBytes::new(py, &buffer))
+        Ok(PyBytes::new_bound(py, &buffer))
     }
 
-    fn __setstate__(&mut self, state: &PyBytes) -> Result<()> {
+    fn __setstate__(&mut self, state: &Bound<PyBytes>) -> Result<()> {
         self.0 = Deserialize::deserialize(&mut Deserializer::new(state.as_bytes()))?;
         Ok(())
     }
@@ -97,7 +98,8 @@ enum AtomArg {
 #[allow(non_snake_case)]
 #[pyfunction]
 #[pyo3(signature = (*args,))]
-pub fn elements(py: Python, args: &PyTuple) -> Result<PyObject> {
+pub fn elements(args: &Bound<PyTuple>) -> Result<PyObject> {
+    let py = args.py();
     let args: Vec<AtomArg> = args.extract()?;
     let mut elements = Vec::<PyObject>::with_capacity(args.len());
     for arg in args.iter() {
@@ -120,7 +122,7 @@ pub fn elements(py: Python, args: &PyTuple) -> Result<PyObject> {
     let result = match elements.len() {
         0 => py.None(),
         1 => elements.pop().unwrap(),
-        _ => PyTuple::new(py, elements).into_py(py),
+        _ => PyTuple::new_bound(py, elements).into_any().unbind(),
     };
     Ok(result)
 }

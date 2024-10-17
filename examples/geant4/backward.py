@@ -48,7 +48,7 @@ geometry.lib.initialise_states_backward(
 )
 
 # Run the simulation.
-status = engine.transport(states, source_energies)
+status = engine.transport(states, source_energies=source_energies)
 
 # Select events consistent with a volume source located in the air.
 sector = geometry.locate(states)

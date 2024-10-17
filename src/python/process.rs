@@ -98,26 +98,26 @@ impl PyComptonProcess {
 
     #[new]
     #[pyo3(signature = (**kwargs))]
-    fn new(kwargs: Option<&PyDict>) -> Result<Self> {
+    fn new(kwargs: Option<&Bound<PyDict>>) -> Result<Self> {
         let mut method = ComptonMethod::default();
         let mut mode = ComptonMode::default();
         let mut model = ComptonModel::default();
         let mut precision: Option<Float> = None;
         if let Some(kwargs) = kwargs {
             for (key, value) in kwargs.iter() {
-                let key: &str = key.extract()?;
-                match key {
+                let key: String = key.extract()?;
+                match key.as_str() {
                     "method" => {
-                        let value: &str = value.extract()?;
-                        method = ComptonMethod::try_from(value)?;
+                        let value: String = value.extract()?;
+                        method = ComptonMethod::try_from(value.as_str())?;
                     },
                     "mode" => {
-                        let value: &str = value.extract()?;
-                        mode = ComptonMode::try_from(value)?;
+                        let value: String = value.extract()?;
+                        mode = ComptonMode::try_from(value.as_str())?;
                     },
                     "model" => {
-                        let value: &str = value.extract()?;
-                        model = ComptonModel::try_from(value)?;
+                        let value: String = value.extract()?;
+                        model = ComptonModel::try_from(value.as_str())?;
                     },
                     "precision" => {
                         let value: Float = value.extract()?;
@@ -188,6 +188,7 @@ impl PyComptonProcess {
         s
     }
 
+    #[pyo3(signature = (energy, material, *, energy_min=None, energy_max=None))]
     fn cross_section(
         &self,
         py: Python,
@@ -293,12 +294,13 @@ impl PyComptonProcess {
         Ok(result)
     }
 
-    fn sample(
+    #[pyo3(signature = (energy, material, *, rng=None))]
+    fn sample<'py>(
         &self,
-        py: Python,
+        py: Python<'py>,
         energy: ArrayOrFloat,
         material: MaterialLike,
-        rng: Option<&PyCell<PyRandomStream>>,
+        rng: Option<&Bound<'py, PyRandomStream>>,
     )
     -> Result<PyObject> {
         // Prepare material and generator.
@@ -320,9 +322,9 @@ impl PyComptonProcess {
             }
         };
 
-        let rng: &PyCell<PyRandomStream> = match rng {
-            None => PyCell::new(py, PyRandomStream::new(None)?)?,
-            Some(rng) => rng,
+        let rng = match rng {
+            None => Bound::new(py, PyRandomStream::new(None)?)?,
+            Some(rng) => rng.clone(),
         };
         let mut rng = rng.borrow_mut();
 
@@ -430,17 +432,18 @@ impl PyRayleighProcess {
     }
 
     #[staticmethod]
-    fn sample(
-        py: Python,
+    #[pyo3(signature = (energy, material, *, rng=None))]
+    fn sample<'py>(
+        py: Python<'py>,
         energy: ArrayOrFloat,
         material: MaterialLike,
-        rng: Option<&PyCell<PyRandomStream>>,
+        rng: Option<&Bound<'py, PyRandomStream>>,
     )
     -> Result<PyObject> {
         let sampler = RayleighSampler::new(RayleighMode::FormFactor);
-        let rng: &PyCell<PyRandomStream> = match rng {
-            None => PyCell::new(py, PyRandomStream::new(None)?)?,
-            Some(rng) => rng,
+        let rng = match rng {
+            None => Bound::new(py, PyRandomStream::new(None)?)?,
+            Some(rng) => rng.clone(),
         };
         let mut rng = rng.borrow_mut();
         let form_factor = material.rayleigh_form_factor(py)?;

@@ -34,6 +34,7 @@ pub struct PyRandomStream {
 #[pymethods]
 impl PyRandomStream {
     #[new]
+    #[pyo3(signature = (*, seed=None))]
     pub fn new(seed: Option<u128>) -> Result<Self> {
         #[cfg(not(feature = "f32"))]
         let generator = Generator::new(0xCAFEF00DD15EA5E5);
@@ -64,12 +65,14 @@ impl PyRandomStream {
 
     /// Generates pseudo random number(s) following the Normal law.
     #[pyo3(name = "normal")]
+    #[pyo3(signature = (shape=None, /))]
     fn py_normal(&mut self, py: Python, shape: Option<ShapeArg>) -> Result<PyObject> {
         self.generate(py, shape, Self::normal)
     }
 
     /// Generates pseudo random number(s) uniformly distributed over (0,1).
     #[pyo3(name = "uniform01")]
+    #[pyo3(signature = (shape=None, /))]
     fn py_uniform01(&mut self, py: Python, shape: Option<ShapeArg>) -> Result<PyObject> {
         self.generate(py, shape, Self::uniform01)
     }
@@ -113,7 +116,7 @@ impl PyRandomStream {
             None => {
                 let value = func(self);
                 let scalar = PyScalar::new(py, value)?;
-                Ok(scalar.into())
+                Ok(scalar.into_py(py))
             },
             Some(shape) => {
                 let shape: Vec<usize> = shape.into();

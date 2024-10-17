@@ -1,16 +1,12 @@
 use crate::numerics::float::{Float, Float3, Float3x3};
 use crate::physics::materials::electronic::ElectronicShell;
 // PyO3 interface.
-use pyo3::conversion::{FromPyObject, IntoPy, ToPyObject};
+use pyo3::prelude::*;
+use pyo3::{ffi, pyobject_native_type_extract, pyobject_native_type_named, PyTypeInfo};
+use pyo3::sync::GILOnceCell;
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
-use pyo3::{ffi, FromPyPointer};
-use pyo3::marker::Python;
-use pyo3::once_cell::GILOnceCell;
-use pyo3::{Py, PyErr, PyNativeType, PyObject, PyResult};
-use pyo3::type_object::PyTypeInfo;
-use pyo3::types::{PyAny, PyCapsule, PyModule};
+use pyo3::types::PyCapsule;
 // Standard library.
-use std::cell::UnsafeCell;
 use std::ffi::{c_char, c_int, c_uchar, c_void};
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -128,8 +124,8 @@ pub fn initialise(py: Python) -> PyResult<()> {
     }
 
     // Import interfaces.
-    let numpy = PyModule::import(py, "numpy")?;
-    let capsule = PyModule::import(py, "numpy.core.multiarray")?
+    let numpy = PyModule::import_bound(py, "numpy")?;
+    let capsule = PyModule::import_bound(py, "numpy.core.multiarray")?
         .getattr("_ARRAY_API")?;
 
     // Cache used dtypes, generated from numpy Python interface.
@@ -180,7 +176,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
 
     let object = |offset: isize| -> PyObject {
         unsafe {
-            PyAny::from_borrowed_ptr(py, *ptr.offset(offset) as *mut ffi::PyObject)
+            Py::<PyAny>::from_borrowed_ptr(py, *ptr.offset(offset) as *mut ffi::PyObject)
                 .into_py(py)
         }
     };
@@ -225,7 +221,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
 // ===============================================================================================
 
 #[repr(transparent)]
-pub struct PyUntypedArray(UnsafeCell<PyArrayObject>);
+pub struct PyUntypedArray(PyAny);
 
 #[repr(C)]
 pub struct PyArrayObject {
@@ -242,8 +238,8 @@ pub struct PyArrayObject {
 // Public interface.
 impl PyUntypedArray {
     #[inline]
-    pub fn dtype(&self) -> &PyAny {
-        unsafe { PyAny::from_borrowed_ptr(self.py(), self.as_ptr()) }
+    pub fn dtype(&self) -> PyObject {
+        unsafe { Py::<PyAny>::from_borrowed_ptr(self.py(), self.as_ptr()) }
     }
 
     #[inline]
@@ -275,7 +271,7 @@ impl PyUntypedArray {
 
 // Private interface.
 impl PyUntypedArray {
-    fn data(&self, index: usize) -> PyResult<*mut c_char> {
+    pub fn data(&self, index: usize) -> PyResult<*mut c_char> {
         let size = self.size();
         if index >= size {
             Err(PyIndexError::new_err(format!(
@@ -321,27 +317,19 @@ impl PyUntypedArray {
         let obj: &PyArrayObject = self.as_ref();
         unsafe { std::slice::from_raw_parts(obj.strides, obj.nd as usize) }
     }
-
-    #[inline]
-    fn transmute(&self) -> &PyAny {
-        unsafe { &*(self as * const Self as *const PyAny) }
-    }
 }
 
 // Trait implementations.
 impl AsRef<PyArrayObject> for PyUntypedArray {
     #[inline]
     fn as_ref(&self) -> &PyArrayObject {
-        unsafe { &*self.0.get() }
+        let ptr: *mut PyArrayObject = self.as_ptr().cast();
+        unsafe { &*ptr }
     }
 }
 
-unsafe impl PyNativeType for PyUntypedArray {}
-
 unsafe impl PyTypeInfo for PyUntypedArray {
-    type AsRefTarget = PyUntypedArray;
-
-    const NAME: &'static str = "numpy.ndarray";
+    const NAME: &'static str = "PyUntypedArray";
     const MODULE: Option<&'static str> = Some("numpy");
 
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
@@ -351,37 +339,15 @@ unsafe impl PyTypeInfo for PyUntypedArray {
     }
 }
 
-impl AsRef<PyAny> for PyUntypedArray {
-    #[inline]
-    fn as_ref(&self) -> &PyAny { self.transmute() }
-}
+pyobject_native_type_named!(PyUntypedArray);
 
-impl Deref for PyUntypedArray {
-    type Target = PyAny;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target { self.transmute() }
-}
-
-impl<'py> FromPyObject<'py> for &'py PyUntypedArray {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        obj.downcast().map_err(std::convert::Into::into)
-    }
-}
-
-impl IntoPy<Py<PyUntypedArray>> for &'_ PyUntypedArray {
-    #[inline]
-    fn into_py(self, py: Python) -> Py<PyUntypedArray> {
-        unsafe { Py::from_borrowed_ptr(py, self.as_ptr()) }
-    }
-}
-
-impl ToPyObject for PyUntypedArray {
-    #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+impl IntoPy<PyObject> for PyUntypedArray {
+    fn into_py<'py>(self, py: Python<'py>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
+
+pyobject_native_type_extract!(PyUntypedArray);
 
 
 // ===============================================================================================
@@ -398,6 +364,10 @@ impl<T> PyArray<T>
 where
     T: Copy + Dtype,
 {
+    pub fn as_any(&self) -> &PyAny {
+        &self.0
+    }
+
     pub fn empty<'py>(py: Python<'py>, shape: &[usize]) -> PyResult<&'py Self> {
         let api = api(py);
         let empty = unsafe { *api.empty };
@@ -422,7 +392,7 @@ where
     pub fn from_data<'py>(
         py: Python<'py>,
         data: &[T],
-        base: &PyAny,
+        base: &Bound<PyAny>,
         flags: PyArrayFlags,
         shape: Option<&[usize]>,
     ) -> PyResult<&'py Self> {
@@ -486,6 +456,11 @@ where
         let data = self.data(index)?;
         let value = unsafe { *(data as *const T) };
         Ok(value)
+    }
+
+    pub fn into_py(&self, py: Python) -> PyObject {
+        let any: &PyAny = self;
+        any.into_py(py)
     }
 
     pub fn set(&self, index: usize, value: T) -> PyResult<()> {
@@ -588,7 +563,7 @@ impl<T> PyArray<T> {
 impl<T> AsRef<PyArrayObject> for PyArray<T> {
     #[inline]
     fn as_ref(&self) -> &PyArrayObject {
-        unsafe { &*self.0.0.get() }
+        self.0.as_ref()
     }
 }
 
@@ -615,20 +590,21 @@ where
     #[inline]
     fn try_from(ob: &'a PyUntypedArray) -> Result<&'a PyArray<T>, Self::Error> {
         let dtype = T::dtype(ob.py())?;
-        let descr = unsafe { &*ob.0.get() }.descr;
-        let mut same = descr as * const ffi::PyObject == dtype.as_ptr();
+        let array: &PyArrayObject = ob.as_ref();
+        let mut same = array.descr as * const ffi::PyObject == dtype.as_ptr();
         if !same {
             let api = api(ob.py());
             let equiv_types = unsafe { *api.equiv_types };
-            same = equiv_types(descr as * mut ffi::PyObject, dtype.as_ptr()) != 0;
+            same = equiv_types(array.descr as * mut ffi::PyObject, dtype.as_ptr()) != 0;
         }
         if same {
             Ok(unsafe { &*(ob as *const PyUntypedArray as *const PyArray<T>) })
         } else {
+            let expected: Bound<PyAny> = dtype.extract(ob.py()).unwrap();
             Err(PyTypeError::new_err(format!(
-                "bad dtype (expected {:?}, found {:?})",
-                dtype.as_ref(ob.py()),
-                unsafe { &*(descr as *mut PyAny) },
+                "bad dtype (expected '{}', found '{}')",
+                expected,
+                unsafe { &*(array.descr as *mut PyAny) },
             )))
         }
     }
@@ -638,8 +614,8 @@ impl<'py, T> FromPyObject<'py> for &'py PyArray<T>
 where
     T: Dtype,
 {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        let untyped: &PyUntypedArray = FromPyObject::extract(obj)?;
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let untyped: &PyUntypedArray = FromPyObject::extract_bound(obj)?;
         let typed: &PyArray<T> = std::convert::TryFrom::try_from(untyped)?;
         Ok(typed)
     }
@@ -783,8 +759,6 @@ impl<T> PyScalar<T> {
 }
 
 // Trait implementations.
-unsafe impl<T> PyNativeType for PyScalar<T> {}
-
 impl<T> AsRef<PyAny> for PyScalar<T> {
     #[inline]
     fn as_ref(&self) -> &PyAny { self.transmute() }

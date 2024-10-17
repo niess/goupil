@@ -3,7 +3,7 @@ use crate::numerics::{Float, Float3, Float3x3};
 use pyo3::prelude::*;
 use pyo3::exceptions::PyKeyboardInterrupt;
 use pyo3::ffi;
-use pyo3::once_cell::GILOnceCell;
+use pyo3::sync::GILOnceCell;
 use self::boundary::{PyBoxShape, PySphereShape};
 use self::density::PyDensityGradient;
 use self::elements::{elements as elements_fun, PyAtomicElement};
@@ -117,14 +117,14 @@ mod macros {
 //================================================================================================
 
 impl<'py> FromPyObject<'py> for Float3 {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let v: [Float; 3] = ob.extract()?;
         Ok(v.into())
     }
 }
 
 impl<'py> FromPyObject<'py> for Float3x3 {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let v: [[Float; 3]; 3] = ob.extract()?;
         Ok(v.into())
     }
@@ -136,9 +136,10 @@ impl<'py> FromPyObject<'py> for Float3x3 {
 // ===============================================================================================
 
 #[pymodule]
-fn goupil(py: Python, module: &PyModule) -> PyResult<()> {
+fn goupil(module: &Bound<PyModule>) -> PyResult<()> {
 
     // Initialise Numpy array interface.
+    let py = module.py();
     numpy::initialise(py)?;
 
     // Register attributes.

@@ -59,7 +59,7 @@ Attributes
 Methods
 -------
 
-.. py:method:: TransportEngine.compile(mode=None, atomic_data=None, **kwargs)
+.. py:method:: TransportEngine.compile(mode=None, *, atomic_data=None, **kwargs)
 
    Compiles material tables based on the current engine settings. This function
    fills the engine's material :py:attr:`registry <TransportEngine.registry>`
@@ -90,7 +90,7 @@ Methods
    (*kwargs*). For more details, refer to the :py:meth:`compute
    <MaterialRegistry.compute>` method in the :doc:`material_registry`.
 
-.. py:method:: TransportEngine.transport(states, source_energies=None) -> numpy.ndarray
+.. py:method:: TransportEngine.transport(states, /, *, source_energies=None) -> numpy.ndarray
 
    Performs a Monte Carlo transport of photon *states*, which were, e.g.,
    initially generated using the :doc:`states` function. The optional

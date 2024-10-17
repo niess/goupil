@@ -30,6 +30,7 @@ impl PyDiscreteSpectrum {
     const DEFAULT_ENERGY_MIN: Float = 1E-02;
 
     #[new]
+    #[pyo3(signature = (energies, intensities=None, *, background=None, energy_min=None))]
     fn new(
         energies: Vec<Float>,
         intensities: Option<Vec<Float>>,
@@ -55,7 +56,7 @@ impl PyDiscreteSpectrum {
     }
 
     #[getter]
-    fn get_energies(owner: &PyCell<Self>) -> Result<PyObject> {
+    fn get_energies(owner: &Bound<Self>) -> Result<PyObject> {
         let slf = owner.borrow();
         let array: &PyAny = PyArray::from_data(
             owner.py(),
@@ -68,7 +69,7 @@ impl PyDiscreteSpectrum {
     }
 
     #[getter]
-    fn get_intensities(owner: &PyCell<Self>) -> Result<PyObject> {
+    fn get_intensities(owner: &Bound<Self>) -> Result<PyObject> {
         let slf = owner.borrow();
         let array: &PyAny = PyArray::from_data(
             owner.py(),
@@ -80,6 +81,7 @@ impl PyDiscreteSpectrum {
         Ok(array.into())
     }
 
+    #[pyo3(signature = (states, /, *, engine=None, rng=None, mode=None))]
     fn sample(
         &self,
         states: &PyArray<CState>,

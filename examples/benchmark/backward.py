@@ -171,7 +171,7 @@ spectrum = goupil.DiscreteSpectrum(
     energies = spectrum[:,0], # MeV
     intensities = spectrum[:,1],
 )
-source_energies = spectrum.sample(states, engine)
+source_energies = spectrum.sample(states, engine=engine)
 
 """
 Note that in addition to randomising the final energies, the *sample* function
@@ -181,7 +181,7 @@ Arrival positions and directions are randomised over the outer surface of the
 collector, using priors. This can be done as
 """
 
-collector.sample(states, engine)
+collector.sample(states, engine=engine)
 
 
 """
@@ -196,7 +196,7 @@ geometry to a potential source. Therefore, we need to specify the anticipated
 source energies that establish the stopping criteria for each event.
 """
 
-status = engine.transport(states, source_energies)
+status = engine.transport(states, source_energies=source_energies)
 
 
 """

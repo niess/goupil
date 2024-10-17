@@ -43,6 +43,7 @@ use super::{
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::PathBuf;
 
 
@@ -51,23 +52,24 @@ use std::path::PathBuf;
 // ===============================================================================================
 
 #[pyclass(name = "MaterialDefinition", module = "goupil")]
+#[derive(Clone)]
 pub struct PyMaterialDefinition (pub MaterialDefinition);
 
 enum Element<'py> {
-    Object(PyRef<'py, PyAtomicElement>),
-    Symbol(&'py str),
+    Object(Bound<'py, PyAtomicElement>),
+    Symbol(String),
 }
 
 impl<'py> FromPyObject<'py> for Element<'py> {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        let result: PyResult<PyRef<PyAtomicElement>> = ob.extract();
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let result: PyResult<Bound<PyAtomicElement>> = ob.extract();
         if let PyResult::Ok(result) = result {
             return PyResult::Ok(Self::Object(result));
         }
-        let result: PyResult<&str> = ob.extract();
+        let result: PyResult<String> = ob.extract();
         match result {
             PyResult::Ok(symbol) => {
-                AtomicElement::from_symbol(symbol)?;
+                let _unused = AtomicElement::from_symbol(symbol.as_str())?;
                 PyResult::Ok(Self::Symbol(symbol))
             },
             PyResult::Err(err) => PyResult::Err(err),
@@ -78,7 +80,7 @@ impl<'py> FromPyObject<'py> for Element<'py> {
 impl<'py> Element<'py> {
     fn get(&self) -> Result<&'static AtomicElement> {
         let element = match self {
-            Element::Object(element) => element.0,
+            Element::Object(element) => element.borrow().0,
             Element::Symbol(symbol) => AtomicElement::from_symbol(symbol)?,
         };
         Ok(element)
@@ -92,15 +94,17 @@ impl<'py> Element<'py> {
 
 #[derive(FromPyObject)]
 enum Material<'py> {
-    Formula(&'py str),
+    Formula(String),
     Object(PyRef<'py, PyMaterialDefinition>),
 }
 
 impl<'py> Material<'py> {
-    fn get(&self) -> Result<Cow<MaterialDefinition>> {
+    fn get<'a>(&'a self) -> Result<Cow<'a, MaterialDefinition>> {
         let material = match self {
-            Material::Formula(material) => Cow::Owned(MaterialDefinition::from_formula(material)?),
-            Material::Object(material) => Cow::Borrowed(&material.0),
+            Material::Formula(material) => {
+                Cow::Owned(MaterialDefinition::from_formula(material.as_str())?)
+            },
+            Material::Object(material) => Cow::Borrowed(&material.deref().0),
         };
         Ok(material)
     }
@@ -122,6 +126,7 @@ type PyMoleComposition<'py> = Vec<(Float, Element<'py>)>;
 #[pymethods]
 impl PyMaterialDefinition {
     #[new]
+    #[pyo3(signature = (name=None, /, *, mass_composition=None, mole_composition=None))]
     fn new(
         name: Option<&str>,
         mass_composition: Option<PyMassComposition>,
@@ -191,15 +196,15 @@ impl PyMaterialDefinition {
     }
 
     // Implementation of pickling protocol.
-    pub fn __setstate__(&mut self, state: &PyBytes) -> Result<()> {
+    pub fn __setstate__(&mut self, state: &Bound<PyBytes>) -> Result<()> {
         self.0 = Deserialize::deserialize(&mut Deserializer::new(state.as_bytes()))?;
         Ok(())
     }
 
-    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<&'py PyBytes> {
+    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyBytes>> {
         let mut buffer = Vec::new();
         self.0.serialize(&mut Serializer::new(&mut buffer))?;
-        Ok(PyBytes::new(py, &buffer))
+        Ok(PyBytes::new_bound(py, &buffer))
     }
 
     fn __repr__(&self) -> &str {
@@ -213,23 +218,23 @@ impl PyMaterialDefinition {
     }
 
     #[getter]
-    fn get_mass_composition<'p>(&self, py: Python<'p>) -> &'p PyTuple {
+    fn get_mass_composition<'py>(&self, py: Python<'py>) -> Bound<'py, PyTuple> {
         let composition: Vec<_> = self.0
             .mass_composition()
             .iter()
             .map(|(weight, element)| (*weight, PyAtomicElement(*element).into_py(py)))
             .collect();
-        PyTuple::new(py, composition)
+        PyTuple::new_bound(py, composition)
     }
 
     #[getter]
-    fn get_mole_composition<'p>(&self, py: Python<'p>) -> &'p PyTuple {
+    fn get_mole_composition<'py>(&self, py: Python<'py>) -> Bound<'py, PyTuple> {
         let composition: Vec<_> = self.0
             .mole_composition()
             .iter()
             .map(|(weight, element)| (*weight, PyAtomicElement(*element).into_py(py)))
             .collect();
-        PyTuple::new(py, composition)
+        PyTuple::new_bound(py, composition)
     }
 
     #[getter]
@@ -252,7 +257,7 @@ impl PyMaterialDefinition {
 #[derive(FromPyObject)]
 pub enum MaterialLike<'py> {
     Definition(PyRef<'py, PyMaterialDefinition>),
-    Formula(&'py str),
+    Formula(String),
     Record(PyRefMut<'py, PyMaterialRecord>),
 }
 
@@ -277,7 +282,7 @@ impl<'py> MaterialLike<'py> {
         let result: PyObject = match self {
             Self::Definition(definition) => definition.into_py(py),
             Self::Formula(formula) => {
-                let definition = PyMaterialDefinition::new(Some(formula), None, None)?;
+                let definition = PyMaterialDefinition::new(Some(formula.as_str()), None, None)?;
                 let definition = Py::new(py, definition)?;
                 definition.into_py(py)
             },
@@ -461,7 +466,7 @@ impl PyMaterialRegistry {
         py: Python,
         key: &str
     ) -> Result<Py<PyMaterialRecord>> {
-        let mut registry = slf.as_ref(py).borrow_mut();
+        let mut registry = slf.bind(py).borrow_mut();
         registry.inner.get(key)
             .map_err(|e| PyKeyError::new_err(e.to_string()))?;
         if let Some(record) = registry.proxies.get(key) {
@@ -483,7 +488,7 @@ impl PyMaterialRegistry {
     }
 
     // Implementation of pickling protocol.
-    pub fn __setstate__(&mut self, py: Python, state: &PyBytes) -> Result<()> {
+    pub fn __setstate__(&mut self, py: Python, state: &Bound<PyBytes>) -> Result<()> {
         // Detach pending record(s).
         for (k, v) in self.proxies.drain() {
             let record = self.inner.remove(&k).unwrap();
@@ -495,10 +500,10 @@ impl PyMaterialRegistry {
         Ok(())
     }
 
-    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<&'py PyBytes> {
+    fn __getstate__<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyBytes>> {
         let mut buffer = Vec::new();
         self.inner.serialize(&mut Serializer::new(&mut buffer))?;
-        Ok(PyBytes::new(py, &buffer))
+        Ok(PyBytes::new_bound(py, &buffer))
     }
 
     // Direct public interface.
@@ -508,6 +513,7 @@ impl PyMaterialRegistry {
         Ok(())
     }
 
+    #[pyo3(signature = (settings=None, /, *, shape=None, precision=None, mode=None, absorption=None, compton_method=None, compton_model=None, compton_mode=None, constraint=None, energy_max=None, energy_min=None))]
     fn compute(
         &mut self,
         py: Python<'_>,
@@ -637,6 +643,7 @@ impl PyMaterialRegistry {
         )
     }
 
+    #[pyo3(signature = (path=None, /))]
     fn load_elements(&mut self, py: Python, path: Option<String>) -> Result<()> {
         let path = match path {
             None => Self::default_elements_path(py)?,
@@ -659,7 +666,7 @@ impl PyMaterialRegistry {
     // Transforms a borrowed material record to an owned one.
     fn into_owned(py: Python, proxy: Py<PyMaterialRecord>, record: MaterialRecord) {
         if proxy.get_refcnt(py) >= 2 {
-            let mut proxy = proxy.as_ref(py).borrow_mut();
+            let mut proxy = proxy.bind(py).borrow_mut();
             proxy.proxy = RecordProxy::Owned(record);
         }
     }
@@ -700,7 +707,7 @@ impl PyMaterialRecord {
         let ptr = match &self.proxy {
             RecordProxy::Borrowed {name, registry} => registry
                 .clone()
-                .into_ref(py)
+                .bind(py)
                 .borrow()
                 .inner
                 .get(name)? as *const MaterialRecord,
@@ -780,12 +787,13 @@ impl PyMaterialRecord {
         }
     }
 
-    fn absorption_cross_section(this: &PyCell<Self>) -> Result<PyObject> {
+    fn absorption_cross_section(this: &Bound<Self>) -> Result<PyObject> {
         PyCrossSection::new_absorption(this)
     }
 
+    #[pyo3(signature = (*, model=None, mode=None))]
     fn compton_cdf(
-        this: &PyCell<Self>,
+        this: &Bound<Self>,
         py: Python,
         model: Option<&str>,
         mode: Option<&str>,
@@ -799,8 +807,9 @@ impl PyMaterialRecord {
         PyDistributionFunction::new(py, this, model, mode)
     }
 
+    #[pyo3(signature = (*, model=None, mode=None))]
     fn compton_cross_section(
-        this: &PyCell<Self>,
+        this: &Bound<Self>,
         model: Option<&str>,
         mode: Option<&str>,
     ) -> Result<PyObject> {
@@ -813,8 +822,9 @@ impl PyMaterialRecord {
         PyCrossSection::new_compton(this, model, mode)
     }
 
+    #[pyo3(signature = (*, model=None, mode=None))]
     fn compton_inverse_cdf(
-        this: &PyCell<Self>,
+        this: &Bound<Self>,
         model: Option<&str>,
         mode: Option<&str>,
     ) -> Result<PyObject> {
@@ -827,6 +837,7 @@ impl PyMaterialRecord {
         PyInverseDistribution::new(this, model, mode)
     }
 
+    #[pyo3(signature = (energy_in, energy_out, *, model=None, mode=None))]
     fn compton_weight(
         &mut self,
         py: Python,
@@ -844,11 +855,11 @@ impl PyMaterialRecord {
         self.get(py)?.compton_weight(model, mode, energy_in, energy_out)
     }
 
-    fn rayleigh_cross_section(this: &PyCell<Self>) -> Result<PyObject> {
+    fn rayleigh_cross_section(this: &Bound<Self>) -> Result<PyObject> {
         PyCrossSection::new_rayleigh(this)
     }
 
-    fn rayleigh_form_factor(this: &PyCell<Self>) -> Result<PyObject> {
+    fn rayleigh_form_factor(this: &Bound<Self>) -> Result<PyObject> {
         PyFormFactor::new(this)
     }
 }
@@ -897,7 +908,8 @@ impl PyElectronicStructure {
     }
 
     #[getter]
-    fn get_shells(slf: &PyCell<Self>, py: Python) -> Result<PyObject> {
+    fn get_shells(slf: &Bound<Self>) -> Result<PyObject> {
+        let py = slf.py();
         let mut obj = slf.borrow_mut();
         if obj.shells.is_none() {
             let flags = if obj.writable {
@@ -966,7 +978,7 @@ pub struct PyCrossSection {
 }
 
 impl PyCrossSection {
-    fn new_absorption(record: &PyCell<PyMaterialRecord>) -> Result<PyObject> {
+    fn new_absorption(record: &Bound<PyMaterialRecord>) -> Result<PyObject> {
         let py = record.py();
         let (energies, values) = {
             match Self::table_absorption(py, &record.borrow())? {
@@ -985,7 +997,7 @@ impl PyCrossSection {
     }
 
     fn new_compton(
-        record: &PyCell<PyMaterialRecord>,
+        record: &Bound<PyMaterialRecord>,
         model: ComptonModel,
         mode: ComptonMode,
     ) -> Result<PyObject> {
@@ -1006,7 +1018,7 @@ impl PyCrossSection {
         Ok(result.into_py(py))
     }
 
-    fn new_rayleigh(record: &PyCell<PyMaterialRecord>) -> Result<PyObject> {
+    fn new_rayleigh(record: &Bound<PyMaterialRecord>) -> Result<PyObject> {
         let py = record.py();
         let (energies, values) = {
             match Self::table_rayleigh(py, &record.borrow())? {
@@ -1128,7 +1140,7 @@ pub struct PyDistributionFunction {
 impl PyDistributionFunction {
     fn new(
         py: Python,
-        record: &PyCell<PyMaterialRecord>,
+        record: &Bound<PyMaterialRecord>,
         model: ComptonModel,
         mode: ComptonMode,
     ) -> Result<PyObject> {
@@ -1238,7 +1250,7 @@ pub struct PyInverseDistribution {
 
 impl PyInverseDistribution {
     fn new(
-        record: &PyCell<PyMaterialRecord>,
+        record: &Bound<PyMaterialRecord>,
         model: ComptonModel,
         mode: ComptonMode,
     ) -> Result<PyObject> {
@@ -1351,7 +1363,7 @@ pub struct PyFormFactor {
 }
 
 impl PyFormFactor {
-    fn new(record: &PyCell<PyMaterialRecord>) -> Result<PyObject> {
+    fn new(record: &Bound<PyMaterialRecord>) -> Result<PyObject> {
         let py = record.py();
         let (momenta, values) = {
             match Self::table(py, &record.borrow())? {
@@ -1419,7 +1431,7 @@ impl PyFormFactor {
 // Some routines for wrapping Float data as numpy arrays.
 // ===============================================================================================
 
-fn readonly1(data: &[Float], owner: &PyAny) -> Result<PyObject> {
+fn readonly1(data: &[Float], owner: &Bound<PyAny>) -> Result<PyObject> {
     let array: &PyAny = PyArray::from_data(
         owner.py(),
         data,
@@ -1430,7 +1442,7 @@ fn readonly1(data: &[Float], owner: &PyAny) -> Result<PyObject> {
     Ok(array.into())
 }
 
-fn readonly2(data: &[Float], shape: (usize, usize), owner: &PyAny) -> Result<PyObject> {
+fn readonly2(data: &[Float], shape: (usize, usize), owner: &Bound<PyAny>) -> Result<PyObject> {
     let shape: [usize; 2] = shape.into();
     let array: &PyAny = PyArray::from_data(
         owner.py(),

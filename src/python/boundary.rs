@@ -60,6 +60,7 @@ pub struct PyBoxShape(BoxShape);
 
 #[pymethods]
 impl PyBoxShape {
+    #[pyo3(signature = (size=None, *, center=None, rotation=None))]
     #[new]
     fn new(
         size: Option<FloatOrFloat3>,
@@ -120,6 +121,7 @@ impl PyBoxShape {
         }
     }
 
+    #[pyo3(signature = (states, /, *, reverse=None))]
     fn distance(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
         self.0.distance_v(states, reverse)
     }
@@ -128,6 +130,7 @@ impl PyBoxShape {
         self.0.inside_v(states)
     }
 
+    #[pyo3(signature = (states, /, *, engine=None, rng=None, side=None, direction=None, weight=None))]
     fn sample(
         &self,
         states: &PyArray<CState>,
@@ -254,6 +257,7 @@ pub struct PySphereShape(SphereShape);
 #[pymethods]
 impl PySphereShape {
     #[new]
+    #[pyo3(signature = (radius=None, center=None))]
     fn new(radius: Option<Float>, center: Option<Float3>) -> Self {
         let center = center.unwrap_or(Float3::zero());
         let radius = radius.unwrap_or(1.0);
@@ -290,6 +294,7 @@ impl PySphereShape {
         }
     }
 
+    #[pyo3(signature = (states, /, *, reverse=None))]
     fn distance(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
         self.0.distance_v(states, reverse)
     }
@@ -298,6 +303,7 @@ impl PySphereShape {
         self.0.inside_v(states)
     }
 
+    #[pyo3(signature = (states, /, *, engine=None, rng=None, side=None, direction=None, weight=None))]
     fn sample(
         &self,
         states: &PyArray<CState>,
