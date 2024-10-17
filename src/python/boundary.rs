@@ -7,9 +7,11 @@ use crate::transport::{BoxShape, GeometryShape, PhotonState, SphereShape, Transp
 use enum_iterator::{all, Sequence};
 use pyo3::prelude::*;
 use std::fmt;
+use super::macros::type_error;
 use super::numpy::{FloatOrFloat3, PyArray};
 use super::rand::PyRandomStream;
-use super::transport::{CState, PyTransportEngine};
+use super::states::States;
+use super::transport::PyTransportEngine;
 
 
 // ===============================================================================================
@@ -122,18 +124,19 @@ impl PyBoxShape {
     }
 
     #[pyo3(signature = (states, /, *, reverse=None))]
-    fn distance(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
+    fn distance(&self, states: &Bound<PyAny>, reverse: Option<bool>) -> Result<PyObject> {
         self.0.distance_v(states, reverse)
     }
 
-    fn inside(&self, states: &PyArray<CState>) -> Result<PyObject> {
+    #[pyo3(signature = (states, /))]
+    fn inside(&self, states: &Bound<PyAny>) -> Result<PyObject> {
         self.0.inside_v(states)
     }
 
     #[pyo3(signature = (states, /, *, engine=None, rng=None, side=None, direction=None, weight=None))]
     fn sample(
         &self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         engine: Option<&PyTransportEngine>,
         rng: Option<Py<PyRandomStream>>,
         side: Option<&str>,
@@ -295,18 +298,19 @@ impl PySphereShape {
     }
 
     #[pyo3(signature = (states, /, *, reverse=None))]
-    fn distance(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
+    fn distance(&self, states: &Bound<PyAny>, reverse: Option<bool>) -> Result<PyObject> {
         self.0.distance_v(states, reverse)
     }
 
-    fn inside(&self, states: &PyArray<CState>) -> Result<PyObject> {
+    #[pyo3(signature = (states, /))]
+    fn inside(&self, states: &Bound<PyAny>) -> Result<PyObject> {
         self.0.inside_v(states)
     }
 
     #[pyo3(signature = (states, /, *, engine=None, rng=None, side=None, direction=None, weight=None))]
     fn sample(
         &self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         engine: Option<&PyTransportEngine>,
         rng: Option<Py<PyRandomStream>>,
         side: Option<&str>,
@@ -375,13 +379,14 @@ impl VectorisedOperations for SphereShape {}
 // ===============================================================================================
 
 trait VectorisedOperations: GeometryShape {
-    fn distance_v(&self, states: &PyArray<CState>, reverse: Option<bool>) -> Result<PyObject> {
+    fn distance_v(&self, states: &Bound<PyAny>, reverse: Option<bool>) -> Result<PyObject> {
         let reverse = reverse.unwrap_or(false);
         let py = states.py();
+        let states = States::new(states)?;
         let result = PyArray::<Float>::empty(py, &states.shape())?;
         let n = states.size();
         for i in 0..n {
-            let mut state: PhotonState = states.get(i)?.into();
+            let mut state = states.get(i)?;
             if reverse {
                 state.direction = -state.direction;
             }
@@ -394,12 +399,13 @@ trait VectorisedOperations: GeometryShape {
         Ok(result.into_py(py))
     }
 
-    fn inside_v(&self, states: &PyArray<CState>) -> Result<PyObject> {
+    fn inside_v(&self, states: &Bound<PyAny>) -> Result<PyObject> {
         let py = states.py();
+        let states = States::new(states)?;
         let result = PyArray::<bool>::empty(py, &states.shape())?;
         let n = states.size();
         for i in 0..n {
-            let state: PhotonState = states.get(i)?.into();
+            let state = states.get(i)?;
             let inside = self.inside(state.position);
             result.set(i, inside)?;
         }
@@ -425,7 +431,7 @@ trait Generate {
 
     fn generate_on_v<'p>(
         &self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         engine: Option<&PyTransportEngine>,
         rng: Option<Py<PyRandomStream>>,
         side: Option<&str>,
@@ -433,6 +439,7 @@ trait Generate {
         weight: Option<bool>,
     ) -> Result<()> {
         let py = states.py();
+        let states = States::new(states)?;
         let default_rng: Py<PyRandomStream>;
         let rng = match rng.as_ref() {
             None => match engine.as_ref() {
@@ -475,11 +482,14 @@ trait Generate {
             },
             Some(weight) => weight,
         };
+        if weight && !states.has_weights() {
+            type_error!("bad states (expected 'weight' field, found None)")
+        }
         let n = states.size();
         for i in 0..n {
-            let mut state: PhotonState = states.get(i)?.into();
+            let mut state = states.get(i)?;
             self.generate_on(rng, side, direction, weight, &mut state);
-            states.set(i, state.into())?;
+            states.set(i, &state)?;
         }
         Ok(())
     }

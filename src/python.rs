@@ -29,8 +29,8 @@ use self::rand::PyRandomStream;
 use process_path::get_dylib_path;
 use self::process::{PyAbsorptionProcess, PyComptonProcess, PyRayleighProcess};
 use self::spectrum::PyDiscreteSpectrum;
+use self::states::{states as states_fun};
 use self::transport::{PyTransportEngine, PyTransportSettings, PyTransportStatus};
-use self::transport::{states as states_fun};
 use std::path::PathBuf;
 
 mod boundary;
@@ -42,6 +42,7 @@ mod numpy;
 mod rand;
 mod process;
 mod spectrum;
+mod states;
 mod transport;
 
 

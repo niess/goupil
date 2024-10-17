@@ -10,7 +10,6 @@ use crate::transport::{
     agent::{TransportAgent, TransportStatus},
     boundary::TransportBoundary,
     geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer, StratifiedTracer},
-    PhotonState,
     TransportMode::{self, Backward, Forward},
     TransportSettings,
 };
@@ -28,8 +27,9 @@ use super::{
     geometry::{PyExternalGeometry, PyGeometryDefinition},
     macros::{type_error, value_error},
     materials::PyMaterialRegistry,
-    numpy::{ArrayOrFloat, PyArray, PyScalar, ShapeArg},
+    numpy::{ArrayOrFloat, PyArray, PyScalar},
     rand::PyRandomStream,
+    states::States,
     prefix,
 };
 
@@ -528,9 +528,19 @@ impl PyTransportEngine {
     #[pyo3(signature = (states, /, *, source_energies=None))]
     fn transport(
         &mut self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         source_energies: Option<ArrayOrFloat>,
     ) -> Result<PyObject> {
+        // Extract Monte Carlo states.
+        let py = states.py();
+        let states = States::new(states)?;
+
+        if self.settings.borrow(py).inner.mode == Backward {
+            if !states.has_weights() {
+                type_error!("bad states (expected 'weight' field, found None)")
+            }
+        }
+
         // Check constraints and states consistency.
         if let Some(constraints) = source_energies.as_ref() {
             if let ArrayOrFloat::Array(constraints) = constraints {
@@ -546,7 +556,6 @@ impl PyTransportEngine {
         }
 
         // Compile, if not already done.
-        let py = states.py();
         if !self.compiled {
             self.compile(py, Some("Both"), None, None)?;
         }
@@ -560,17 +569,17 @@ impl PyTransportEngine {
             Some(geometry) => match geometry {
                 PyGeometryDefinition::External(external) => {
                     self.transport_with::<_, ExternalTracer>(
-                        &external.borrow(py).inner, states, source_energies,
+                        py, &external.borrow(py).inner, states, source_energies,
                     )
                 },
                 PyGeometryDefinition::Simple(simple) => {
                     self.transport_with::<_, SimpleTracer>(
-                        &simple.borrow(py).0, states, source_energies,
+                        py, &simple.borrow(py).0, states, source_energies,
                     )
                 },
                 PyGeometryDefinition::Stratified(stratified) => {
                     self.transport_with::<_, StratifiedTracer>(
-                        &stratified.borrow(py).inner, states, source_energies,
+                        py, &stratified.borrow(py).inner, states, source_energies,
                     )
                 },
             },
@@ -591,8 +600,9 @@ impl PyTransportEngine {
 
     fn transport_with<'a, G, T>(
         &self,
+        py: Python,
         geometry: &'a G,
-        states: &PyArray<CState>,
+        states: States,
         constraints: Option<ArrayOrFloat>,
     ) -> Result<PyObject>
     where
@@ -600,7 +610,6 @@ impl PyTransportEngine {
         T: GeometryTracer<'a, G>,
     {
         // Create the status array.
-        let py = states.py();
         let status = PyArray::<i32>::empty(py, &states.shape())?;
 
         // Unpack registry and settings.
@@ -634,7 +643,7 @@ impl PyTransportEngine {
         // Do the Monte Carlo transport.
         let n = states.size();
         for i in 0..n {
-            let mut state: PhotonState = states.get(i)?.into();
+            let mut state = states.get(i)?;
             if let Some(constraints) = constraints.as_ref() {
                 let constraint = match constraints {
                     ArrayOrFloat::Array(constraints) => constraints.get(i)?,
@@ -643,7 +652,7 @@ impl PyTransportEngine {
                 settings.constraint = Some(constraint);
             }
             let flag = agent.transport(&settings, &mut state)?;
-            states.set(i, state.into())?;
+            states.set(i, &state)?;
             status.set(i, flag.into())?;
 
             if i % 100 == 0 { // Check for a Ctrl+C interrupt, catched by Python.
@@ -660,90 +669,6 @@ impl PyTransportEngine {
 enum BoundaryArg<'py> {
     Description(String),
     Explicit(PyTransportBoundary<'py>),
-}
-
-
-// ===============================================================================================
-// C representation of a photon state.
-// ===============================================================================================
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub(crate) struct CState {
-    pub energy: Float,
-    pub position: [Float; 3],
-    pub direction: [Float; 3],
-    pub length: Float,
-    pub weight: Float,
-}
-
-impl From<CState> for PhotonState {
-    fn from(state: CState) -> Self {
-        Self {
-            energy: state.energy,
-            position: state.position.into(),
-            direction: state.direction.into(),
-            length: state.length,
-            weight: state.weight,
-        }
-    }
-}
-
-impl From<PhotonState> for CState {
-    fn from(state: PhotonState) -> Self {
-        Self {
-            energy: state.energy,
-            position: state.position.into(),
-            direction: state.direction.into(),
-            length: state.length,
-            weight: state.weight
-        }
-    }
-}
-
-
-// ===============================================================================================
-// Utility function for creating a numpy array of photon states.
-// ===============================================================================================
-
-#[pyfunction]
-#[pyo3(signature=(shape=None, **kwargs))]
-pub fn states(
-    py: Python,
-    shape: Option<ShapeArg>,
-    kwargs: Option<&Bound<PyDict>>
-    ) -> Result<PyObject> {
-    let shape: Vec<usize> = match shape {
-        None => vec![0],
-        Some(shape) => shape.into(),
-    };
-    let array: &PyAny = PyArray::<CState>::zeros(py, &shape)?;
-    let mut has_direction = false;
-    let mut has_energy = false;
-    let mut has_weight = false;
-    if let Some(kwargs) = kwargs {
-        for (key, value) in kwargs.iter() {
-            {
-                let key: String = key.extract()?;
-                match key.as_str() {
-                    "direction" => { has_direction = true; },
-                    "energy" => { has_energy = true; },
-                    "weight" => { has_weight = true; },
-                    _ => {},
-                }
-            }
-            array.set_item(key, value)?;
-        }
-    }
-    if !has_direction {
-        array.set_item("direction", (0.0, 0.0, 1.0))?;
-    }
-    if !has_energy {
-        array.set_item("energy", 1.0)?;
-    }
-    if !has_weight {
-        array.set_item("weight", 1.0)?;
-    }
-    Ok(array.into())
 }
 
 

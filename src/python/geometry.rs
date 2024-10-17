@@ -5,7 +5,6 @@ use crate::transport::{
     geometry::{ExternalGeometry, ExternalTracer, GeometryDefinition, GeometryTracer,
                SimpleGeometry, stratified::MapData, StratifiedGeometry, StratifiedTracer,
                TopographyMap, TopographySurface},
-    PhotonState,
 };
 use pyo3::prelude::*;
 use pyo3::gc::PyVisit;
@@ -16,7 +15,7 @@ use super::ctrlc_catched;
 use super::macros::value_error;
 use super::materials::{MaterialLike, PyMaterialDefinition};
 use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags, PyScalar};
-use super::transport::CState;
+use super::states::States;
 
 
 // ===============================================================================================
@@ -196,7 +195,8 @@ impl PyExternalGeometry {
         self.inner.find_material(name)
     }
 
-    fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
+    #[pyo3(signature = (states, /))]
+    fn locate(&self, states: &Bound<PyAny>) -> Result<PyObject> {
         locate::<ExternalGeometry, ExternalTracer>(&self.inner, states)
     }
 
@@ -207,7 +207,7 @@ impl PyExternalGeometry {
     #[pyo3(signature = (states, /, *, lengths=None, density=None))]
     fn trace(
         &self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         lengths: Option<ArrayOrFloat>,
         density: Option<bool>,
     ) -> Result<PyObject> {
@@ -646,7 +646,8 @@ impl PyStratifiedGeometry {
         self.inner.find_material(name)
     }
 
-    fn locate(&self, states: &PyArray<CState>) -> Result<PyObject> {
+    #[pyo3(signature = (states, /))]
+    fn locate(&self, states: &Bound<PyAny>) -> Result<PyObject> {
         locate::<StratifiedGeometry, StratifiedTracer>(&self.inner, states)
     }
 
@@ -657,7 +658,7 @@ impl PyStratifiedGeometry {
     #[pyo3(signature = (states, /, *, lengths=None, density=None))]
     fn trace(
         &self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         lengths: Option<ArrayOrFloat>,
         density: Option<bool>,
     ) -> Result<PyObject> {
@@ -709,15 +710,16 @@ impl<'py> From<MapOrSurface<'py>> for TopographySurface {
 
 fn locate<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     definition: &'a D,
-    states: &PyArray<CState>
+    states: &Bound<PyAny>,
 ) -> Result<PyObject> {
     let py = states.py();
+    let states = States::new(states)?;
     let sectors = PyArray::<usize>::empty(py, &states.shape())?;
     let mut tracer = T::new(definition)?;
     let m = definition.sectors().len();
     let n = states.size();
     for i in 0..n {
-        let state: PhotonState = states.get(i)?.into();
+        let state = states.get(i)?;
         tracer.reset(state.position, state.direction)?;
         let sector = tracer.sector().unwrap_or(m);
         sectors.set(i, sector)?;
@@ -732,10 +734,12 @@ fn locate<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
 
 fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     definition: &'a D,
-    states: &PyArray<CState>,
+    states: &Bound<PyAny>,
     lengths: Option<ArrayOrFloat>,
     density: Option<bool>,
 ) -> Result<PyObject> {
+    let py = states.py();
+    let states = States::new(states)?;
     let n = states.size();
     if let Some(lengths) = lengths.as_ref() {
         if let ArrayOrFloat::Array(lengths) = &lengths {
@@ -752,14 +756,13 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     let mut shape = states.shape();
     let m = definition.sectors().len();
     shape.push(m);
-    let py = states.py();
     let result = PyArray::<Float>::empty(py, &shape)?;
 
     let density = density.unwrap_or(false);
     let mut tracer = T::new(definition)?;
     let mut k: usize = 0;
     for i in 0..n {
-        let state: PhotonState = states.get(i)?.into();
+        let state = states.get(i)?;
         let mut grammages: Vec<Float> = vec![0.0; m];
         tracer.reset(state.position, state.direction)?;
         let mut length = match lengths.as_ref() {

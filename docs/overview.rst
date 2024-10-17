@@ -122,7 +122,7 @@ transport. This is done as:
 
 Then, let us define a set of :python:`100` Monte Carlo states representing
 photons with an energy of :python:`0.5` MeV, located at :math:`z =
-100` cm, that is 1 m above the ground. This is done with the
+100` cm, that is 1 m above the ground. This can be done with the
 :doc:`py/states` function as
 
 >>> states = goupil.states(100, energy=0.5, position=(0,0,1e2))
@@ -138,6 +138,14 @@ be used. That is
 >>> states["direction"]
 array([[0., 0., 1.],
 ...
+
+
+.. tip::
+
+   Goupil accepts as Monte Carlo states any `numpy structured arrays
+   <https://numpy.org/doc/stable/user/basics.rec.html>`_ containing the fields
+   :python:`"energy"`, :python:`"position"` and :python:`"direction"`. If Monte
+   Carlo weights are applied, the :python:`"weight"` field must also exist.
 
 Then, let us backwards propagate the expected photons through the geometry. This
 is done with the :py:meth:`transport <TransportEngine.transport>` method, as:

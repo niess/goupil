@@ -4,7 +4,9 @@ use crate::transport::{PhotonState, TransportMode};
 use pyo3::prelude::*;
 use super::macros::value_error;
 use super::numpy::{PyArray, PyArrayFlags};
-use super::transport::{CState, PyTransportEngine};
+use super::states::States;
+use super::transport::PyTransportEngine;
+use super::macros::type_error;
 use super::rand::PyRandomStream;
 
 
@@ -84,13 +86,14 @@ impl PyDiscreteSpectrum {
     #[pyo3(signature = (states, /, *, engine=None, rng=None, mode=None))]
     fn sample(
         &self,
-        states: &PyArray<CState>,
+        states: &Bound<PyAny>,
         engine: Option<&PyTransportEngine>,
         rng: Option<Py<PyRandomStream>>,
         mode: Option<&str>,
     ) -> Result<PyObject> {
         // Unpack arguments.
         let py = states.py();
+        let states = States::new(states)?;
         let default_rng: Py<PyRandomStream>;
         let rng = match rng.as_ref() {
             None => match engine.as_ref() {
@@ -116,6 +119,9 @@ impl PyDiscreteSpectrum {
                 mode
             },
         };
+        if (mode == TransportMode::Backward) && !states.has_weights() {
+            type_error!("bad states (expected 'weight' field, found None)")
+        }
 
         // Sample energies.
         let cdf = {
@@ -137,7 +143,7 @@ impl PyDiscreteSpectrum {
         };
 
         for i in 0..n {
-            let mut state: PhotonState = states.get(i)?.into();
+            let mut state = states.get(i)?;
             match mode {
                 TransportMode::Forward => self.sample_forward(&cdf, rng, &mut state),
                 TransportMode::Backward => {
@@ -147,7 +153,7 @@ impl PyDiscreteSpectrum {
                         .set(i, source_energy)?;
                 },
             }
-            states.set(i, state.into())?;
+            states.set(i, &state)?;
         }
 
         let result: PyObject = match result {

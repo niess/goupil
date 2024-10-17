@@ -11,7 +11,7 @@ use std::ffi::{c_char, c_int, c_uchar, c_void};
 use std::marker::PhantomData;
 use std::ops::Deref;
 // Local Python interface.
-use super::transport::CState;
+use super::states::CState;
 
 
 //================================================================================================
