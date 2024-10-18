@@ -323,7 +323,7 @@ impl PyComptonProcess {
         };
 
         let rng = match rng {
-            None => Bound::new(py, PyRandomStream::new(None)?)?,
+            None => Bound::new(py, PyRandomStream::new(None, None)?)?,
             Some(rng) => rng.clone(),
         };
         let mut rng = rng.borrow_mut();
@@ -442,7 +442,7 @@ impl PyRayleighProcess {
     -> Result<PyObject> {
         let sampler = RayleighSampler::new(RayleighMode::FormFactor);
         let rng = match rng {
-            None => Bound::new(py, PyRandomStream::new(None)?)?,
+            None => Bound::new(py, PyRandomStream::new(None, None)?)?,
             Some(rng) => rng.clone(),
         };
         let mut rng = rng.borrow_mut();

@@ -34,22 +34,26 @@ pub struct PyRandomStream {
 #[pymethods]
 impl PyRandomStream {
     #[new]
-    #[pyo3(signature = (*, seed=None))]
-    pub fn new(seed: Option<u128>) -> Result<Self> {
+    #[pyo3(signature = (*, seed=None, index=None))]
+    pub fn new(seed: Option<u128>, index: Option<arg::Index>) -> Result<Self> {
         #[cfg(not(feature = "f32"))]
         let generator = Generator::new(0xCAFEF00DD15EA5E5);
         #[cfg(feature = "f32")]
         let generator = Generator::new(0xCAFEF00DD15EA5E5, 0xA02BDBF7BB3C0A7);
         let mut obj = Self { generator, seed: 0, index: 0 };
         obj.initialise(seed)?;
+        if index.is_some() {
+            obj.set_index(index)?;
+        }
         Ok(obj)
     }
 
     #[setter]
-    fn set_index(&mut self, index: Option<Index>) -> Result<()> {
+    fn set_index(&mut self, index: Option<arg::Index>) -> Result<()> {
         match index {
             None => self.initialise(Some(self.seed))?,
             Some(index) => {
+                let index: Index = index.into();
                 let delta: Index = index.wrapping_sub(self.index);
                 self.generator.advance(delta);
                 self.index = index;
@@ -87,6 +91,19 @@ impl FloatRng for PyRandomStream {
 
 // Private interface.
 impl PyRandomStream {
+    #[cfg(not(feature = "f32"))]
+    pub(super) fn index_2u64(&self) -> [u64; 2] {
+        [
+            (self.index >> 64) as u64,
+            self.index as u64
+        ]
+    }
+
+    #[cfg(feature = "f32")]
+    pub(super) fn index(&self) -> u64 {
+        self.index
+    }
+
     fn initialise(&mut self, seed: Option<u128>) -> Result<()> {
         match seed {
             None => {
@@ -127,4 +144,31 @@ impl PyRandomStream {
             },
         }
     }
+}
+
+#[cfg(not(feature = "f32"))]
+mod arg {
+    use pyo3::prelude::*;
+
+    #[derive(FromPyObject)]
+    pub enum Index {
+        #[pyo3(transparent, annotation = "[u64;2]")]
+        Array([u64; 2]),
+        #[pyo3(transparent, annotation = "u128")]
+        Scalar(u128),
+    }
+
+    impl From<Index> for super::Index {
+        fn from(value: Index) -> Self {
+            match value {
+                Index::Array(value) => ((value[0] as u128) << 64) + (value[1] as u128),
+                Index::Scalar(value) => value,
+            }
+        }
+    }
+}
+
+#[cfg(feature = "f32")]
+mod arg {
+    pub type Index = super::Index;
 }

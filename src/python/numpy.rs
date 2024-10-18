@@ -40,6 +40,7 @@ struct ArrayInterface {
     dtype_int32: PyObject,
     dtype_shell: PyObject,
     dtype_state: PyObject,
+    dtype_uint64: PyObject,
     dtype_usize: PyObject,
     dtype_vertex: PyObject,
     type_ndarray: PyObject,
@@ -166,6 +167,10 @@ pub fn initialise(py: Python) -> PyResult<()> {
             .into_py(py)
     };
 
+    let dtype_uint64: PyObject = dtype
+        .call1(("u8",))?
+        .into_py(py);
+
     let dtype_usize: PyObject = dtype
         .call1((format!("u{}", std::mem::size_of::<usize>()),))?
         .into_py(py);
@@ -208,6 +213,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
         dtype_int32,
         dtype_shell,
         dtype_state,
+        dtype_uint64,
         dtype_usize,
         dtype_vertex,
         type_ndarray: object(2),
@@ -687,6 +693,13 @@ impl Dtype for usize {
     #[inline]
     fn dtype(py: Python) -> PyResult<PyObject> {
         Ok(api(py).dtype_usize.clone_ref(py))
+    }
+}
+
+impl Dtype for u64 {
+    #[inline]
+    fn dtype(py: Python) -> PyResult<PyObject> {
+        Ok(api(py).dtype_uint64.clone_ref(py))
     }
 }
 

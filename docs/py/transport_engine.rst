@@ -90,7 +90,7 @@ Methods
    (*kwargs*). For more details, refer to the :py:meth:`compute
    <MaterialRegistry.compute>` method in the :doc:`material_registry`.
 
-.. py:method:: TransportEngine.transport(states, /, *, source_energies=None) -> numpy.ndarray
+.. py:method:: TransportEngine.transport(states, /, *, source_energies=None, random_index=None, vertices=None) -> numpy.ndarray
 
    Performs a Monte Carlo transport of photon *states*, which were, e.g.,
    initially generated using the :doc:`states` function. The optional
@@ -106,3 +106,12 @@ Methods
       The *states* array is modified in-place. This means that the final states
       overwrite the initial ones. If the initial values need to be conserved,
       then a copy of the states array must be made before calling this method.
+
+   If the *random_index* parameter is set to :python:`True`, the
+   :py:meth:`transport <transport>` method will also return an array containing
+   the index of the random stream at the start of each Monte Carlo event. This
+   can be used, for example, for the re-playing the event.
+
+   Similarly, if *vertices* is set to :python:`True`, the :py:meth:`transport
+   <transport>` method will also return an array containing the intermediate
+   vertices of Monte Carlo steps.

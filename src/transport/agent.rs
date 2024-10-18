@@ -73,6 +73,10 @@ where
         })
     }
 
+    pub fn rng(&self) -> &R {
+        self.rng
+    }
+
     pub fn transport(
         &mut self,
         settings: &TransportSettings,

@@ -98,7 +98,7 @@ impl PyDiscreteSpectrum {
         let rng = match rng.as_ref() {
             None => match engine.as_ref() {
                 None => {
-                    default_rng = Py::new(py, PyRandomStream::new(None)?)?;
+                    default_rng = Py::new(py, PyRandomStream::new(None, None)?)?;
                     &default_rng
                 },
                 Some(engine) => &engine.random,
