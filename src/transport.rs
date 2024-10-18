@@ -179,6 +179,15 @@ impl PhotonState {
 // ===============================================================================================
 
 pub struct TransportVertex {
-    pub state: PhotonState,
     pub sector: usize,
+    pub kind: VertexKind,
+    pub state: PhotonState,
+}
+
+pub enum VertexKind {
+    Compton,
+    Interface,
+    Rayleigh,
+    Start,
+    Stop,
 }

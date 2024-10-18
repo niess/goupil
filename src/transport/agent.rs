@@ -23,7 +23,7 @@ use super::{
     geometry::{GeometryDefinition, GeometrySector, GeometryTracer},
     PhotonState,
     TransportMode::{Backward, Forward},
-    TransportSettings, TransportVertex
+    TransportSettings, TransportVertex, VertexKind,
 };
 
 
@@ -203,14 +203,18 @@ where
             return Ok(status);
         }
 
+        if let Some(ref mut vertices) = vertices {
+            let vertex = TransportVertex {
+                sector: properties.index,
+                kind: VertexKind::Start,
+                state: state.clone(),
+            };
+            vertices.push(vertex);
+        }
+
         // Transport loop.
         let mut interaction_length: Option<Float>;
         loop {
-            if let Some(ref mut vertices) = vertices {
-                let vertex = TransportVertex { state: state.clone(), sector: properties.index };
-                vertices.push(vertex);
-            }
-
             // Randomise the distance to the next collision. First, let us compute the
             // corresponding column depth.
             let absorption_cross_section = settings.absorption.transport_cross_section(
@@ -278,6 +282,7 @@ where
             let boundary_length = settings.boundary.distance(state.position, direction);
 
             // Compute the effective step length.
+            let mut kind: Option<VertexKind> = None;
             let length = {
                 let length = physical_length
                     .min(geometry_length)
@@ -332,6 +337,7 @@ where
                     sigma <= absorption_cross_section + rayleigh_cross_section {
                     state.direction = rayleigh_sampler.sample(
                         self.rng, state.energy, state.direction, properties.material)?;
+                    kind = Some(VertexKind::Rayleigh);
                 } else if status.is_last() {
                     status = SteppingStatus::Stop(TransportStatus::EnergyConstraint);
                 } else {
@@ -371,6 +377,7 @@ where
                     direction = self.get_direction(&state, &settings);
                     energy_in = state.energy;
                     status.update(settings, energy_in);
+                    kind = Some(VertexKind::Compton);
                 }
             }
 
@@ -401,15 +408,34 @@ where
                             }
                         }
 
-                        // Update physical properties of the local geometry.
-                        properties.update(index, &self.records)?
+                        if index != properties.index {
+                            // Update physical properties of the local geometry.
+                            properties.update(index, &self.records)?;
+                            kind = Some(VertexKind::Interface);
+                        }
                     },
+                }
+            }
+
+            // Record the Monte Carlo step.
+            if let Some(ref mut vertices) = vertices {
+                if let Some(kind) = kind {
+                    let vertex = TransportVertex {
+                        sector: properties.index,
+                        kind,
+                        state: state.clone(),
+                    };
+                    vertices.push(vertex);
                 }
             }
         }
 
         if let Some(ref mut vertices) = vertices {
-            let vertex = TransportVertex { state: state.clone(), sector: properties.index };
+            let vertex = TransportVertex {
+                sector: properties.index,
+                kind: VertexKind::Stop,
+                state: state.clone(),
+            };
             vertices.push(vertex);
         }
 
@@ -581,7 +607,8 @@ impl TryFrom<i32> for TransportStatus {
 
 impl fmt::Display for TransportStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", String::from(*self))
+        let status: &'static str = (*self).into();
+        write!(f, "{}", status)
     }
 }
 
@@ -602,16 +629,16 @@ impl TryFrom<&str> for TransportStatus {
     }
 }
 
-impl From<TransportStatus> for String {
+impl From<TransportStatus> for &'static str {
     fn from(value: TransportStatus) -> Self {
         match value {
-            TransportStatus::Absorbed => Self::from(TransportStatus::ABSORBED),
-            TransportStatus::Boundary => Self::from(TransportStatus::BOUNDARY),
-            TransportStatus::EnergyConstraint => Self::from(TransportStatus::ENERGY_CONSTRAINT),
-            TransportStatus::EnergyMax => Self::from(TransportStatus::ENERGY_MAX),
-            TransportStatus::EnergyMin => Self::from(TransportStatus::ENERGY_MIN),
-            TransportStatus::Exit => Self::from(TransportStatus::EXIT),
-            TransportStatus::LengthMax => Self::from(TransportStatus::LENGTH_MAX),
+            TransportStatus::Absorbed => TransportStatus::ABSORBED,
+            TransportStatus::Boundary => TransportStatus::BOUNDARY,
+            TransportStatus::EnergyConstraint => TransportStatus::ENERGY_CONSTRAINT,
+            TransportStatus::EnergyMax => TransportStatus::ENERGY_MAX,
+            TransportStatus::EnergyMin => TransportStatus::ENERGY_MIN,
+            TransportStatus::Exit => TransportStatus::EXIT,
+            TransportStatus::LengthMax => TransportStatus::LENGTH_MAX,
         }
     }
 }

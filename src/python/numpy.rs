@@ -171,11 +171,12 @@ pub fn initialise(py: Python) -> PyResult<()> {
         .into_py(py);
 
     let dtype_vertex: PyObject = {
-        let arg: [PyObject; 4] = [
+        let arg: [PyObject; 5] = [
             ("event", "u8").into_py(py),
             ("sector", "u8").into_py(py),
             ("energy", FLOAT_FORMAT).into_py(py),
             ("position", FLOAT_FORMAT, 3).into_py(py),
+            ("kind", "S16").into_py(py),
         ];
         dtype
             .call1((arg,))?

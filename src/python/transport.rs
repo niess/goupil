@@ -11,7 +11,7 @@ use crate::transport::{
     boundary::TransportBoundary,
     geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer, StratifiedTracer},
     TransportMode::{self, Backward, Forward},
-    TransportSettings, TransportVertex,
+    TransportSettings, TransportVertex, VertexKind,
 };
 use derive_more::{AsMut, AsRef, From};
 use pyo3::{
@@ -670,7 +670,7 @@ impl PyTransportEngine {
                 let vertices = vertices.as_mut().unwrap();
                 vertices.reserve(verts.len());
                 for vertex in verts.drain(..) {
-                    vertices.push((i, vertex).into());
+                    vertices.push((i, flag, vertex).into());
                 }
             }
 
@@ -753,7 +753,8 @@ impl PyTransportStatus {
     #[staticmethod]
     fn str(code: i32) -> Result<String> {
         let status: TransportStatus = code.try_into()?;
-        Ok(status.into())
+        let status: &'static str = status.into();
+        Ok(status.to_string())
     }
 }
 
@@ -781,16 +782,40 @@ pub(crate) struct CVertex {
     pub sector: usize,
     pub energy: Float,
     pub position: [Float; 3],
+    pub kind: [u8; 16],
 }
 
-impl From<(usize, TransportVertex)> for CVertex {
-    fn from(value: (usize, TransportVertex)) -> Self {
-        let (event, vertex) = value;
+impl From<(usize, TransportStatus, TransportVertex)> for CVertex {
+    fn from(value: (usize, TransportStatus, TransportVertex)) -> Self {
+        let (event, status, vertex) = value;
+        let kind: [u8; 16] = {
+            let kind = match vertex.kind {
+                VertexKind::Compton => "Compton",
+                VertexKind::Interface => "Interface",
+                VertexKind::Rayleigh => "Rayleigh",
+                VertexKind::Start => "Start",
+                VertexKind::Stop => status.into(),
+            };
+            let kind = kind.as_bytes();
+            let mut buffer = [0_u8; 16];
+            let n = kind.len();
+            for i in 0..n {
+                if i == 15 {
+                    break
+                } else if (i == 14) && (n > 15) {
+                    buffer[i] = u32::from('.') as u8;
+                } else {
+                    buffer[i] = kind[i];
+                }
+            }
+            buffer
+        };
         Self {
             event,
             sector: vertex.sector,
             energy: vertex.state.energy,
             position: vertex.state.position.into(),
+            kind,
         }
     }
 }
