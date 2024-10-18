@@ -12,6 +12,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 // Local Python interface.
 use super::states::CState;
+use super::transport::CVertex;
 
 
 //================================================================================================
@@ -40,6 +41,7 @@ struct ArrayInterface {
     dtype_shell: PyObject,
     dtype_state: PyObject,
     dtype_usize: PyObject,
+    dtype_vertex: PyObject,
     type_ndarray: PyObject,
     // Functions.
     empty: *const PyArray_Empty,
@@ -168,6 +170,18 @@ pub fn initialise(py: Python) -> PyResult<()> {
         .call1((format!("u{}", std::mem::size_of::<usize>()),))?
         .into_py(py);
 
+    let dtype_vertex: PyObject = {
+        let arg: [PyObject; 4] = [
+            ("event", "u8").into_py(py),
+            ("sector", "u8").into_py(py),
+            ("energy", FLOAT_FORMAT).into_py(py),
+            ("position", FLOAT_FORMAT, 3).into_py(py),
+        ];
+        dtype
+            .call1((arg,))?
+            .into_py(py)
+    };
+
     // Parse C interface.
     // See e.g. numpy/_core/code_generators/numpy_api.py for API mapping.
     let ptr = capsule
@@ -194,6 +208,7 @@ pub fn initialise(py: Python) -> PyResult<()> {
         dtype_shell,
         dtype_state,
         dtype_usize,
+        dtype_vertex,
         type_ndarray: object(2),
         // Functions.
         empty:               function(184) as *const PyArray_Empty,
@@ -671,6 +686,13 @@ impl Dtype for usize {
     #[inline]
     fn dtype(py: Python) -> PyResult<PyObject> {
         Ok(api(py).dtype_usize.clone_ref(py))
+    }
+}
+
+impl Dtype for CVertex {
+    #[inline]
+    fn dtype(py: Python) -> PyResult<PyObject> {
+        Ok(api(py).dtype_vertex.clone_ref(py))
     }
 }
 

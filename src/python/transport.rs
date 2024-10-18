@@ -11,8 +11,9 @@ use crate::transport::{
     boundary::TransportBoundary,
     geometry::{ExternalTracer, GeometryDefinition, GeometryTracer, SimpleTracer, StratifiedTracer},
     TransportMode::{self, Backward, Forward},
-    TransportSettings,
+    TransportSettings, TransportVertex,
 };
+use derive_more::{AsMut, AsRef, From};
 use pyo3::{
     prelude::*,
     gc::PyVisit,
@@ -24,9 +25,11 @@ use serde::{Deserialize, Serialize};
 use super::{
     boundary::PyTransportBoundary,
     ctrlc_catched,
+    export::Export,
     geometry::{PyExternalGeometry, PyGeometryDefinition},
     macros::{type_error, value_error},
     materials::PyMaterialRegistry,
+    namespace::Namespace,
     numpy::{ArrayOrFloat, PyArray, PyScalar},
     rand::PyRandomStream,
     states::States,
@@ -525,11 +528,12 @@ impl PyTransportEngine {
         Ok(())
     }
 
-    #[pyo3(signature = (states, /, *, source_energies=None))]
+    #[pyo3(signature = (states, /, *, source_energies=None, vertices=None))]
     fn transport(
         &mut self,
         states: &Bound<PyAny>,
         source_energies: Option<ArrayOrFloat>,
+        vertices: Option<bool>,
     ) -> Result<PyObject> {
         // Extract Monte Carlo states.
         let py = states.py();
@@ -569,17 +573,17 @@ impl PyTransportEngine {
             Some(geometry) => match geometry {
                 PyGeometryDefinition::External(external) => {
                     self.transport_with::<_, ExternalTracer>(
-                        py, &external.borrow(py).inner, states, source_energies,
+                        py, &external.borrow(py).inner, states, source_energies, vertices,
                     )
                 },
                 PyGeometryDefinition::Simple(simple) => {
                     self.transport_with::<_, SimpleTracer>(
-                        py, &simple.borrow(py).0, states, source_energies,
+                        py, &simple.borrow(py).0, states, source_energies, vertices,
                     )
                 },
                 PyGeometryDefinition::Stratified(stratified) => {
                     self.transport_with::<_, StratifiedTracer>(
-                        py, &stratified.borrow(py).inner, states, source_energies,
+                        py, &stratified.borrow(py).inner, states, source_energies, vertices,
                     )
                 },
             },
@@ -604,6 +608,7 @@ impl PyTransportEngine {
         geometry: &'a G,
         states: States,
         constraints: Option<ArrayOrFloat>,
+        vertices: Option<bool>,
     ) -> Result<PyObject>
     where
         G: GeometryDefinition,
@@ -640,6 +645,12 @@ impl PyTransportEngine {
         let rng: &mut PyRandomStream = &mut self.random.borrow_mut(py);
         let mut agent = TransportAgent::<G, _, T>::new(geometry, registry, rng)?;
 
+        // Set vertices container.
+        let mut vertices: Option<Vec<CVertex>> = match vertices.unwrap_or(false) {
+            false => None,
+            true => Some(Vec::new()),
+        };
+
         // Do the Monte Carlo transport.
         let n = states.size();
         for i in 0..n {
@@ -651,9 +662,17 @@ impl PyTransportEngine {
                 };
                 settings.constraint = Some(constraint);
             }
-            let flag = agent.transport(&settings, &mut state)?;
+            let mut verts = vertices.as_ref().map(|_| Vec::new());
+            let flag = agent.transport(&settings, &mut state, verts.as_mut())?;
             states.set(i, &state)?;
             status.set(i, flag.into())?;
+            if let Some(mut verts) = verts {
+                let vertices = vertices.as_mut().unwrap();
+                vertices.reserve(verts.len());
+                for vertex in verts.drain(..) {
+                    vertices.push((i, vertex).into());
+                }
+            }
 
             if i % 100 == 0 { // Check for a Ctrl+C interrupt, catched by Python.
                 ctrlc_catched()?;
@@ -661,7 +680,20 @@ impl PyTransportEngine {
         }
 
         let status: &PyAny = status;
-        Ok(status.into())
+        let status: PyObject = status.into();
+
+        let result: PyObject = match vertices {
+            None => status,
+            Some(vertices) => {
+                let vertices = Export::export::<PyTransportVertices>(py, vertices)?;
+                Namespace::new(py, &[
+                    ("status", status),
+                    ("vertices", vertices),
+                ])?.unbind()
+            }
+        };
+
+        Ok(result)
     }
 }
 
@@ -730,5 +762,35 @@ impl PyTransportStatus {
         let value: i32 = status.into();
         let scalar = PyScalar::new(py, value)?;
         Ok(scalar.into_py(py))
+    }
+}
+
+
+// ===============================================================================================
+// C-compliant transport vertices.
+// ===============================================================================================
+//
+#[derive(AsMut, AsRef, From)]
+#[pyclass(name = "TransportVertices", module="goupil")]
+struct PyTransportVertices (Export<CVertex>);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(crate) struct CVertex {
+    pub event: usize,
+    pub sector: usize,
+    pub energy: Float,
+    pub position: [Float; 3],
+}
+
+impl From<(usize, TransportVertex)> for CVertex {
+    fn from(value: (usize, TransportVertex)) -> Self {
+        let (event, vertex) = value;
+        Self {
+            event,
+            sector: vertex.sector,
+            energy: vertex.state.energy,
+            position: vertex.state.position.into(),
+        }
     }
 }

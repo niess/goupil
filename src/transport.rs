@@ -172,3 +172,13 @@ impl PhotonState {
         Self {energy, position, direction, weight, length: 0.0}
     }
 }
+
+
+// ===============================================================================================
+// Monte Carlo transport vertex.
+// ===============================================================================================
+
+pub struct TransportVertex {
+    pub state: PhotonState,
+    pub sector: usize,
+}

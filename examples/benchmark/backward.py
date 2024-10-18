@@ -6,7 +6,7 @@ calculating the rate of gamma photons collected by a box located 5cm above a
 flat ground. It is assumed that radioactive sources are uniformly distributed
 throughout the air volume, excluding the collection box.
 """
-#! /usr/bin/env python3
+
 import goupil
 import numpy
 

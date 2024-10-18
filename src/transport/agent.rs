@@ -23,7 +23,7 @@ use super::{
     geometry::{GeometryDefinition, GeometrySector, GeometryTracer},
     PhotonState,
     TransportMode::{Backward, Forward},
-    TransportSettings,
+    TransportSettings, TransportVertex
 };
 
 
@@ -76,7 +76,8 @@ where
     pub fn transport(
         &mut self,
         settings: &TransportSettings,
-        state: &mut PhotonState
+        state: &mut PhotonState,
+        vertices: Option<&mut Vec<TransportVertex>>,
     ) -> Result<TransportStatus> {
         // Regularise direction.
         let norm_data = {
@@ -99,7 +100,7 @@ where
 
         // Do the transport.
         let initial_direction = state.direction;
-        let status = self.regularised_transport(settings, state)?;
+        let status = self.regularised_transport(settings, state, vertices)?;
 
         // Unregularise direction.
         if let Some(norm_data) = norm_data {
@@ -124,7 +125,8 @@ where
     fn regularised_transport(
         &mut self,
         settings: &TransportSettings,
-        state: &mut PhotonState
+        state: &mut PhotonState,
+        mut vertices: Option<&mut Vec<TransportVertex>>,
     ) -> Result<TransportStatus> {
         // Check configuration.
         compton::validate(settings.compton_model, settings.compton_mode, settings.compton_method)?;
@@ -204,6 +206,11 @@ where
         // Transport loop.
         let mut interaction_length: Option<Float>;
         loop {
+            if let Some(ref mut vertices) = vertices {
+                let vertex = TransportVertex { state: state.clone(), sector: properties.index };
+                vertices.push(vertex);
+            }
+
             // Randomise the distance to the next collision. First, let us compute the
             // corresponding column depth.
             let absorption_cross_section = settings.absorption.transport_cross_section(
@@ -399,6 +406,11 @@ where
                     },
                 }
             }
+        }
+
+        if let Some(ref mut vertices) = vertices {
+            let vertex = TransportVertex { state: state.clone(), sector: properties.index };
+            vertices.push(vertex);
         }
 
         // Unpack stop condition and process Monte Carlo weight accordingly.

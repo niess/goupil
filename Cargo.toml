@@ -7,6 +7,7 @@ license = "LGPL-3.0-only AND MIT"
 [dependencies]
 anyhow = "1"
 enum-iterator = "1.4"
+derive_more = "0.99"
 libloading = "0.8"
 once_cell = "1.18"
 process_path = "0.1"
