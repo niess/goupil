@@ -3,7 +3,7 @@ use crate::numerics::{Float, FloatRng};
 use crate::transport::{PhotonState, TransportMode};
 use pyo3::prelude::*;
 use super::macros::value_error;
-use super::numpy::{PyArray, PyArrayFlags};
+use super::numpy::{PyArray, PyArrayFlags, PyArrayMethods};
 use super::states::States;
 use super::transport::PyTransportEngine;
 use super::macros::type_error;
@@ -60,27 +60,27 @@ impl PyDiscreteSpectrum {
     #[getter]
     fn get_energies(owner: &Bound<Self>) -> Result<PyObject> {
         let slf = owner.borrow();
-        let array: &PyAny = PyArray::from_data(
+        let array = PyArray::from_data(
             owner.py(),
             &slf.energies,
             owner,
             PyArrayFlags::ReadOnly,
             None
         )?;
-        Ok(array.into())
+        Ok(array.into_any().unbind())
     }
 
     #[getter]
     fn get_intensities(owner: &Bound<Self>) -> Result<PyObject> {
         let slf = owner.borrow();
-        let array: &PyAny = PyArray::from_data(
+        let array = PyArray::from_data(
             owner.py(),
             &slf.intensities,
             owner,
             PyArrayFlags::ReadOnly,
             None
         )?;
-        Ok(array.into())
+        Ok(array.into_any().unbind())
     }
 
     #[pyo3(signature = (states, /, *, engine=None, rng=None, mode=None))]
@@ -149,6 +149,7 @@ impl PyDiscreteSpectrum {
                 TransportMode::Backward => {
                     let source_energy = self.sample_backward(&cdf, rng, &mut state);
                     result
+                        .as_ref()
                         .unwrap()
                         .set(i, source_energy)?;
                 },
@@ -156,13 +157,9 @@ impl PyDiscreteSpectrum {
             states.set(i, &state)?;
         }
 
-        let result: PyObject = match result {
-            None => py.None(),
-            Some(result) => {
-                let result: &PyAny = result;
-                result.into_py(py)
-            },
-        };
+        let result = result
+            .map(|result| result.into_any().unbind())
+            .unwrap_or_else(|| py.None());
         Ok(result)
     }
 }

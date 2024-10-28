@@ -8,7 +8,7 @@ use enum_iterator::{all, Sequence};
 use pyo3::prelude::*;
 use std::fmt;
 use super::macros::type_error;
-use super::numpy::{FloatOrFloat3, PyArray};
+use super::numpy::{FloatOrFloat3, PyArray, PyArrayMethods};
 use super::rand::PyRandomStream;
 use super::states::States;
 use super::transport::PyTransportEngine;
@@ -395,8 +395,7 @@ trait VectorisedOperations: GeometryShape {
                 .unwrap_or(Float::NAN);
             result.set(i, distance)?;
         }
-        let result: &PyAny = result;
-        Ok(result.into_py(py))
+        Ok(result.into_any().unbind())
     }
 
     fn inside_v(&self, states: &Bound<PyAny>) -> Result<PyObject> {
@@ -409,8 +408,7 @@ trait VectorisedOperations: GeometryShape {
             let inside = self.inside(state.position);
             result.set(i, inside)?;
         }
-        let result: &PyAny = result;
-        Ok(result.into_py(py))
+        Ok(result.into_any().unbind())
     }
 }
 

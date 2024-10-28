@@ -14,7 +14,7 @@ use std::rc::Rc;
 use super::ctrlc_catched;
 use super::macros::value_error;
 use super::materials::{MaterialLike, PyMaterialDefinition};
-use super::numpy::{ArrayOrFloat, PyArray, PyArrayFlags, PyScalar};
+use super::numpy::{ArrayOrFloat, PyArray, PyArrayMethods, PyArrayFlags, PyScalar};
 use super::states::States;
 
 
@@ -368,19 +368,24 @@ impl PyTopographyMap {
         let result = Bound::new(py, Self { inner, x, y, z })?;
 
         // Create view of z-data, linked to Py-object.
-        let z: &PyAny = match &result.borrow().inner.z {
-            MapData::Interpolator(interpolator) => PyArray::from_data(
-                py,
-                interpolator.as_ref(),
-                result.as_ref(),
-                PyArrayFlags::ReadOnly,
-                Some(&shape.unwrap()),
-            )?,
-            MapData::Scalar(z) => PyScalar::<Float>::new(py, *z)?.as_ref(),
+        let z: Bound<PyAny> = match &result.borrow().inner.z {
+            MapData::Interpolator(interpolator) => {
+                let z = PyArray::from_data(
+                    py,
+                    interpolator.as_ref(),
+                    result.as_ref(),
+                    PyArrayFlags::ReadOnly,
+                    Some(&shape.unwrap()),
+                )?;
+                z.into_any()
+            },
+            MapData::Scalar(z) => {
+                let z = PyScalar::<Float>::new(py, *z)?;
+                z.into_any()
+            },
         };
 
-        let z: PyObject = z.into();
-        result.borrow_mut().z = z;
+        result.borrow_mut().z = z.unbind();
         Ok(result.unbind())
     }
 
@@ -728,8 +733,7 @@ fn locate<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
             ctrlc_catched()?;
         }
     }
-    let sectors: &PyAny = sectors;
-    Ok(sectors.into_py(py))
+    Ok(sectors.into_any().unbind())
 }
 
 fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
@@ -804,8 +808,7 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
             result.set(j0 + j, grammages[j])?;
         }
     }
-    let result: &PyAny = result;
-    Ok(result.into_py(py))
+    Ok(result.into_any().unbind())
 }
 
 
@@ -826,7 +829,7 @@ trait ComputeZ {
         grid: Option<bool>
     ) -> Result<PyObject> {
         let grid = grid.unwrap_or(false);
-        let result: &PyAny = if grid {
+        let result: Bound<PyAny> = if grid {
             let nx = x.size();
             let ny = y.size();
             if (nx == 0) || (ny == 0) {
@@ -861,8 +864,7 @@ trait ComputeZ {
                     }
                 }
             }
-            let result: &PyAny = result;
-            result
+            result.into_any()
         } else {
             if x.is_float() && y.is_float() {
                 let x = match x {
@@ -882,14 +884,12 @@ trait ComputeZ {
                             let zi = z[i].unwrap_or(Float::NAN);
                             result.set(i, zi)?;
                         }
-                        let result: &PyAny = result;
-                        result
+                        result.into_any()
                     },
                     ComputeZResult::One(z) => {
                         let z = z.unwrap_or(Float::NAN);
                         let result = PyScalar::<Float>::new(py, z)?;
-                        let result: &PyAny = result;
-                        result
+                        result.into_any()
                     },
                 }
             } else {
@@ -933,12 +933,10 @@ trait ComputeZ {
                         }
                     }
                 }
-
-                let result: &PyAny = result;
-                result
+                result.into_any()
             }
         };
-        Ok(result.into_py(py))
+        Ok(result.unbind())
     }
 }
 

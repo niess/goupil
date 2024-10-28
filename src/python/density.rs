@@ -3,7 +3,7 @@ use crate::numerics::float::{Float, Float3};
 use crate::transport::density::DensityModel;
 use pyo3::prelude::*;
 use super::macros::value_error;
-use super::numpy::{ArrayOrFloat3, PyArray};
+use super::numpy::{ArrayOrFloat3, PyArray, PyArrayMethods};
 
 
 // ===============================================================================================

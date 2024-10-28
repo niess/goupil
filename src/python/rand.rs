@@ -139,8 +139,8 @@ impl PyRandomStream {
                 let shape: Vec<usize> = shape.into();
                 let n = shape.iter().product();
                 let iter = (0..n).map(|_| func(self));
-                let array: &PyAny = PyArray::<Float>::from_iter(py, &shape, iter)?;
-                Ok(array.into())
+                let array = PyArray::<Float>::from_iter(py, &shape, iter)?;
+                Ok(array.into_any().unbind())
             },
         }
     }

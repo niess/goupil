@@ -15,7 +15,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use super::macros::{key_error, not_implemented_error, value_error};
 use super::materials::MaterialLike;
-use super::numpy::{ArrayOrFloat, PyArray, PyScalar};
+use super::numpy::{ArrayOrFloat, PyArray, PyArrayMethods, PyScalar};
 use super::rand::PyRandomStream;
 
 

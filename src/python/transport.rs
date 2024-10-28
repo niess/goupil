@@ -30,7 +30,7 @@ use super::{
     macros::{type_error, value_error},
     materials::PyMaterialRegistry,
     namespace::Namespace,
-    numpy::{ArrayOrFloat, PyArray, PyScalar},
+    numpy::{ArrayOrFloat, PyArray, PyArrayMethods, PyScalar},
     rand::PyRandomStream,
     states::States,
     prefix,
@@ -651,7 +651,7 @@ impl PyTransportEngine {
         let mut agent = TransportAgent::<G, _, T>::new(geometry, registry, rng)?;
 
         // Set random indices container.
-        let random_index: Option<&PyArray<u64>> = match random_index.unwrap_or(false) {
+        let random_index: Option<Bound<PyArray<u64>>> = match random_index.unwrap_or(false) {
             false => None,
             true => {
                 #[cfg(not(feature = "f32"))]
@@ -687,7 +687,7 @@ impl PyTransportEngine {
             }
 
             #[cfg(not(feature = "f32"))]
-            if let Some(random_index) = random_index {
+            if let Some(ref random_index) = random_index {
                 let index = agent.rng().index_2u64();
                 random_index.set(2 * i, index[0])?;
                 random_index.set(2 * i + 1, index[1])?;
@@ -717,8 +717,7 @@ impl PyTransportEngine {
             }
         }
 
-        let status: &PyAny = status;
-        let status: PyObject = status.into();
+        let status = status.into_any().unbind();
 
         let result: PyObject = match random_index {
             None => match vertices {

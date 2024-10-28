@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     elements::PyAtomicElement,
     macros::value_error,
-    numpy::{ArrayOrFloat, PyArray, PyArrayFlags},
+    numpy::{ArrayOrFloat, PyArray, PyArrayMethods, PyArrayFlags},
     prefix,
     transport::PyTransportSettings,
 };
@@ -917,14 +917,14 @@ impl PyElectronicStructure {
             } else {
                 PyArrayFlags::ReadOnly
             };
-            let shells: &PyAny = PyArray::from_data(
+            let shells = PyArray::from_data(
                 py,
                 &obj.electrons,
                 slf,
                 flags,
                 None,
             )?;
-            obj.shells = Some(shells.into_py(py));
+            obj.shells = Some(shells.into_any().unbind());
         }
         let shells = obj.shells
             .as_ref()
@@ -1432,26 +1432,26 @@ impl PyFormFactor {
 // ===============================================================================================
 
 fn readonly1(data: &[Float], owner: &Bound<PyAny>) -> Result<PyObject> {
-    let array: &PyAny = PyArray::from_data(
+    let array = PyArray::from_data(
         owner.py(),
         data,
         owner,
         PyArrayFlags::ReadOnly,
         None
     )?;
-    Ok(array.into())
+    Ok(array.into_any().unbind())
 }
 
 fn readonly2(data: &[Float], shape: (usize, usize), owner: &Bound<PyAny>) -> Result<PyObject> {
     let shape: [usize; 2] = shape.into();
-    let array: &PyAny = PyArray::from_data(
+    let array = PyArray::from_data(
         owner.py(),
         data,
         owner,
         PyArrayFlags::ReadOnly,
         Some(&shape),
     )?;
-    Ok(array.into())
+    Ok(array.into_any().unbind())
 }
 
 fn copy1<I>(py: Python, n: usize, iter: I) -> Result<PyObject>
@@ -1460,6 +1460,5 @@ where
 {
     let array = PyArray::<Float>::from_iter(py, &[n], iter)?;
     array.readonly();
-    let array: &PyAny = array;
-    Ok(array.into())
+    Ok(array.into_any().unbind())
 }

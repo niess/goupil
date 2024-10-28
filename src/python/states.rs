@@ -61,7 +61,8 @@ pub fn states(
         None => vec![0],
         Some(shape) => shape.into(),
     };
-    let array: &PyAny = PyArray::<CState>::zeros(py, &shape)?;
+    let array = PyArray::<CState>::zeros(py, &shape)?
+        .into_any();
     let mut has_direction = false;
     let mut has_energy = false;
     let mut has_weight = false;
@@ -88,7 +89,7 @@ pub fn states(
     if !has_weight {
         array.set_item("weight", 1.0)?;
     }
-    Ok(array.into())
+    Ok(array.unbind())
 }
 
 
