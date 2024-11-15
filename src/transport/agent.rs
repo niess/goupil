@@ -77,6 +77,10 @@ where
         self.rng
     }
 
+    pub fn rng_mut(&mut self) -> &mut R {
+        self.rng
+    }
+
     pub fn transport(
         &mut self,
         settings: &TransportSettings,

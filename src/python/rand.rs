@@ -12,9 +12,9 @@ use rand_pcg::Pcg64Mcg as Generator;
 use rand_pcg::Pcg32 as Generator;
 
 #[cfg(not(feature = "f32"))]
-type Index = u128;
+pub(super) type Index = u128;
 #[cfg(feature = "f32")]
-type Index = u64;
+pub(super) type Index = u64;
 
 
 #[derive(Deserialize, Serialize)]
@@ -49,7 +49,7 @@ impl PyRandomStream {
     }
 
     #[setter]
-    fn set_index(&mut self, index: Option<arg::Index>) -> Result<()> {
+    pub(super) fn set_index(&mut self, index: Option<arg::Index>) -> Result<()> {
         match index {
             None => self.initialise(Some(self.seed))?,
             Some(index) => {
@@ -147,7 +147,7 @@ impl PyRandomStream {
 }
 
 #[cfg(not(feature = "f32"))]
-mod arg {
+pub(super) mod arg {
     use pyo3::prelude::*;
 
     #[derive(FromPyObject)]
@@ -169,6 +169,6 @@ mod arg {
 }
 
 #[cfg(feature = "f32")]
-mod arg {
+pub(super) mod arg {
     pub type Index = super::Index;
 }

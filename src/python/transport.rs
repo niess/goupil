@@ -533,7 +533,7 @@ impl PyTransportEngine {
         &mut self,
         states: &Bound<PyAny>,
         source_energies: Option<ArrayOrFloat>,
-        random_index: Option<bool>,
+        random_index: Option<RandomIndexArg>,
         vertices: Option<bool>,
     ) -> Result<PyObject> {
         // Extract Monte Carlo states.
@@ -612,7 +612,7 @@ impl PyTransportEngine {
         geometry: &'a G,
         states: States,
         constraints: Option<ArrayOrFloat>,
-        random_index: Option<bool>,
+        random_index: Option<RandomIndexArg>,
         vertices: Option<bool>,
     ) -> Result<PyObject>
     where
@@ -651,21 +651,25 @@ impl PyTransportEngine {
         let mut agent = TransportAgent::<G, _, T>::new(geometry, registry, rng)?;
 
         // Set random indices container.
-        let random_index: Option<Bound<PyArray<u64>>> = match random_index.unwrap_or(false) {
-            false => None,
-            true => {
-                #[cfg(not(feature = "f32"))]
-                let shape = {
-                    let mut shape = states.shape();
-                    shape.push(2);
-                    shape
-                };
+        let random_index = random_index.unwrap_or(RandomIndexArg::Bool(false));
+        let (indices_in, indices_out) = match random_index {
+            RandomIndexArg::Bool(random_index) => match random_index {
+                false => (None, None),
+                true => {
+                    #[cfg(not(feature = "f32"))]
+                    let shape = {
+                        let mut shape = states.shape();
+                        shape.push(2);
+                        shape
+                    };
 
-                #[cfg(feature = "f32")]
-                let shape = states.shape();
+                    #[cfg(feature = "f32")]
+                    let shape = states.shape();
 
-                Some(PyArray::<u64>::empty(py, &shape)?)
+                    (None, Some(PyArray::<u64>::empty(py, &shape)?))
+                },
             },
+            RandomIndexArg::Array(indices_in) => (Some(indices_in), None),
         };
 
         // Set vertices container.
@@ -687,16 +691,31 @@ impl PyTransportEngine {
             }
 
             #[cfg(not(feature = "f32"))]
-            if let Some(ref random_index) = random_index {
-                let index = agent.rng().index_2u64();
-                random_index.set(2 * i, index[0])?;
-                random_index.set(2 * i + 1, index[1])?;
+            if let Some(ref indices_in) = indices_in {
+                let index = super::rand::arg::Index::Array([
+                    indices_in.get(2 * i)?,
+                    indices_in.get(2 * i + 1)?,
+                ]);
+                agent.rng_mut().set_index(Some(index))?;
             }
 
             #[cfg(feature = "f32")]
-            if let Some(random_index) = random_index {
+            if let Some(ref indices_in) = indices_in {
+                let index = indices_in.get(i)?;
+                agent.rng_mut().set_index(Some(index))?;
+            }
+
+            #[cfg(not(feature = "f32"))]
+            if let Some(ref indices_out) = indices_out {
+                let index = agent.rng().index_2u64();
+                indices_out.set(2 * i, index[0])?;
+                indices_out.set(2 * i + 1, index[1])?;
+            }
+
+            #[cfg(feature = "f32")]
+            if let Some(ref indices_out) = indices_out {
                 let index = agent.rng().index();
-                random_index.set(i, index)?;
+                indices_out.set(i, index)?;
             }
 
             let mut verts = vertices.as_ref().map(|_| Vec::new());
@@ -719,7 +738,7 @@ impl PyTransportEngine {
 
         let status = status.into_any().unbind();
 
-        let result: PyObject = match random_index {
+        let result: PyObject = match indices_out {
             None => match vertices {
                 None => status,
                 Some(vertices) => {
@@ -730,18 +749,18 @@ impl PyTransportEngine {
                     ])?.unbind()
                 }
             },
-            Some(random_index) => {
-                let random_index: PyObject = random_index.into_py(py);
+            Some(indices_out) => {
+                let indices_out: PyObject = indices_out.into_py(py);
                 match vertices {
                     None => Namespace::new(py, &[
                         ("status", status),
-                        ("random_index", random_index),
+                        ("random_index", indices_out),
                     ])?.unbind(),
                     Some(vertices) => {
                         let vertices = Export::export::<PyTransportVertices>(py, vertices)?;
                         Namespace::new(py, &[
                             ("status", status),
-                            ("random_index", random_index),
+                            ("random_index", indices_out),
                             ("vertices", vertices),
                         ])?.unbind()
                     }
@@ -757,6 +776,12 @@ impl PyTransportEngine {
 enum BoundaryArg<'py> {
     Description(String),
     Explicit(PyTransportBoundary<'py>),
+}
+
+#[derive(FromPyObject)]
+enum RandomIndexArg<'a> {
+    Bool(bool),
+    Array(&'a PyArray<u64>),
 }
 
 
