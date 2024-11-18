@@ -1,5 +1,5 @@
 use anyhow::Result;
-use crate::numerics::float::Float;
+use crate::numerics::float::{Float, Float3};
 use crate::transport::PhotonState;
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyKeyError, PyTypeError, PyValueError};
@@ -117,12 +117,12 @@ impl<'a> States<'a> {
         let weight = maybe_extract(elements, "weight")?;
         if *position.shape().last().unwrap_or(&0) != 3 {
             let why = format!("expected a shape '[..,3]' array, found '{:?}'", position.shape());
-            let err = Error::new(ValueError, "position", why).into_err();
+            let err = Error::new(TypeError, "position", why).into_err();
             return Err(err);
         }
         if *direction.shape().last().unwrap_or(&0) != 3 {
             let why = format!("expected a shape '[..,3]' array, found '{:?}'", direction.shape());
-            let err = Error::new(ValueError, "direction", why).into_err();
+            let err = Error::new(TypeError, "direction", why).into_err();
             return Err(err);
         }
         let size = energy.size();
@@ -134,7 +134,7 @@ impl<'a> States<'a> {
             weight.map(|a| a.size()).unwrap_or(size),
         ];
         if others.iter().any(|x| *x != size) {
-            let err = Error::new(ValueError, "states", "differing arrays sizes").into_err();
+            let err = Error::new(TypeError, "states", "differing arrays sizes").into_err();
             return Err(err);
         }
         let states = Self { energy, position, direction, length, pid, weight, size };
@@ -261,5 +261,91 @@ impl<'a> Error<'a> {
             ErrorKind::TypeError => PyTypeError::new_err(msg),
             ErrorKind::ValueError => PyValueError::new_err(msg),
         }
+    }
+}
+
+
+// ===============================================================================================
+// Utility struct for managing an array of coordinates.
+// ===============================================================================================
+
+pub struct Coordinates<'a> {
+    position: &'a PyArray<Float>,
+    direction: Option<&'a PyArray<Float>>,
+    size: usize,
+}
+
+impl<'a> Coordinates<'a> {
+    pub fn new_with_direction<'py: 'a>(elements: &'a Bound<'py, PyAny>) -> PyResult<Self> {
+        let coordinates = Self::new(elements)?;
+        if coordinates.direction.is_none() {
+            let err = Error::new(
+                TypeError,
+                "position",
+                "missing 'direction'".to_owned()
+            ).into_err();
+            return Err(err);
+        }
+        Ok(coordinates)
+    }
+
+    pub fn new<'py: 'a>(elements: &'a Bound<'py, PyAny>) -> PyResult<Self> {
+        let position = extract(elements, "position")?;
+        let direction = maybe_extract(elements, "direction")?;
+        if *position.shape().last().unwrap_or(&0) != 3 {
+            let why = format!("expected a shape '[..,3]' array, found '{:?}'", position.shape());
+            let err = Error::new(TypeError, "position", why).into_err();
+            return Err(err);
+        }
+        if let Some(direction) = direction {
+            if *direction.shape().last().unwrap_or(&0) != 3 {
+                let why = format!(
+                    "expected a shape '[..,3]' array, found '{:?}'",
+                    direction.shape()
+                );
+                let err = Error::new(TypeError, "direction", why).into_err();
+                return Err(err);
+            }
+        }
+        let size = position.size() / 3;
+        if let Some(direction) = direction {
+            if position.size() != direction.size() {
+                let err = Error::new(TypeError, "states", "differing arrays sizes").into_err();
+                return Err(err);
+            }
+        }
+        let coordinates = Self { position, direction, size };
+        Ok(coordinates)
+    }
+
+    pub fn get_direction(&self, index: usize) -> PyResult<Float3> {
+        let direction = match self.direction.as_ref() {
+            None => Float3::new(0.0, 0.0, 1.0),
+            Some(direction) => Float3::new(
+                direction.get(3 * index)?,
+                direction.get(3 * index + 1)?,
+                direction.get(3 * index + 2)?,
+            ),
+        };
+        Ok(direction)
+    }
+
+    pub fn get_position(&self, index: usize) -> PyResult<Float3> {
+        let position = Float3::new(
+                self.position.get(3 * index)?,
+                self.position.get(3 * index + 1)?,
+                self.position.get(3 * index + 2)?,
+            );
+        Ok(position)
+    }
+
+    pub fn shape(&self) -> Vec<usize> {
+        let mut shape = self.position.shape();
+        shape.pop();
+        shape
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
     }
 }

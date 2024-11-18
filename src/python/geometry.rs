@@ -15,7 +15,7 @@ use super::ctrlc_catched;
 use super::macros::value_error;
 use super::materials::{MaterialLike, PyMaterialDefinition};
 use super::numpy::{ArrayOrFloat, PyArray, PyArrayMethods, PyArrayFlags, PyScalar};
-use super::states::States;
+use super::states::Coordinates;
 
 
 // ===============================================================================================
@@ -718,14 +718,13 @@ fn locate<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     states: &Bound<PyAny>,
 ) -> Result<PyObject> {
     let py = states.py();
-    let states = States::new(states)?;
-    let sectors = PyArray::<usize>::empty(py, &states.shape())?;
+    let coordinates = Coordinates::new(states)?;
+    let sectors = PyArray::<usize>::empty(py, &coordinates.shape())?;
     let mut tracer = T::new(definition)?;
     let m = definition.sectors().len();
-    let n = states.size();
+    let n = coordinates.size();
     for i in 0..n {
-        let state = states.get(i)?;
-        tracer.reset(state.position, state.direction)?;
+        tracer.reset(coordinates.get_position(i)?, coordinates.get_direction(i)?)?;
         let sector = tracer.sector().unwrap_or(m);
         sectors.set(i, sector)?;
 
@@ -743,21 +742,21 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     density: Option<bool>,
 ) -> Result<PyObject> {
     let py = states.py();
-    let states = States::new(states)?;
-    let n = states.size();
+    let coordinates = Coordinates::new_with_direction(states)?;
+    let n = coordinates.size();
     if let Some(lengths) = lengths.as_ref() {
         if let ArrayOrFloat::Array(lengths) = &lengths {
-            if lengths.size() != states.size() {
+            if lengths.size() != coordinates.size() {
                 value_error!(
                     "bad lengths (expected a float or a size {} array, found a size {} array)",
-                    states.size(),
+                    coordinates.size(),
                     lengths.size(),
                 )
             }
         }
     }
 
-    let mut shape = states.shape();
+    let mut shape = coordinates.shape();
     let m = definition.sectors().len();
     shape.push(m);
     let result = PyArray::<Float>::empty(py, &shape)?;
@@ -766,9 +765,9 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
     let mut tracer = T::new(definition)?;
     let mut k: usize = 0;
     for i in 0..n {
-        let state = states.get(i)?;
+        let direction = coordinates.get_direction(i)?;
         let mut grammages: Vec<Float> = vec![0.0; m];
-        tracer.reset(state.position, state.direction)?;
+        tracer.reset(coordinates.get_position(i)?, direction)?;
         let mut length = match lengths.as_ref() {
             None => Float::INFINITY,
             Some(lengths) => match &lengths {
@@ -785,7 +784,7 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
                         let model = definition.sectors()[sector].density;
                         let position = tracer.position();
                         grammages[sector] += model.column_depth(
-                            position, state.direction, step_length
+                            position, direction, step_length
                         );
                     } else {
                         grammages[sector] += step_length;
@@ -794,7 +793,7 @@ fn trace<'a, D: GeometryDefinition, T: GeometryTracer<'a, D>>(
                         length -= step_length;
                         if length <= 0.0 { break }
                     }
-                    tracer.update(step_length, state.direction)?;
+                    tracer.update(step_length, direction)?;
                 },
             }
             k += 1;

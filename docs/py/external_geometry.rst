@@ -72,8 +72,9 @@ Methods
 .. py:method:: ExternalGeometry.locate(states) -> numpy.ndarray
 
    Locates the specified *states* within the geometry. The input *states* must
-   be a structured :external:py:class:`numpy.ndarray` as returned by the
-   :py:func:`states <states>` function. The function returns a
+   be a structured :external:py:class:`numpy.ndarray` containing the
+   :python:`"position"` field, e.g. as returned by the :py:func:`states
+   <states>` function. Upon completion, the function returns a
    :external:py:class:`numpy.ndarray` of sector indices.
 
 .. py:method:: ExternalGeometry.material_index(name) -> int
@@ -97,10 +98,11 @@ Methods
 .. py:method:: ExternalGeometry.trace(states, lengths=None, density=None) -> numpy.ndarray
 
    Casts rays through the geometry, starting from the specified *states*. The
-   *states* must be a structured :external:py:class:`numpy.ndarray` as returned
-   by the :py:func:`states <states>` function. This function returns a
-   :external:py:class:`numpy.ndarray` containing the path length of rays in each
-   geometry sector. Optionally, you can provide a *lengths*
+   *states* must be a structured :external:py:class:`numpy.ndarray` containing
+   the :python:`"position"` and :python:`"direction"` fields, e.g. as returned
+   by the :py:func:`states <states>` function. Upon completion, this function
+   returns a :external:py:class:`numpy.ndarray` containing the path length of
+   rays in each geometry sector. Optionally, you can provide a *lengths*
    :external:py:class:`numpy.ndarray` of floats, or a single float, indicating
    the lengths of rays. If no *lengths* are specified, rays are traced until the
    geometry outer boundary.

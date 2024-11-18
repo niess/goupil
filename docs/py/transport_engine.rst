@@ -109,8 +109,11 @@ Methods
 
    If the *random_index* parameter is set to :python:`True`, the
    :py:meth:`transport <transport>` method will also return an array containing
-   the index of the random stream at the start of each Monte Carlo event. This
-   can be used, for example, for the re-playing the event.
+   the index of the :py:attr:`random` stream at the start of each Monte Carlo
+   event. Alternatively, an array of random indices (of the same size as
+   *states*) can be provided to set the :py:attr:`random` stream state for each
+   event. This option is typically used to replay previously simulated Monte
+   Carlo events (e.g. with additional *vertices* data).
 
    Similarly, if *vertices* is set to :python:`True`, the :py:meth:`transport
    <transport>` method will also return an array containing the intermediate
