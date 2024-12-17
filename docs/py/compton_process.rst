@@ -81,14 +81,14 @@ Attributes
           rest.
 
       * - :python:`"Penelope"`
-        - The Penelope model [Baro95]_ is used, where the Impulse Approximation
+        - The Penelope model [BSFS95]_ is used, where the Impulse Approximation
           (IA) accounts for the momentum distribution of the bound electrons.
 
       * - :python:`"Scattering Function"`
-        - Effective model based on the Penelope scattering function [Baro95]_.
+        - Effective model based on the Penelope scattering function [BSFS95]_.
 
    The effective model, based on Penelope's Compton scattering function
-   [Baro95]_, is used by default.
+   [BSFS95]_, is used by default.
 
 
 .. py:attribute:: ComptonProcess.precision

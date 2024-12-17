@@ -4,7 +4,7 @@
 ==================
 
 This class provides access to the implementation of the Rayleigh scattering
-process, as detailed in [Baro95]_.
+process, as detailed in [BSFS95]_.
 
 .. warning::
 

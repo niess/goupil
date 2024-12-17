@@ -116,7 +116,7 @@ Methods
 .. note::
 
    The `Turtle <https://niess.github.io/turtle-pages/>`_ algorithm is used to
-   perform ray tracing. For more information, refer to [Niess20]_.
+   perform ray tracing. For more information, refer to [NBCM20]_.
 
 .. py:method:: StratifiedGeometry.z(x, y, grid=None) -> numpy.ndarray
 

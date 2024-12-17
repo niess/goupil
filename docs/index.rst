@@ -8,7 +8,7 @@ Goupil is a Monte Carlo transport engine designed for low-energy gamma-rays
 transport algorithm, and making a few approximations, Goupil can significantly
 accelerate Monte Carlo simulations, resulting in computation time savings of up
 to 5 orders of magnitude in the air. For an academic description of Goupil, or
-for citing Goupil, please refer to [Niess24]_.
+for citing Goupil, please refer to [NVT24]_.
 
 
 Documentation
