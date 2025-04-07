@@ -1,0 +1,32 @@
+[Environment]
+sphere = 1E+05 # cm
+material = "G4_WATER"
+
+[Environment.Source]
+sphere = 1.0E+02 # cm
+material = "G4_WATER"
+
+[Environment.Source.Detector]
+cylinder = { length = 8.9, radius = 4.16 } # cm
+material = "G4_Al"
+
+[Environment.Source.Detector.Pad]
+cylinder = { length = 0.2, radius = 4.0 } # cm
+position = [ 0.0, 0.0, 4.2 ]
+material = "G4_SILICON_DIOXIDE"
+
+[Environment.Source.Detector.Reflector]
+cylinder = { length = 7.9, radius = 4.0 } # cm
+position = [ 0.0, 0.0, 0.15 ]
+material = "G4_ALUMINUM_OXIDE"
+
+[Environment.Source.Detector.Reflector.Scintillator]
+cylinder = { length = 7.6, radius = 3.8 } # cm
+position = [ 0.0, 0.0, -0.15 ]
+material = "G4_SODIUM_IODIDE"
+role = "record_deposits"
+
+[Environment.Source.Photomultiplier]
+cylinder = { length = 2.35, radius = 4.16 } # cm
+position = [ 0.0, 0.0, -5.625 ]
+material = "G4_Al"
