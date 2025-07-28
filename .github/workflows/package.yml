@@ -54,6 +54,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm, macos-13, macos-14, windows-2022, windows-11-arm]
+        include:
+          - markers: "not requires_calzone"
+          - markers: "not requires_calzone and not requires_matplotlib"
+            os: windows-11-arm
+
     if: ${{ inputs.wheel }}
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +81,23 @@ jobs:
 
       - name: Build wheel
         uses: pypa/cibuildwheel@v2.23.3  # 2.23.3: supports Python 3.7.
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '>=3.7'
+
+      - name: Test wheel
+        shell: bash
+        run: |
+          echo "Using $(which python)"
+          mkdir test-${{ matrix.tag }} && cd test-${{ matrix.tag }}
+          export PYTHONPATH="$PWD/packages"
+
+          python -s -m pip install ../wheelhouse/*.whl --target=packages
+          python -s -m pip install pytest --target=packages
+          [[ "${{ matrix.os }}" == "windows-11-arm" ]] || \
+              python -s -m pip install matplotlib --target=packages
+          python -s -m pytest --doctest-glob="*.rst" -v -m "${{ matrix.markers }}" ../tests ../docs
 
       - uses: actions/upload-artifact@v4
         with:

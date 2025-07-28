@@ -30,7 +30,7 @@ use super::{
     macros::{type_error, value_error},
     materials::PyMaterialRegistry,
     namespace::Namespace,
-    numpy::{ArrayOrFloat, PyArray, PyArrayMethods, PyScalar},
+    numpy::{ArrayOrFloat, PyArray, PyArrayMethods},
     rand::PyRandomStream,
     states::States,
     prefix,
@@ -842,8 +842,7 @@ impl PyTransportStatus {
 impl PyTransportStatus {
     fn into_i32(py: Python, status: TransportStatus) -> Result<PyObject> {
         let value: i32 = status.into();
-        let scalar = PyScalar::new(py, value)?;
-        Ok(scalar.into_py(py))
+        Ok(value.into_py(py))
     }
 }
 

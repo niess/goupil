@@ -126,7 +126,7 @@ type PyMoleComposition<'py> = Vec<(Float, Element<'py>)>;
 #[pymethods]
 impl PyMaterialDefinition {
     #[new]
-    #[pyo3(signature = (name=None, /, *, mass_composition=None, mole_composition=None))]
+    #[pyo3(signature = (name=None, *, mass_composition=None, mole_composition=None))]
     fn new(
         name: Option<&str>,
         mass_composition: Option<PyMassComposition>,

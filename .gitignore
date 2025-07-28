@@ -4,6 +4,7 @@
 /dist
 /src/python/goupil/data
 /target
+/examples/mixed/data
 /wheelhouse
 *.egg-info
 *.pyc

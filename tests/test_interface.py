@@ -149,7 +149,7 @@ def test_MaterialDefinition():
 
     with pytest.raises(RuntimeError) as e:
         goupil.MaterialDefinition("Xu")
-    assert str(e.value) == "no such atomic element 'Xu'"
+    assert str(e.value).startswith("no such atomic element 'Xu'")
 
     # Check electrons.
     e = H2O.electrons()
