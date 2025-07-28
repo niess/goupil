@@ -5,7 +5,7 @@ use crate::physics::elements::AtomicElement;
 use crate::physics::materials::{MaterialDefinition, WeightedElement};
 use crate::transport::density::DensityModel;
 use libloading::Library;
-use std::ffi::{c_int, CStr, OsStr};
+use std::ffi::{c_char, c_int, CStr, OsStr};
 use std::fmt::Display;
 use super::{GeometryDefinition, GeometrySector, GeometryTracer};
 
@@ -314,7 +314,7 @@ impl From<Float3> for CFloat3 {
 struct CSector {
     material: usize,
     density: Float,
-    description: *const i8,
+    description: *const c_char,
 }
 
 impl TryInto<GeometrySector> for CSector {
@@ -349,7 +349,7 @@ impl TryInto<GeometrySector> for CSector {
 struct CMaterial {
     composition_len: Option<extern "C" fn(*const CMaterial) -> usize>,
     get_composition: Option<extern "C" fn(*const CMaterial, usize) -> CElement>,
-    name: Option<extern "C" fn(*const CMaterial) -> *const i8>,
+    name: Option<extern "C" fn(*const CMaterial) -> *const c_char>,
 }
 
 impl TryInto<MaterialDefinition> for &CMaterial {
