@@ -18,6 +18,9 @@ on:
         type: boolean
         default: false
 
+env:
+  MACOSX_DEPLOYMENT_TARGET: '11.0'
+
 jobs:
   build_sdist:
     name: Build sdist
@@ -50,13 +53,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macOS-12]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-13, macos-14, windows-2022, windows-11-arm]
     if: ${{ inputs.wheel }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Download atomic data
-        uses: robinraju/release-downloader@v1.9
+        uses: robinraju/release-downloader@v1
         with:
           tag: "data"
           fileName: "data.tar.gz"
@@ -64,10 +67,15 @@ jobs:
           extract: true
 
       - name: Remove downloaded archive
+        shell: bash
         run: rm src/python/goupil/data.tar.gz
 
+      - name: Install Rust toolchain (Windows-11/arm64)
+        if: ${{ matrix.os == 'windows-11-arm' }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Build wheel
-        uses: pypa/cibuildwheel@v2.16
+        uses: pypa/cibuildwheel@v2.23.3  # 2.23.3: supports Python 3.7.
 
       - uses: actions/upload-artifact@v4
         with:
