@@ -125,7 +125,6 @@ class Runner:
             dt = chrono.duration
             log(f"collected {deposits.size} deposits in {dt:.1f} s")
 
-            # Run the backward simulation.
             index = deposits["event"]
             deposits = deposits["value"]
             primaries = primaries[index]
