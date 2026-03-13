@@ -361,6 +361,7 @@ static goupil_float_t tracer_trace(
         safety
     );
     goupil_float_t step = (goupil_float_t)(s / CLHEP::cm);
+    if (step <= 0.0) step = FLT_EPSILON;
     tracer->stepLength = step;
     tracer->stepSafety = (goupil_float_t)(safety / CLHEP::cm);
 
