@@ -395,6 +395,14 @@ where
             state.position = self.tracer.position();
             state.length += length;
 
+            // In some (very rare) cases the last backward Compton collision might coincide with a
+            // geometry interface. Let us discard such collisions, for consistency.
+            if let SteppingStatus::Stop(TransportStatus::EnergyConstraint) = status {
+                if self.tracer.sector() != Some(properties.index) {
+                    status = SteppingStatus::Last;
+                }
+            }
+
             // Check for any termination condition. Else, update the physical properties of the
             // local geometry.
             if status.is_stop() {

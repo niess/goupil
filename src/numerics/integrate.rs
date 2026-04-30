@@ -14,6 +14,7 @@ pub trait Substitution {
 
 
 // No substitution.
+#[allow(unused)]
 pub struct NoSubstitution;
 
 impl Substitution for NoSubstitution {

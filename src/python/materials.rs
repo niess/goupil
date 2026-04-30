@@ -109,7 +109,7 @@ impl<'py> Material<'py> {
         Ok(material)
     }
 
-    fn weight(&self, value: Float) -> Result<(Float, Cow<MaterialDefinition>)> {
+    fn weight<'a>(&'a self, value: Float) -> Result<(Float, Cow<'a, MaterialDefinition>)> {
         let material = self.get()?;
         Ok((value, material))
     }
@@ -291,7 +291,10 @@ impl<'py> MaterialLike<'py> {
         Ok(result)
     }
 
-    pub fn absorption_cross_section(&self, py: Python) -> Result<Cow<AbsorptionCrossSection>> {
+    pub fn absorption_cross_section<'a>(
+        &'a self,
+        py: Python,
+    ) -> Result<Cow<'a, AbsorptionCrossSection>> {
         // Fetch reference to any computed table.
         if let Self::Record(record) = self {
             let py = record.py();
@@ -318,7 +321,10 @@ impl<'py> MaterialLike<'py> {
         Ok(Cow::Owned(table))
     }
 
-    pub fn rayleigh_cross_section(&self, py: Python) -> Result<Cow<RayleighCrossSection>> {
+    pub fn rayleigh_cross_section<'a>(
+        &'a self,
+        py: Python,
+    ) -> Result<Cow<'a, RayleighCrossSection>> {
         // Fetch reference to any computed table.
         if let Self::Record(record) = self {
             let py = record.py();
@@ -345,7 +351,7 @@ impl<'py> MaterialLike<'py> {
         Ok(Cow::Owned(table))
     }
 
-    pub fn rayleigh_form_factor(&self, py: Python) -> Result<Cow<RayleighFormFactor>> {
+    pub fn rayleigh_form_factor<'a>(&'a self, py: Python) -> Result<Cow<'a, RayleighFormFactor>> {
         // Fetch reference to any computed table.
         if let Self::Record(record) = self {
             let py = record.py();
@@ -372,7 +378,7 @@ impl<'py> MaterialLike<'py> {
         Ok(Cow::Owned(table))
     }
 
-    pub fn unpack(&self) -> Result<Cow<MaterialDefinition>> {
+    pub fn unpack<'a>(&'a self) -> Result<Cow<'a, MaterialDefinition>> {
         let result = match self {
             Self::Definition(definition) => Cow::Borrowed(&definition.0),
             Self::Formula(formula) => {
